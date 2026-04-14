@@ -10,6 +10,8 @@ contract TreasuryAccount {
     event BorrowRecorded(uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when the trusted borrow adapter is updated.
     event BorrowAdapterUpdated(address indexed borrowAdapter);
+    /// @notice Emitted when the trusted allocation adapter is updated.
+    event AllocationAdapterUpdated(address indexed allocationAdapter);
 
     /// @notice Emitted when idle MUSD is allocated to an approved destination.
     event AllocationExecuted(
@@ -24,11 +26,13 @@ contract TreasuryAccount {
     error InvalidPolicyEngine(address policyEngine);
     error InvalidTreasuryAdmin(address treasuryAdmin);
     error InvalidBorrowAdapter(address borrowAdapter);
+    error InvalidAllocationAdapter(address allocationAdapter);
     error UnauthorizedCaller(address caller);
 
     address public immutable treasuryAdmin;
     ITreasuryPolicyEngine public immutable policyEngine;
     address public borrowAdapter;
+    address public allocationAdapter;
 
     uint256 public idleMUSD;
     mapping(address destination => uint256 amount) public destinationAllocations;
@@ -88,6 +92,25 @@ contract TreasuryAccount {
         emit AllocationExecuted(_destination, _amount, idleMUSD, destinationAllocations[_destination]);
     }
 
+    /// @notice Allocates idle MUSD through the configured allocation adapter on behalf of a treasury actor.
+    /// @param _actor Treasury actor on whose behalf the allocation is being performed.
+    /// @param _destination Destination receiving funds.
+    /// @param _amount Amount being allocated.
+    function allocateFromAdapter(address _actor, address _destination, uint256 _amount) external {
+        if (msg.sender != allocationAdapter) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+
+        uint256 currentAllocation = destinationAllocations[_destination];
+
+        policyEngine.validateAllocate(address(this), _actor, _destination, _amount, idleMUSD, currentAllocation);
+
+        idleMUSD -= _amount;
+        destinationAllocations[_destination] = currentAllocation + _amount;
+
+        emit AllocationExecuted(_destination, _amount, idleMUSD, destinationAllocations[_destination]);
+    }
+
     /// @notice Withdraws previously allocated MUSD back into the idle treasury balance.
     /// @param _destination Destination being withdrawn from.
     /// @param _amount Amount being withdrawn.
@@ -95,6 +118,25 @@ contract TreasuryAccount {
         uint256 currentAllocation = destinationAllocations[_destination];
 
         policyEngine.validateWithdraw(address(this), msg.sender, _destination, _amount, currentAllocation);
+
+        destinationAllocations[_destination] = currentAllocation - _amount;
+        idleMUSD += _amount;
+
+        emit WithdrawalExecuted(_destination, _amount, idleMUSD, destinationAllocations[_destination]);
+    }
+
+    /// @notice Withdraws previously allocated MUSD through the configured allocation adapter.
+    /// @param _actor Treasury actor on whose behalf the withdrawal is being performed.
+    /// @param _destination Destination being withdrawn from.
+    /// @param _amount Amount being withdrawn.
+    function withdrawFromAdapter(address _actor, address _destination, uint256 _amount) external {
+        if (msg.sender != allocationAdapter) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+
+        uint256 currentAllocation = destinationAllocations[_destination];
+
+        policyEngine.validateWithdraw(address(this), _actor, _destination, _amount, currentAllocation);
 
         destinationAllocations[_destination] = currentAllocation - _amount;
         idleMUSD += _amount;
@@ -125,5 +167,19 @@ contract TreasuryAccount {
 
         borrowAdapter = _borrowAdapter;
         emit BorrowAdapterUpdated(_borrowAdapter);
+    }
+
+    /// @notice Sets the trusted allocation adapter for routed deployment and withdrawal flows.
+    /// @param _allocationAdapter Allocation adapter allowed to mutate treasury allocation state.
+    function setAllocationAdapter(address _allocationAdapter) external {
+        if (msg.sender != treasuryAdmin) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+        if (_allocationAdapter == address(0)) {
+            revert InvalidAllocationAdapter(_allocationAdapter);
+        }
+
+        allocationAdapter = _allocationAdapter;
+        emit AllocationAdapterUpdated(_allocationAdapter);
     }
 }
