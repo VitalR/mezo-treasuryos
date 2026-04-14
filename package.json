@@ -1,0 +1,10 @@
+{
+  "name": "mezo-treasuryos",
+  "private": true,
+  "packageManager": "pnpm@10",
+  "scripts": {
+    "contracts:build": "forge build --root contracts",
+    "contracts:test": "forge test --root contracts",
+    "contracts:fmt": "forge fmt --root contracts"
+  }
+}
