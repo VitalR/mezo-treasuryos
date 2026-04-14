@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {ITreasuryPolicyEngine} from "../interfaces/ITreasuryPolicyEngine.sol";
+import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 
 /// @title TreasuryPolicyEngine
 /// @notice Enforces TreasuryOS internal controls for Treasury Account actions.
@@ -55,12 +55,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
 
     /// @inheritdoc ITreasuryPolicyEngine
     function setFactory(address _factory) external {
-        if (_factory == address(0)) {
-            revert InvalidActor(_factory);
-        }
-        if (factory != address(0)) {
-            revert FactoryAlreadySet(factory);
-        }
+        require(_factory != address(0), InvalidActor(_factory));
+        require(factory == address(0), FactoryAlreadySet(factory));
 
         factory = _factory;
     }
@@ -69,32 +65,19 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     function initializeAccount(address _account, address _treasuryAdmin, AccountPolicyConfig calldata _config)
         external
     {
-        if (msg.sender != factory) {
-            revert UnauthorizedActor(_account, msg.sender);
-        }
-        if (_account == address(0)) {
-            revert InvalidAccount(_account);
-        }
-        if (_treasuryAdmin == address(0)) {
-            revert InvalidActor(_treasuryAdmin);
-        }
-        if (_config.operator == address(0)) {
-            revert InvalidActor(_config.operator);
-        }
-        if (_config.approver == address(0)) {
-            revert InvalidActor(_config.approver);
-        }
-        if (_config.operator == _config.approver) {
-            revert InvalidRoleConfiguration();
-        }
-        if (_config.approvedDestinations.length != _config.destinationCaps.length) {
-            revert InvalidDestinationConfigLength(_config.approvedDestinations.length, _config.destinationCaps.length);
-        }
+        require(msg.sender == factory, UnauthorizedActor(_account, msg.sender));
+        require(_account != address(0), InvalidAccount(_account));
+        require(_treasuryAdmin != address(0), InvalidActor(_treasuryAdmin));
+        require(_config.operator != address(0), InvalidActor(_config.operator));
+        require(_config.approver != address(0), InvalidActor(_config.approver));
+        require(_config.operator != _config.approver, InvalidRoleConfiguration());
+        require(
+            _config.approvedDestinations.length == _config.destinationCaps.length,
+            InvalidDestinationConfigLength(_config.approvedDestinations.length, _config.destinationCaps.length)
+        );
 
         AccountPolicy storage policy = accountPolicies[_account];
-        if (policy.initialized) {
-            revert AccountAlreadyInitialized(_account);
-        }
+        require(!policy.initialized, AccountAlreadyInitialized(_account));
 
         policy.treasuryAdmin = _treasuryAdmin;
         policy.operator = _config.operator;
@@ -108,9 +91,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         uint256 destinationCount = _config.approvedDestinations.length;
         for (uint256 i = 0; i < destinationCount; ++i) {
             address destination = _config.approvedDestinations[i];
-            if (destination == address(0)) {
-                revert InvalidDestination(destination);
-            }
+            require(destination != address(0), InvalidDestination(destination));
 
             approvedDestinations[_account][destination] = true;
             destinationCaps[_account][destination] = _config.destinationCaps[i];
@@ -132,12 +113,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     function validateBorrow(address _account, address _actor, uint256 _amount, uint256) external view {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
-        if (policy.paused) {
-            revert PolicyPaused(_account);
-        }
-        if (_amount == 0) {
-            revert InvalidAmount(_amount);
-        }
+        require(!policy.paused, PolicyPaused(_account));
+        require(_amount > 0, InvalidAmount(_amount));
 
         _requireBorrowAuthority(policy, _actor, _amount);
     }
@@ -153,18 +130,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     ) external view {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
-        if (policy.paused) {
-            revert PolicyPaused(_account);
-        }
-        if (_amount == 0) {
-            revert InvalidAmount(_amount);
-        }
-        if (_destination == address(0)) {
-            revert InvalidDestination(_destination);
-        }
-        if (!approvedDestinations[_account][_destination]) {
-            revert NotApprovedDestination(_destination);
-        }
+        require(!policy.paused, PolicyPaused(_account));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(_destination != address(0), InvalidDestination(_destination));
+        require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
 
         _requireMovementAuthority(policy, _actor, _amount);
 
@@ -190,18 +159,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     ) external view {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
-        if (policy.paused) {
-            revert PolicyPaused(_account);
-        }
-        if (_amount == 0) {
-            revert InvalidAmount(_amount);
-        }
-        if (_destination == address(0)) {
-            revert InvalidDestination(_destination);
-        }
-        if (_currentAllocation < _amount) {
-            revert InsufficientAllocation(_destination, _amount, _currentAllocation);
-        }
+        require(!policy.paused, PolicyPaused(_account));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(_destination != address(0), InvalidDestination(_destination));
+        require(_currentAllocation >= _amount, InsufficientAllocation(_destination, _amount, _currentAllocation));
 
         _requireMovementAuthority(policy, _actor, _amount);
     }
@@ -209,9 +170,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @inheritdoc ITreasuryPolicyEngine
     function setPause(address _account, bool _paused) external {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
-        if (msg.sender != _account && msg.sender != policy.approver && msg.sender != policy.treasuryAdmin) {
-            revert UnauthorizedActor(_account, msg.sender);
-        }
+        require(
+            msg.sender == _account || msg.sender == policy.approver || msg.sender == policy.treasuryAdmin,
+            UnauthorizedActor(_account, msg.sender)
+        );
 
         policy.paused = _paused;
         emit PauseUpdated(_account, _paused);
@@ -258,9 +220,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
 
     function _requireInitializedAccount(address _account) private view returns (AccountPolicy storage policy) {
         policy = accountPolicies[_account];
-        if (!policy.initialized) {
-            revert InvalidAccount(_account);
-        }
+        require(policy.initialized, InvalidAccount(_account));
     }
 
     function _requireBorrowAuthority(AccountPolicy storage _policy, address _actor, uint256 _amount) private view {
@@ -268,12 +228,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
             return;
         }
 
-        if (_actor != _policy.operator) {
-            revert UnauthorizedActor(address(0), _actor);
-        }
-        if (_amount > _policy.approvalThreshold) {
-            revert ApprovalRequired(_actor, _amount, _policy.approvalThreshold);
-        }
+        require(_actor == _policy.operator, UnauthorizedActor(address(0), _actor));
+        require(_amount <= _policy.approvalThreshold, ApprovalRequired(_actor, _amount, _policy.approvalThreshold));
     }
 
     function _requireMovementAuthority(AccountPolicy storage _policy, address _actor, uint256 _amount) private view {
@@ -281,11 +237,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
             return;
         }
 
-        if (_actor != _policy.operator) {
-            revert UnauthorizedActor(address(0), _actor);
-        }
-        if (_amount > _policy.approvalThreshold) {
-            revert ApprovalRequired(_actor, _amount, _policy.approvalThreshold);
-        }
+        require(_actor == _policy.operator, UnauthorizedActor(address(0), _actor));
+        require(_amount <= _policy.approvalThreshold, ApprovalRequired(_actor, _amount, _policy.approvalThreshold));
     }
 }

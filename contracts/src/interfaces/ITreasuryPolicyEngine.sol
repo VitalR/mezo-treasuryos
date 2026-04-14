@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
 /// @title ITreasuryPolicyEngine
 /// @notice Defines the TreasuryOS internal policy checks used by Treasury Accounts.

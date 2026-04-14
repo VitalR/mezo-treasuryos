@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {TreasuryAccount} from "./TreasuryAccount.sol";
-import {ITreasuryPolicyEngine} from "../interfaces/ITreasuryPolicyEngine.sol";
+import { TreasuryAccount } from "./TreasuryAccount.sol";
+import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 
 /// @title TreasuryAccountFactory
 /// @notice Deploys and initializes client-isolated Treasury Accounts.
@@ -19,9 +19,7 @@ contract TreasuryAccountFactory {
 
     /// @param _policyEngine Policy engine used for Treasury Account initialization.
     constructor(ITreasuryPolicyEngine _policyEngine) {
-        if (address(_policyEngine) == address(0)) {
-            revert InvalidPolicyEngine(address(_policyEngine));
-        }
+        require(address(_policyEngine) != address(0), InvalidPolicyEngine(address(_policyEngine)));
         policyEngine = _policyEngine;
         _policyEngine.setFactory(address(this));
     }
@@ -34,9 +32,7 @@ contract TreasuryAccountFactory {
         external
         returns (address treasuryAccount)
     {
-        if (_treasuryAdmin == address(0)) {
-            revert InvalidTreasuryAdmin(_treasuryAdmin);
-        }
+        require(_treasuryAdmin != address(0), InvalidTreasuryAdmin(_treasuryAdmin));
 
         TreasuryAccount account = new TreasuryAccount(_treasuryAdmin, policyEngine);
         treasuryAccount = address(account);

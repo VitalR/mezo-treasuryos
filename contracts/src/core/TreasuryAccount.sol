@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {ITreasuryPolicyEngine} from "../interfaces/ITreasuryPolicyEngine.sol";
+import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 
 /// @title TreasuryAccount
 /// @notice Client-isolated treasury operating boundary for borrowed and allocated MUSD.
@@ -40,12 +40,8 @@ contract TreasuryAccount {
     /// @param _treasuryAdmin Treasury administrator for the account.
     /// @param _policyEngine Policy engine enforcing TreasuryOS internal controls.
     constructor(address _treasuryAdmin, ITreasuryPolicyEngine _policyEngine) {
-        if (_treasuryAdmin == address(0)) {
-            revert InvalidTreasuryAdmin(_treasuryAdmin);
-        }
-        if (address(_policyEngine) == address(0)) {
-            revert InvalidPolicyEngine(address(_policyEngine));
-        }
+        require(_treasuryAdmin != address(0), InvalidTreasuryAdmin(_treasuryAdmin));
+        require(address(_policyEngine) != address(0), InvalidPolicyEngine(address(_policyEngine)));
 
         treasuryAdmin = _treasuryAdmin;
         policyEngine = _policyEngine;
@@ -54,9 +50,7 @@ contract TreasuryAccount {
     /// @notice Records a borrow flow into the treasury idle balance.
     /// @param _amount Amount of borrowed MUSD entering the treasury.
     function recordBorrow(uint256 _amount) external {
-        if (msg.sender != treasuryAdmin) {
-            revert UnauthorizedCaller(msg.sender);
-        }
+        require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
 
         policyEngine.validateBorrow(address(this), msg.sender, _amount, idleMUSD);
 
@@ -68,9 +62,7 @@ contract TreasuryAccount {
     /// @param _actor Treasury actor on whose behalf the borrow is being originated.
     /// @param _amount Amount of borrowed MUSD entering the treasury.
     function recordBorrowFromAdapter(address _actor, uint256 _amount) external {
-        if (msg.sender != borrowAdapter) {
-            revert UnauthorizedCaller(msg.sender);
-        }
+        require(msg.sender == borrowAdapter, UnauthorizedCaller(msg.sender));
 
         policyEngine.validateBorrow(address(this), _actor, _amount, idleMUSD);
 
@@ -97,9 +89,7 @@ contract TreasuryAccount {
     /// @param _destination Destination receiving funds.
     /// @param _amount Amount being allocated.
     function allocateFromAdapter(address _actor, address _destination, uint256 _amount) external {
-        if (msg.sender != allocationAdapter) {
-            revert UnauthorizedCaller(msg.sender);
-        }
+        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
 
         uint256 currentAllocation = destinationAllocations[_destination];
 
@@ -130,9 +120,7 @@ contract TreasuryAccount {
     /// @param _destination Destination being withdrawn from.
     /// @param _amount Amount being withdrawn.
     function withdrawFromAdapter(address _actor, address _destination, uint256 _amount) external {
-        if (msg.sender != allocationAdapter) {
-            revert UnauthorizedCaller(msg.sender);
-        }
+        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
 
         uint256 currentAllocation = destinationAllocations[_destination];
 
@@ -148,9 +136,7 @@ contract TreasuryAccount {
     /// @param _paused New paused state.
     function setPause(bool _paused) external {
         (,, address approver,,,,,) = policyEngine.getAccountPolicy(address(this));
-        if (msg.sender != treasuryAdmin && msg.sender != approver) {
-            revert UnauthorizedCaller(msg.sender);
-        }
+        require(msg.sender == treasuryAdmin || msg.sender == approver, UnauthorizedCaller(msg.sender));
 
         policyEngine.setPause(address(this), _paused);
     }
@@ -158,12 +144,8 @@ contract TreasuryAccount {
     /// @notice Sets the trusted borrow adapter for TreasuryOS-originated Mezo borrow flows.
     /// @param _borrowAdapter Borrow adapter allowed to record borrowed MUSD on behalf of treasury actors.
     function setBorrowAdapter(address _borrowAdapter) external {
-        if (msg.sender != treasuryAdmin) {
-            revert UnauthorizedCaller(msg.sender);
-        }
-        if (_borrowAdapter == address(0)) {
-            revert InvalidBorrowAdapter(_borrowAdapter);
-        }
+        require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
+        require(_borrowAdapter != address(0), InvalidBorrowAdapter(_borrowAdapter));
 
         borrowAdapter = _borrowAdapter;
         emit BorrowAdapterUpdated(_borrowAdapter);
@@ -172,12 +154,8 @@ contract TreasuryAccount {
     /// @notice Sets the trusted allocation adapter for routed deployment and withdrawal flows.
     /// @param _allocationAdapter Allocation adapter allowed to mutate treasury allocation state.
     function setAllocationAdapter(address _allocationAdapter) external {
-        if (msg.sender != treasuryAdmin) {
-            revert UnauthorizedCaller(msg.sender);
-        }
-        if (_allocationAdapter == address(0)) {
-            revert InvalidAllocationAdapter(_allocationAdapter);
-        }
+        require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
+        require(_allocationAdapter != address(0), InvalidAllocationAdapter(_allocationAdapter));
 
         allocationAdapter = _allocationAdapter;
         emit AllocationAdapterUpdated(_allocationAdapter);

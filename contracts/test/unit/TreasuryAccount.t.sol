@@ -1,181 +1,181 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {Test} from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
-import {TreasuryAccount} from "../../src/core/TreasuryAccount.sol";
-import {TreasuryAccountFactory} from "../../src/core/TreasuryAccountFactory.sol";
-import {TreasuryPolicyEngine} from "../../src/core/TreasuryPolicyEngine.sol";
-import {ITreasuryPolicyEngine} from "../../src/interfaces/ITreasuryPolicyEngine.sol";
+import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
+import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
+import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
+import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
 
 contract TreasuryAccountTest is Test {
-    address internal constant TREASURY_ADMIN = address(0xA11CE);
-    address internal constant OPERATOR = address(0xB0B);
-    address internal constant APPROVER = address(0xCAFE);
-    address internal constant SAVINGS_VAULT = address(0xD00D);
-    address internal constant SECOND_DESTINATION = address(0xE11E);
+    address internal constant _TREASURY_ADMIN = address(0xA11CE);
+    address internal constant _OPERATOR = address(0xB0B);
+    address internal constant _APPROVER = address(0xCAFE);
+    address internal constant _SAVINGS_VAULT = address(0xD00D);
+    address internal constant _SECOND_DESTINATION = address(0xE11E);
 
-    TreasuryPolicyEngine internal policyEngine;
-    TreasuryAccountFactory internal factory;
+    TreasuryPolicyEngine internal _policyEngine;
+    TreasuryAccountFactory internal _factory;
 
-    function setUp() external {
-        policyEngine = new TreasuryPolicyEngine();
-        factory = new TreasuryAccountFactory(policyEngine);
+    function setUp() public {
+        _policyEngine = new TreasuryPolicyEngine();
+        _factory = new TreasuryAccountFactory(_policyEngine);
     }
 
-    function testDeployTreasuryAccountInitializesPolicyState() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_DeployTreasuryAccount_InitializesPolicyState() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
         (
-            address treasuryAdmin,
-            address operator,
-            address approver,
-            uint256 liquidityBuffer,
-            uint256 approvalThreshold,
-            bool automationEnabled,
-            bool paused,
-            bool initialized
-        ) = policyEngine.getAccountPolicy(address(account));
+            address _treasuryAdmin,
+            address _operator,
+            address _approver,
+            uint256 _liquidityBuffer,
+            uint256 _approvalThreshold,
+            bool _automationEnabled,
+            bool _paused,
+            bool _initialized
+        ) = _policyEngine.getAccountPolicy(address(_account));
 
-        assertEq(account.treasuryAdmin(), TREASURY_ADMIN);
-        assertEq(address(account.policyEngine()), address(policyEngine));
-        assertEq(treasuryAdmin, TREASURY_ADMIN);
-        assertEq(operator, OPERATOR);
-        assertEq(approver, APPROVER);
-        assertEq(liquidityBuffer, 200 ether);
-        assertEq(approvalThreshold, 100 ether);
-        assertTrue(automationEnabled);
-        assertFalse(paused);
-        assertTrue(initialized);
-        assertTrue(policyEngine.isDestinationApproved(address(account), SAVINGS_VAULT));
-        assertEq(policyEngine.allocationCap(address(account), SAVINGS_VAULT), 500 ether);
+        assertEq(_account.treasuryAdmin(), _TREASURY_ADMIN);
+        assertEq(address(_account.policyEngine()), address(_policyEngine));
+        assertEq(_treasuryAdmin, _TREASURY_ADMIN);
+        assertEq(_operator, _OPERATOR);
+        assertEq(_approver, _APPROVER);
+        assertEq(_liquidityBuffer, 200 ether);
+        assertEq(_approvalThreshold, 100 ether);
+        assertTrue(_automationEnabled);
+        assertFalse(_paused);
+        assertTrue(_initialized);
+        assertTrue(_policyEngine.isDestinationApproved(address(_account), _SAVINGS_VAULT));
+        assertEq(_policyEngine.allocationCap(address(_account), _SAVINGS_VAULT), 500 ether);
     }
 
-    function testOperatorCanAllocateWithinThresholdAndBuffer() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_Allocate_OperatorCanAllocateWithinThresholdAndBuffer() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(600 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(600 ether);
 
         vm.expectEmit(true, false, false, true);
-        emit TreasuryAccount.AllocationExecuted(SAVINGS_VAULT, 100 ether, 500 ether, 100 ether);
+        emit TreasuryAccount.AllocationExecuted(_SAVINGS_VAULT, 100 ether, 500 ether, 100 ether);
 
-        vm.prank(OPERATOR);
-        account.allocate(SAVINGS_VAULT, 100 ether);
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 100 ether);
 
-        assertEq(account.idleMUSD(), 500 ether);
-        assertEq(account.destinationAllocations(SAVINGS_VAULT), 100 ether);
+        assertEq(_account.idleMUSD(), 500 ether);
+        assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 100 ether);
     }
 
-    function testOperatorCannotAllocateAboveApprovalThreshold() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_Allocate_OperatorCannotAllocateAboveApprovalThreshold() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(700 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(700 ether);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TreasuryPolicyEngine.ApprovalRequired.selector, OPERATOR, 150 ether, 100 ether)
+            abi.encodeWithSelector(TreasuryPolicyEngine.ApprovalRequired.selector, _OPERATOR, 150 ether, 100 ether)
         );
 
-        vm.prank(OPERATOR);
-        account.allocate(SAVINGS_VAULT, 150 ether);
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 150 ether);
     }
 
-    function testApproverCanAllocateAboveApprovalThreshold() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_Allocate_ApproverCanAllocateAboveApprovalThreshold() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(700 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(700 ether);
 
-        vm.prank(APPROVER);
-        account.allocate(SAVINGS_VAULT, 150 ether);
+        vm.prank(_APPROVER);
+        _account.allocate(_SAVINGS_VAULT, 150 ether);
 
-        assertEq(account.idleMUSD(), 550 ether);
-        assertEq(account.destinationAllocations(SAVINGS_VAULT), 150 ether);
+        assertEq(_account.idleMUSD(), 550 ether);
+        assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 150 ether);
     }
 
-    function testAllocateRevertsForUnapprovedDestination() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_Allocate_UnapprovedDestinationReverts() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(500 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(500 ether);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TreasuryPolicyEngine.NotApprovedDestination.selector, SECOND_DESTINATION)
+            abi.encodeWithSelector(TreasuryPolicyEngine.NotApprovedDestination.selector, _SECOND_DESTINATION)
         );
 
-        vm.prank(OPERATOR);
-        account.allocate(SECOND_DESTINATION, 50 ether);
+        vm.prank(_OPERATOR);
+        _account.allocate(_SECOND_DESTINATION, 50 ether);
     }
 
-    function testAllocateRevertsWhenLiquidityBufferWouldBeBreached() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_Allocate_LiquidityBufferBreachReverts() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(260 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(260 ether);
 
         vm.expectRevert(
             abi.encodeWithSelector(TreasuryPolicyEngine.LiquidityBufferBreached.selector, 160 ether, 200 ether)
         );
 
-        vm.prank(OPERATOR);
-        account.allocate(SAVINGS_VAULT, 100 ether);
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 100 ether);
     }
 
-    function testApproverCanPauseAndBlockFurtherAllocation() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_SetPause_ApproverCanPauseAndBlockFurtherAllocation() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(400 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(400 ether);
 
-        vm.prank(APPROVER);
-        account.setPause(true);
+        vm.prank(_APPROVER);
+        _account.setPause(true);
 
-        vm.expectRevert(abi.encodeWithSelector(TreasuryPolicyEngine.PolicyPaused.selector, address(account)));
+        vm.expectRevert(abi.encodeWithSelector(TreasuryPolicyEngine.PolicyPaused.selector, address(_account)));
 
-        vm.prank(OPERATOR);
-        account.allocate(SAVINGS_VAULT, 50 ether);
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 50 ether);
     }
 
-    function testWithdrawRestoresIdleBalance() external {
-        TreasuryAccount account = _deployTreasuryAccount(_defaultConfig());
+    function test_WithdrawFromDestination_RestoresIdleBalance() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
 
-        vm.prank(TREASURY_ADMIN);
-        account.recordBorrow(600 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _account.recordBorrow(600 ether);
 
-        vm.prank(OPERATOR);
-        account.allocate(SAVINGS_VAULT, 100 ether);
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 100 ether);
 
-        vm.prank(OPERATOR);
-        account.withdrawFromDestination(SAVINGS_VAULT, 40 ether);
+        vm.prank(_OPERATOR);
+        _account.withdrawFromDestination(_SAVINGS_VAULT, 40 ether);
 
-        assertEq(account.idleMUSD(), 540 ether);
-        assertEq(account.destinationAllocations(SAVINGS_VAULT), 60 ether);
+        assertEq(_account.idleMUSD(), 540 ether);
+        assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 60 ether);
     }
 
     function _deployTreasuryAccount(ITreasuryPolicyEngine.AccountPolicyConfig memory _config)
         internal
         returns (TreasuryAccount)
     {
-        return TreasuryAccount(factory.deployTreasuryAccount(TREASURY_ADMIN, _config));
+        return TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _config));
     }
 
     function _defaultConfig() internal pure returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {
-        address[] memory destinations = new address[](1);
-        destinations[0] = SAVINGS_VAULT;
+        address[] memory _destinations = new address[](1);
+        _destinations[0] = _SAVINGS_VAULT;
 
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 500 ether;
+        uint256[] memory _caps = new uint256[](1);
+        _caps[0] = 500 ether;
 
         config = ITreasuryPolicyEngine.AccountPolicyConfig({
-            operator: OPERATOR,
-            approver: APPROVER,
+            operator: _OPERATOR,
+            approver: _APPROVER,
             liquidityBuffer: 200 ether,
             approvalThreshold: 100 ether,
             automationEnabled: true,
             startPaused: false,
-            approvedDestinations: destinations,
-            destinationCaps: caps
+            approvedDestinations: _destinations,
+            destinationCaps: _caps
         });
     }
 }

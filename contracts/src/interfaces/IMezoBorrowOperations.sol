@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
 /// @title IMezoBorrowOperations
 /// @notice Minimal interface for Mezo-native BTC-backed borrow origination used by TreasuryOS.

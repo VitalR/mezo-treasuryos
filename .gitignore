@@ -85,6 +85,7 @@ lcov.info
 .agents/
 .codex/
 TASKS.md
+AGENTS.md
 
 # Custom files
 bin

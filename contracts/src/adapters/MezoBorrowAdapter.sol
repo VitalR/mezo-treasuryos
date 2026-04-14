@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {TreasuryAccount} from "../core/TreasuryAccount.sol";
-import {IMezoBorrowOperations} from "../interfaces/IMezoBorrowOperations.sol";
+import { TreasuryAccount } from "../core/TreasuryAccount.sol";
+import { IMezoBorrowOperations } from "../interfaces/IMezoBorrowOperations.sol";
 
 /// @title MezoBorrowAdapter
 /// @notice Wraps Mezo-native BTC-backed borrow origination for TreasuryOS Treasury Accounts.
@@ -25,9 +25,7 @@ contract MezoBorrowAdapter {
 
     /// @param _borrowOperations Mezo-native borrow operations contract used for origination.
     constructor(IMezoBorrowOperations _borrowOperations) {
-        if (address(_borrowOperations) == address(0)) {
-            revert InvalidBorrowOperations(address(_borrowOperations));
-        }
+        require(address(_borrowOperations) != address(0), InvalidBorrowOperations(address(_borrowOperations)));
 
         borrowOperations = _borrowOperations;
     }
@@ -41,15 +39,9 @@ contract MezoBorrowAdapter {
         external
         returns (uint256 positionId)
     {
-        if (address(_treasuryAccount) == address(0)) {
-            revert InvalidTreasuryAccount(address(_treasuryAccount));
-        }
-        if (_btcAmount == 0) {
-            revert InvalidCollateralAmount(_btcAmount);
-        }
-        if (_musdAmount == 0) {
-            revert InvalidBorrowAmount(_musdAmount);
-        }
+        require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
+        require(_btcAmount > 0, InvalidCollateralAmount(_btcAmount));
+        require(_musdAmount > 0, InvalidBorrowAmount(_musdAmount));
 
         positionId = borrowOperations.depositAndBorrow(
             address(_treasuryAccount), _btcAmount, _musdAmount, address(_treasuryAccount)

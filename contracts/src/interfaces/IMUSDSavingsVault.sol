@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
 /// @title IMUSDSavingsVault
 /// @notice Minimal interface for the Mezo-native MUSD savings destination used by TreasuryOS.

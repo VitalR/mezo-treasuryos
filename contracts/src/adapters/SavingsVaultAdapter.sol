@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {TreasuryAccount} from "../core/TreasuryAccount.sol";
-import {IMUSDSavingsVault} from "../interfaces/IMUSDSavingsVault.sol";
+import { TreasuryAccount } from "../core/TreasuryAccount.sol";
+import { IMUSDSavingsVault } from "../interfaces/IMUSDSavingsVault.sol";
 
 /// @title SavingsVaultAdapter
 /// @notice Routes governed MUSD allocation into the configured savings destination.
@@ -23,9 +23,7 @@ contract SavingsVaultAdapter {
 
     /// @param _savingsVault Savings destination used for governed allocation.
     constructor(IMUSDSavingsVault _savingsVault) {
-        if (address(_savingsVault) == address(0)) {
-            revert InvalidSavingsVault(address(_savingsVault));
-        }
+        require(address(_savingsVault) != address(0), InvalidSavingsVault(address(_savingsVault)));
 
         savingsVault = _savingsVault;
     }
@@ -35,12 +33,8 @@ contract SavingsVaultAdapter {
     /// @param _amount Amount of MUSD being allocated.
     /// @return shares Savings vault shares minted to the Treasury Account.
     function deposit(TreasuryAccount _treasuryAccount, uint256 _amount) external returns (uint256 shares) {
-        if (address(_treasuryAccount) == address(0)) {
-            revert InvalidTreasuryAccount(address(_treasuryAccount));
-        }
-        if (_amount == 0) {
-            revert InvalidAmount(_amount);
-        }
+        require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
+        require(_amount > 0, InvalidAmount(_amount));
 
         _treasuryAccount.allocateFromAdapter(msg.sender, address(savingsVault), _amount);
         shares = savingsVault.deposit(_amount, address(_treasuryAccount));
@@ -53,12 +47,8 @@ contract SavingsVaultAdapter {
     /// @param _amount Amount of MUSD being withdrawn.
     /// @return shares Savings vault shares burned for the withdrawal.
     function withdraw(TreasuryAccount _treasuryAccount, uint256 _amount) external returns (uint256 shares) {
-        if (address(_treasuryAccount) == address(0)) {
-            revert InvalidTreasuryAccount(address(_treasuryAccount));
-        }
-        if (_amount == 0) {
-            revert InvalidAmount(_amount);
-        }
+        require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
+        require(_amount > 0, InvalidAmount(_amount));
 
         shares = savingsVault.withdraw(_amount, address(_treasuryAccount), address(_treasuryAccount));
         _treasuryAccount.withdrawFromAdapter(msg.sender, address(savingsVault), _amount);

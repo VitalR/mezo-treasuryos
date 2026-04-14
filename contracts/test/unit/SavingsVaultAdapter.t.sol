@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.34;
 
-import {Test} from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
-import {SavingsVaultAdapter} from "../../src/adapters/SavingsVaultAdapter.sol";
-import {TreasuryAccount} from "../../src/core/TreasuryAccount.sol";
-import {TreasuryAccountFactory} from "../../src/core/TreasuryAccountFactory.sol";
-import {TreasuryPolicyEngine} from "../../src/core/TreasuryPolicyEngine.sol";
-import {IMUSDSavingsVault} from "../../src/interfaces/IMUSDSavingsVault.sol";
-import {ITreasuryPolicyEngine} from "../../src/interfaces/ITreasuryPolicyEngine.sol";
+import { SavingsVaultAdapter } from "../../src/adapters/SavingsVaultAdapter.sol";
+import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
+import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
+import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
+import { IMUSDSavingsVault } from "../../src/interfaces/IMUSDSavingsVault.sol";
+import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
 
 contract MockMUSDSavingsVault is IMUSDSavingsVault {
     uint256 public totalAssets;
@@ -38,122 +38,122 @@ contract MockMUSDSavingsVault is IMUSDSavingsVault {
 }
 
 contract SavingsVaultAdapterTest is Test {
-    address internal constant TREASURY_ADMIN = address(0xA11CE);
-    address internal constant OPERATOR = address(0xB0B);
-    address internal constant APPROVER = address(0xCAFE);
+    address internal constant _TREASURY_ADMIN = address(0xA11CE);
+    address internal constant _OPERATOR = address(0xB0B);
+    address internal constant _APPROVER = address(0xCAFE);
 
-    TreasuryPolicyEngine internal policyEngine;
-    TreasuryAccountFactory internal factory;
-    MockMUSDSavingsVault internal mockSavingsVault;
-    SavingsVaultAdapter internal savingsVaultAdapter;
-    TreasuryAccount internal treasuryAccount;
+    TreasuryPolicyEngine internal _policyEngine;
+    TreasuryAccountFactory internal _factory;
+    MockMUSDSavingsVault internal _mockSavingsVault;
+    SavingsVaultAdapter internal _savingsVaultAdapter;
+    TreasuryAccount internal _treasuryAccount;
 
-    function setUp() external {
-        policyEngine = new TreasuryPolicyEngine();
-        factory = new TreasuryAccountFactory(policyEngine);
-        mockSavingsVault = new MockMUSDSavingsVault();
-        savingsVaultAdapter = new SavingsVaultAdapter(mockSavingsVault);
+    function setUp() public {
+        _policyEngine = new TreasuryPolicyEngine();
+        _factory = new TreasuryAccountFactory(_policyEngine);
+        _mockSavingsVault = new MockMUSDSavingsVault();
+        _savingsVaultAdapter = new SavingsVaultAdapter(_mockSavingsVault);
 
-        treasuryAccount = TreasuryAccount(factory.deployTreasuryAccount(TREASURY_ADMIN, _defaultConfig()));
+        _treasuryAccount = TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig()));
 
-        vm.prank(TREASURY_ADMIN);
-        treasuryAccount.setAllocationAdapter(address(savingsVaultAdapter));
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.setAllocationAdapter(address(_savingsVaultAdapter));
 
-        vm.prank(TREASURY_ADMIN);
-        treasuryAccount.recordBorrow(600 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.recordBorrow(600 ether);
     }
 
-    function testTreasuryAdminCanSetAllocationAdapter() external {
-        TreasuryAccount account = TreasuryAccount(factory.deployTreasuryAccount(TREASURY_ADMIN, _defaultConfig()));
+    function test_SetAllocationAdapter_TreasuryAdminCanSetAllocationAdapter() public {
+        TreasuryAccount _account = TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig()));
 
-        vm.prank(TREASURY_ADMIN);
-        account.setAllocationAdapter(address(savingsVaultAdapter));
+        vm.prank(_TREASURY_ADMIN);
+        _account.setAllocationAdapter(address(_savingsVaultAdapter));
 
-        assertEq(account.allocationAdapter(), address(savingsVaultAdapter));
+        assertEq(_account.allocationAdapter(), address(_savingsVaultAdapter));
     }
 
-    function testOperatorCanDepositIntoSavingsVaultWithinPolicy() external {
+    function test_Deposit_OperatorCanDepositIntoSavingsVaultWithinPolicy() public {
         vm.expectEmit(true, true, false, true);
-        emit SavingsVaultAdapter.SavingsDepositRouted(address(treasuryAccount), OPERATOR, 100 ether, 100 ether);
+        emit SavingsVaultAdapter.SavingsDepositRouted(address(_treasuryAccount), _OPERATOR, 100 ether, 100 ether);
 
-        vm.prank(OPERATOR);
-        uint256 shares = savingsVaultAdapter.deposit(treasuryAccount, 100 ether);
+        vm.prank(_OPERATOR);
+        uint256 _shares = _savingsVaultAdapter.deposit(_treasuryAccount, 100 ether);
 
-        assertEq(shares, 100 ether);
-        assertEq(treasuryAccount.idleMUSD(), 500 ether);
-        assertEq(treasuryAccount.destinationAllocations(address(mockSavingsVault)), 100 ether);
-        assertEq(mockSavingsVault.totalAssets(), 100 ether);
-        assertEq(mockSavingsVault.lastDepositAssets(), 100 ether);
-        assertEq(mockSavingsVault.lastDepositReceiver(), address(treasuryAccount));
+        assertEq(_shares, 100 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 500 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 100 ether);
+        assertEq(_mockSavingsVault.totalAssets(), 100 ether);
+        assertEq(_mockSavingsVault.lastDepositAssets(), 100 ether);
+        assertEq(_mockSavingsVault.lastDepositReceiver(), address(_treasuryAccount));
     }
 
-    function testOperatorCannotDepositAboveApprovalThreshold() external {
+    function test_Deposit_OperatorCannotDepositAboveApprovalThreshold() public {
         vm.expectRevert(
-            abi.encodeWithSelector(TreasuryPolicyEngine.ApprovalRequired.selector, OPERATOR, 150 ether, 100 ether)
+            abi.encodeWithSelector(TreasuryPolicyEngine.ApprovalRequired.selector, _OPERATOR, 150 ether, 100 ether)
         );
 
-        vm.prank(OPERATOR);
-        savingsVaultAdapter.deposit(treasuryAccount, 150 ether);
+        vm.prank(_OPERATOR);
+        _savingsVaultAdapter.deposit(_treasuryAccount, 150 ether);
     }
 
-    function testApproverCanDepositAboveApprovalThreshold() external {
-        vm.prank(APPROVER);
-        savingsVaultAdapter.deposit(treasuryAccount, 150 ether);
+    function test_Deposit_ApproverCanDepositAboveApprovalThreshold() public {
+        vm.prank(_APPROVER);
+        _savingsVaultAdapter.deposit(_treasuryAccount, 150 ether);
 
-        assertEq(treasuryAccount.idleMUSD(), 450 ether);
-        assertEq(treasuryAccount.destinationAllocations(address(mockSavingsVault)), 150 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 450 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 150 ether);
     }
 
-    function testWithdrawRestoresIdleTreasuryBalance() external {
-        vm.prank(OPERATOR);
-        savingsVaultAdapter.deposit(treasuryAccount, 100 ether);
+    function test_Withdraw_RestoresIdleTreasuryBalance() public {
+        vm.prank(_OPERATOR);
+        _savingsVaultAdapter.deposit(_treasuryAccount, 100 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit SavingsVaultAdapter.SavingsWithdrawalRouted(address(treasuryAccount), OPERATOR, 40 ether, 40 ether);
+        emit SavingsVaultAdapter.SavingsWithdrawalRouted(address(_treasuryAccount), _OPERATOR, 40 ether, 40 ether);
 
-        vm.prank(OPERATOR);
-        uint256 shares = savingsVaultAdapter.withdraw(treasuryAccount, 40 ether);
+        vm.prank(_OPERATOR);
+        uint256 _shares = _savingsVaultAdapter.withdraw(_treasuryAccount, 40 ether);
 
-        assertEq(shares, 40 ether);
-        assertEq(treasuryAccount.idleMUSD(), 540 ether);
-        assertEq(treasuryAccount.destinationAllocations(address(mockSavingsVault)), 60 ether);
-        assertEq(mockSavingsVault.totalAssets(), 60 ether);
-        assertEq(mockSavingsVault.lastWithdrawAssets(), 40 ether);
-        assertEq(mockSavingsVault.lastWithdrawReceiver(), address(treasuryAccount));
-        assertEq(mockSavingsVault.lastWithdrawOwner(), address(treasuryAccount));
+        assertEq(_shares, 40 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 540 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 60 ether);
+        assertEq(_mockSavingsVault.totalAssets(), 60 ether);
+        assertEq(_mockSavingsVault.lastWithdrawAssets(), 40 ether);
+        assertEq(_mockSavingsVault.lastWithdrawReceiver(), address(_treasuryAccount));
+        assertEq(_mockSavingsVault.lastWithdrawOwner(), address(_treasuryAccount));
     }
 
-    function testAllocationAdapterRevertsWhenTreasuryAccountIsNotConfigured() external {
-        TreasuryAccount unconfiguredAccount =
-            TreasuryAccount(factory.deployTreasuryAccount(TREASURY_ADMIN, _defaultConfig()));
+    function test_Deposit_UnconfiguredTreasuryAccountReverts() public {
+        TreasuryAccount _unconfiguredAccount =
+            TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig()));
 
-        vm.prank(TREASURY_ADMIN);
-        unconfiguredAccount.recordBorrow(400 ether);
+        vm.prank(_TREASURY_ADMIN);
+        _unconfiguredAccount.recordBorrow(400 ether);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TreasuryAccount.UnauthorizedCaller.selector, address(savingsVaultAdapter))
+            abi.encodeWithSelector(TreasuryAccount.UnauthorizedCaller.selector, address(_savingsVaultAdapter))
         );
 
-        vm.prank(OPERATOR);
-        savingsVaultAdapter.deposit(unconfiguredAccount, 50 ether);
+        vm.prank(_OPERATOR);
+        _savingsVaultAdapter.deposit(_unconfiguredAccount, 50 ether);
     }
 
     function _defaultConfig() internal view returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {
-        address[] memory destinations = new address[](1);
-        destinations[0] = address(mockSavingsVault);
+        address[] memory _destinations = new address[](1);
+        _destinations[0] = address(_mockSavingsVault);
 
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 500 ether;
+        uint256[] memory _caps = new uint256[](1);
+        _caps[0] = 500 ether;
 
         config = ITreasuryPolicyEngine.AccountPolicyConfig({
-            operator: OPERATOR,
-            approver: APPROVER,
+            operator: _OPERATOR,
+            approver: _APPROVER,
             liquidityBuffer: 200 ether,
             approvalThreshold: 100 ether,
             automationEnabled: true,
             startPaused: false,
-            approvedDestinations: destinations,
-            destinationCaps: caps
+            approvedDestinations: _destinations,
+            destinationCaps: _caps
         });
     }
 }
