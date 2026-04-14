@@ -20,6 +20,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
 
     /// @notice Emitted when the paused state changes for an account.
     event PauseUpdated(address indexed account, bool paused);
+    /// @notice Emitted when the treasury administrator for an account is updated.
+    event TreasuryAdminUpdated(
+        address indexed account, address indexed previousTreasuryAdmin, address indexed newTreasuryAdmin
+    );
 
     error AccountAlreadyInitialized(address account);
     error ApprovalRequired(address actor, uint256 amount, uint256 threshold);
@@ -120,6 +124,19 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
             _config.automationEnabled,
             _config.startPaused
         );
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function updateTreasuryAdmin(address _account, address _treasuryAdmin) external {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(msg.sender == _account, UnauthorizedActor(_account, msg.sender));
+        require(_treasuryAdmin != address(0), InvalidActor(_treasuryAdmin));
+
+        address _previousTreasuryAdmin = policy.treasuryAdmin;
+        policy.treasuryAdmin = _treasuryAdmin;
+
+        emit TreasuryAdminUpdated(_account, _previousTreasuryAdmin, _treasuryAdmin);
     }
 
     /// @inheritdoc ITreasuryPolicyEngine

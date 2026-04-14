@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.34;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 
 /// @title TreasuryAccount
 /// @notice Client-isolated treasury operating boundary for Mezo position management and governed MUSD allocation.
-contract TreasuryAccount {
+contract TreasuryAccount is Ownable2Step {
     /// @notice Emitted when the connected Mezo borrower operations contract is updated.
     event BorrowerOperationsUpdated(address indexed borrowerOperations);
     /// @notice Emitted when the trusted allocation adapter is updated.
     event AllocationAdapterUpdated(address indexed allocationAdapter);
+    /// @notice Emitted when Treasury Account ownership is finalized and synced into policy state.
+    event TreasuryAdminSynced(address indexed previousTreasuryAdmin, address indexed newTreasuryAdmin);
     /// @notice Emitted when a Mezo position is opened for this Treasury Account.
     event PositionOpened(
         uint256 collateralDeposited,
@@ -54,16 +59,14 @@ contract TreasuryAccount {
     error InvalidAllocationAdapter(address allocationAdapter);
     error InvalidBorrowerOperations(address borrowerOperations);
     error InvalidPolicyEngine(address policyEngine);
-    error InvalidTreasuryAdmin(address treasuryAdmin);
     error InvalidPositionAdjustment();
     error NoActivePosition();
+    error NotPendingOwner(address caller);
     error PositionAlreadyOpen();
     error PositionDebtExceeded(uint256 amount, uint256 currentDebtPrincipal);
     error PositionCollateralExceeded(uint256 amount, uint256 currentCollateral);
     error UnauthorizedCaller(address caller);
 
-    /// @notice Treasury administrator with authority to configure protocol integrations and direct admin actions.
-    address public immutable treasuryAdmin;
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
     /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
@@ -84,13 +87,11 @@ contract TreasuryAccount {
     /// @notice Deployed MUSD amount tracked per approved destination.
     mapping(address destination => uint256 amount) public destinationAllocations;
 
-    /// @param _treasuryAdmin Treasury administrator for the account.
+    /// @param _owner Treasury administrator and initial owner for the account.
     /// @param _policyEngine Policy engine enforcing TreasuryOS internal controls.
-    constructor(address _treasuryAdmin, ITreasuryPolicyEngine _policyEngine) {
-        require(_treasuryAdmin != address(0), InvalidTreasuryAdmin(_treasuryAdmin));
+    constructor(address _owner, ITreasuryPolicyEngine _policyEngine) Ownable(_owner) {
         require(address(_policyEngine) != address(0), InvalidPolicyEngine(address(_policyEngine)));
 
-        treasuryAdmin = _treasuryAdmin;
         policyEngine = _policyEngine;
     }
 
@@ -302,15 +303,14 @@ contract TreasuryAccount {
     /// @param _paused New paused state.
     function setPause(bool _paused) external {
         (,, address approver,,,,,) = policyEngine.getAccountPolicy(address(this));
-        require(msg.sender == treasuryAdmin || msg.sender == approver, UnauthorizedCaller(msg.sender));
+        require(msg.sender == owner() || msg.sender == approver, UnauthorizedCaller(msg.sender));
 
         policyEngine.setPause(address(this), _paused);
     }
 
     /// @notice Sets the Mezo borrower operations contract used for position lifecycle management.
     /// @param _borrowerOperations Borrower operations contract for opening and managing the Mezo position.
-    function setBorrowerOperations(address _borrowerOperations) external {
-        require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
+    function setBorrowerOperations(address _borrowerOperations) external onlyOwner {
         require(_borrowerOperations != address(0), InvalidBorrowerOperations(_borrowerOperations));
 
         borrowerOperations = IBorrowerOperations(_borrowerOperations);
@@ -319,12 +319,23 @@ contract TreasuryAccount {
 
     /// @notice Sets the trusted allocation adapter for routed deployment and withdrawal flows.
     /// @param _allocationAdapter Allocation adapter allowed to mutate treasury allocation state.
-    function setAllocationAdapter(address _allocationAdapter) external {
-        require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
+    function setAllocationAdapter(address _allocationAdapter) external onlyOwner {
         require(_allocationAdapter != address(0), InvalidAllocationAdapter(_allocationAdapter));
 
         allocationAdapter = _allocationAdapter;
         emit AllocationAdapterUpdated(_allocationAdapter);
+    }
+
+    /// @notice Finalizes a pending ownership transfer and syncs the policy engine's treasury admin.
+    function acceptOwnership() public override {
+        require(msg.sender == pendingOwner(), NotPendingOwner(msg.sender));
+
+        address _previousTreasuryAdmin = owner();
+
+        super.acceptOwnership();
+        policyEngine.updateTreasuryAdmin(address(this), owner());
+
+        emit TreasuryAdminSynced(_previousTreasuryAdmin, owner());
     }
 
     /// @notice Returns whether the Treasury Account currently holds an active Mezo position.

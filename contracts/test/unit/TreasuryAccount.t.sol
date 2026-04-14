@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.34;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
@@ -46,7 +47,7 @@ contract TreasuryAccountTest is Test {
             bool _initialized
         ) = _policyEngine.getAccountPolicy(address(_account));
 
-        assertEq(_account.treasuryAdmin(), _TREASURY_ADMIN);
+        assertEq(_account.owner(), _TREASURY_ADMIN);
         assertEq(address(_account.policyEngine()), address(_policyEngine));
         assertEq(_treasuryAdmin, _TREASURY_ADMIN);
         assertEq(_operator, _OPERATOR);
@@ -67,6 +68,22 @@ contract TreasuryAccountTest is Test {
         _account.setBorrowerOperations(address(_borrowerOperations));
 
         assertEq(address(_account.borrowerOperations()), address(_borrowerOperations));
+    }
+
+    function test_AcceptOwnership_PendingOwnerSyncsPolicyTreasuryAdmin() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+        address _nextTreasuryAdmin = address(0xDD01);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.transferOwnership(_nextTreasuryAdmin);
+
+        vm.prank(_nextTreasuryAdmin);
+        _account.acceptOwnership();
+
+        (address _treasuryAdmin,,,,,,,) = _policyEngine.getAccountPolicy(address(_account));
+
+        assertEq(_account.owner(), _nextTreasuryAdmin);
+        assertEq(_treasuryAdmin, _nextTreasuryAdmin);
     }
 
     function test_OpenTrove_OperatorCanOpenWithinApprovalThreshold() public {
@@ -243,6 +260,15 @@ contract TreasuryAccountTest is Test {
 
         vm.prank(_OPERATOR);
         _account.allocate(_SAVINGS_VAULT, 50 ether);
+    }
+
+    function test_SetBorrowerOperations_NonOwnerReverts() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
+
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _OPERATOR));
+
+        vm.prank(_OPERATOR);
+        _account.setBorrowerOperations(address(_borrowerOperations));
     }
 
     function test_WithdrawFromDestination_RestoresIdleBalance() public {

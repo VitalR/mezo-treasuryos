@@ -34,6 +34,11 @@ interface ITreasuryPolicyEngine {
     /// @param _config Initial role and policy configuration.
     function initializeAccount(address _account, address _treasuryAdmin, AccountPolicyConfig calldata _config) external;
 
+    /// @notice Updates the treasury administrator recorded for an account.
+    /// @param _account Treasury Account whose administrator is changing.
+    /// @param _treasuryAdmin New treasury administrator for the account.
+    function updateTreasuryAdmin(address _account, address _treasuryAdmin) external;
+
     /// @notice Validates a borrow or balance-increasing action for an account.
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.
