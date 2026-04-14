@@ -37,6 +37,15 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     error AllocationCapExceeded(uint256 nextAllocation, uint256 cap);
     error UnauthorizedActor(address account, address actor);
 
+    /// @notice Per-account treasury policy state enforced by the policy engine.
+    /// @param treasuryAdmin Treasury administrator for the account.
+    /// @param operator Operator allowed to execute lower-risk treasury actions.
+    /// @param approver Approver allowed to authorize larger or more sensitive actions.
+    /// @param liquidityBuffer Minimum idle MUSD that must remain undeployed.
+    /// @param approvalThreshold Maximum amount an operator may move without approver authority.
+    /// @param automationEnabled Whether low-risk automation is enabled.
+    /// @param paused Whether treasury actions are currently paused.
+    /// @param initialized Whether the account has been initialized in the policy engine.
     struct AccountPolicy {
         address treasuryAdmin;
         address operator;
@@ -48,9 +57,13 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         bool initialized;
     }
 
+    /// @notice Policy configuration stored per Treasury Account.
     mapping(address account => AccountPolicy policy) private accountPolicies;
+    /// @notice Destination approval state stored per Treasury Account.
     mapping(address account => mapping(address destination => bool approved)) private approvedDestinations;
+    /// @notice Allocation caps stored per Treasury Account and destination.
     mapping(address account => mapping(address destination => uint256 cap)) private destinationCaps;
+    /// @notice Treasury Account factory allowed to initialize new accounts.
     address public factory;
 
     /// @inheritdoc ITreasuryPolicyEngine
@@ -218,11 +231,18 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         );
     }
 
+    /// @notice Returns initialized policy state for an account or reverts if the account is unknown.
+    /// @param _account Treasury Account being checked.
+    /// @return policy Storage pointer to the account policy state.
     function _requireInitializedAccount(address _account) private view returns (AccountPolicy storage policy) {
         policy = accountPolicies[_account];
         require(policy.initialized, InvalidAccount(_account));
     }
 
+    /// @notice Validates whether an actor may originate a borrow for the requested amount.
+    /// @param _policy Account policy state being enforced.
+    /// @param _actor Treasury actor attempting the borrow.
+    /// @param _amount Borrow amount being requested.
     function _requireBorrowAuthority(AccountPolicy storage _policy, address _actor, uint256 _amount) private view {
         if (_actor == _policy.treasuryAdmin || _actor == _policy.approver) {
             return;
@@ -232,6 +252,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(_amount <= _policy.approvalThreshold, ApprovalRequired(_actor, _amount, _policy.approvalThreshold));
     }
 
+    /// @notice Validates whether an actor may move treasury funds for the requested amount.
+    /// @param _policy Account policy state being enforced.
+    /// @param _actor Treasury actor attempting the movement.
+    /// @param _amount Allocation or withdrawal amount being requested.
     function _requireMovementAuthority(AccountPolicy storage _policy, address _actor, uint256 _amount) private view {
         if (_actor == _policy.treasuryAdmin || _actor == _policy.approver) {
             return;

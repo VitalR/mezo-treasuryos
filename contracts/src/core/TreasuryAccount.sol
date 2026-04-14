@@ -29,12 +29,18 @@ contract TreasuryAccount {
     error InvalidAllocationAdapter(address allocationAdapter);
     error UnauthorizedCaller(address caller);
 
+    /// @notice Treasury administrator with authority to configure trusted adapters and direct admin actions.
     address public immutable treasuryAdmin;
+    /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
+    /// @notice Trusted borrow adapter allowed to route Mezo borrow origination into this account.
     address public borrowAdapter;
+    /// @notice Trusted allocation adapter allowed to route destination deposits and withdrawals.
     address public allocationAdapter;
 
+    /// @notice Idle treasury-managed MUSD held inside the account and available for operations.
     uint256 public idleMUSD;
+    /// @notice Deployed MUSD amount tracked per approved destination.
     mapping(address destination => uint256 amount) public destinationAllocations;
 
     /// @param _treasuryAdmin Treasury administrator for the account.
