@@ -8,6 +8,8 @@ import {ITreasuryPolicyEngine} from "../interfaces/ITreasuryPolicyEngine.sol";
 contract TreasuryAccount {
     /// @notice Emitted when borrowed MUSD is recorded into the Treasury Account.
     event BorrowRecorded(uint256 amount, uint256 idleBalanceAfter);
+    /// @notice Emitted when the trusted borrow adapter is updated.
+    event BorrowAdapterUpdated(address indexed borrowAdapter);
 
     /// @notice Emitted when idle MUSD is allocated to an approved destination.
     event AllocationExecuted(
@@ -21,10 +23,12 @@ contract TreasuryAccount {
 
     error InvalidPolicyEngine(address policyEngine);
     error InvalidTreasuryAdmin(address treasuryAdmin);
+    error InvalidBorrowAdapter(address borrowAdapter);
     error UnauthorizedCaller(address caller);
 
     address public immutable treasuryAdmin;
     ITreasuryPolicyEngine public immutable policyEngine;
+    address public borrowAdapter;
 
     uint256 public idleMUSD;
     mapping(address destination => uint256 amount) public destinationAllocations;
@@ -51,6 +55,20 @@ contract TreasuryAccount {
         }
 
         policyEngine.validateBorrow(address(this), msg.sender, _amount, idleMUSD);
+
+        idleMUSD += _amount;
+        emit BorrowRecorded(_amount, idleMUSD);
+    }
+
+    /// @notice Records a borrow flow initiated through the configured borrow adapter.
+    /// @param _actor Treasury actor on whose behalf the borrow is being originated.
+    /// @param _amount Amount of borrowed MUSD entering the treasury.
+    function recordBorrowFromAdapter(address _actor, uint256 _amount) external {
+        if (msg.sender != borrowAdapter) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+
+        policyEngine.validateBorrow(address(this), _actor, _amount, idleMUSD);
 
         idleMUSD += _amount;
         emit BorrowRecorded(_amount, idleMUSD);
@@ -93,5 +111,19 @@ contract TreasuryAccount {
         }
 
         policyEngine.setPause(address(this), _paused);
+    }
+
+    /// @notice Sets the trusted borrow adapter for TreasuryOS-originated Mezo borrow flows.
+    /// @param _borrowAdapter Borrow adapter allowed to record borrowed MUSD on behalf of treasury actors.
+    function setBorrowAdapter(address _borrowAdapter) external {
+        if (msg.sender != treasuryAdmin) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+        if (_borrowAdapter == address(0)) {
+            revert InvalidBorrowAdapter(_borrowAdapter);
+        }
+
+        borrowAdapter = _borrowAdapter;
+        emit BorrowAdapterUpdated(_borrowAdapter);
     }
 }
