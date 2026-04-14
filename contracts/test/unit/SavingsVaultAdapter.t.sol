@@ -9,6 +9,7 @@ import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.so
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
 import { IMUSDSavingsVault } from "../../src/interfaces/IMUSDSavingsVault.sol";
 import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
+import { MockBorrowerOperations } from "../helpers/MockBorrowerOperations.sol";
 
 contract MockMUSDSavingsVault is IMUSDSavingsVault {
     uint256 public totalAssets;
@@ -41,9 +42,12 @@ contract SavingsVaultAdapterTest is Test {
     address internal constant _TREASURY_ADMIN = address(0xA11CE);
     address internal constant _OPERATOR = address(0xB0B);
     address internal constant _APPROVER = address(0xCAFE);
+    address internal constant _UPPER_HINT = address(0xAAA1);
+    address internal constant _LOWER_HINT = address(0xAAA2);
 
     TreasuryPolicyEngine internal _policyEngine;
     TreasuryAccountFactory internal _factory;
+    MockBorrowerOperations internal _borrowerOperations;
     MockMUSDSavingsVault internal _mockSavingsVault;
     SavingsVaultAdapter internal _savingsVaultAdapter;
     TreasuryAccount internal _treasuryAccount;
@@ -51,20 +55,29 @@ contract SavingsVaultAdapterTest is Test {
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
         _factory = new TreasuryAccountFactory(_policyEngine);
+        _borrowerOperations = new MockBorrowerOperations();
         _mockSavingsVault = new MockMUSDSavingsVault();
         _savingsVaultAdapter = new SavingsVaultAdapter(_mockSavingsVault);
 
-        _treasuryAccount = TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig()));
+        vm.deal(_TREASURY_ADMIN, 50 ether);
+        vm.deal(_OPERATOR, 50 ether);
+        vm.deal(_APPROVER, 50 ether);
+
+        _treasuryAccount = TreasuryAccount(payable(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig())));
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.setBorrowerOperations(address(_borrowerOperations));
 
         vm.prank(_TREASURY_ADMIN);
         _treasuryAccount.setAllocationAdapter(address(_savingsVaultAdapter));
 
-        vm.prank(_TREASURY_ADMIN);
-        _treasuryAccount.recordBorrow(600 ether);
+        vm.prank(_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
     }
 
     function test_SetAllocationAdapter_TreasuryAdminCanSetAllocationAdapter() public {
-        TreasuryAccount _account = TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig()));
+        TreasuryAccount _account =
+            TreasuryAccount(payable(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig())));
 
         vm.prank(_TREASURY_ADMIN);
         _account.setAllocationAdapter(address(_savingsVaultAdapter));
@@ -125,10 +138,13 @@ contract SavingsVaultAdapterTest is Test {
 
     function test_Deposit_UnconfiguredTreasuryAccountReverts() public {
         TreasuryAccount _unconfiguredAccount =
-            TreasuryAccount(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig()));
+            TreasuryAccount(payable(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig())));
 
         vm.prank(_TREASURY_ADMIN);
-        _unconfiguredAccount.recordBorrow(400 ether);
+        _unconfiguredAccount.setBorrowerOperations(address(_borrowerOperations));
+
+        vm.prank(_APPROVER);
+        _unconfiguredAccount.openTrove{ value: 4 ether }(400 ether, _UPPER_HINT, _LOWER_HINT);
 
         vm.expectRevert(
             abi.encodeWithSelector(TreasuryAccount.UnauthorizedCaller.selector, address(_savingsVaultAdapter))

@@ -1,45 +1,86 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.34;
 
+import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 
 /// @title TreasuryAccount
-/// @notice Client-isolated treasury operating boundary for borrowed and allocated MUSD.
+/// @notice Client-isolated treasury operating boundary for Mezo position management and governed MUSD allocation.
 contract TreasuryAccount {
-    /// @notice Emitted when borrowed MUSD is recorded into the Treasury Account.
-    event BorrowRecorded(uint256 amount, uint256 idleBalanceAfter);
-    /// @notice Emitted when the trusted borrow adapter is updated.
-    event BorrowAdapterUpdated(address indexed borrowAdapter);
+    /// @notice Emitted when the connected Mezo borrower operations contract is updated.
+    event BorrowerOperationsUpdated(address indexed borrowerOperations);
     /// @notice Emitted when the trusted allocation adapter is updated.
     event AllocationAdapterUpdated(address indexed allocationAdapter);
-
+    /// @notice Emitted when a Mezo position is opened for this Treasury Account.
+    event PositionOpened(
+        uint256 collateralDeposited,
+        uint256 debtPrincipalBorrowed,
+        uint256 idleMUSDAfter,
+        uint256 positionCollateralAfter,
+        uint256 positionDebtPrincipalAfter
+    );
+    /// @notice Emitted when collateral is added to the Mezo position.
+    event CollateralDeposited(uint256 amount, uint256 positionCollateralAfter);
+    /// @notice Emitted when collateral is withdrawn from the Mezo position back into Treasury Account custody.
+    event CollateralWithdrawn(uint256 amount, uint256 idleBTCAfter, uint256 positionCollateralAfter);
+    /// @notice Emitted when additional MUSD debt principal is drawn from the Mezo position.
+    event DebtDrawn(uint256 amount, uint256 idleMUSDAfter, uint256 positionDebtPrincipalAfter);
+    /// @notice Emitted when MUSD debt principal is repaid from idle treasury balance.
+    event DebtRepaid(uint256 amount, uint256 idleMUSDAfter, uint256 positionDebtPrincipalAfter);
+    /// @notice Emitted when the Mezo position is adjusted through the generic adjust flow.
+    event PositionAdjusted(
+        uint256 collateralDeposited,
+        uint256 collateralWithdrawn,
+        uint256 debtChange,
+        bool debtIncreased,
+        uint256 idleMUSDAfter,
+        uint256 idleBTCAfter,
+        uint256 positionCollateralAfter,
+        uint256 positionDebtPrincipalAfter
+    );
+    /// @notice Emitted when the Mezo position is fully closed.
+    event PositionClosed(
+        uint256 collateralReleased, uint256 debtPrincipalRepaid, uint256 idleBTCAfter, uint256 idleMUSDAfter
+    );
     /// @notice Emitted when idle MUSD is allocated to an approved destination.
     event AllocationExecuted(
         address indexed destination, uint256 amount, uint256 idleBalanceAfter, uint256 allocationAfter
     );
-
     /// @notice Emitted when deployed MUSD is withdrawn back into the idle treasury balance.
     event WithdrawalExecuted(
         address indexed destination, uint256 amount, uint256 idleBalanceAfter, uint256 allocationAfter
     );
 
+    error InvalidAllocationAdapter(address allocationAdapter);
+    error InvalidBorrowerOperations(address borrowerOperations);
     error InvalidPolicyEngine(address policyEngine);
     error InvalidTreasuryAdmin(address treasuryAdmin);
-    error InvalidBorrowAdapter(address borrowAdapter);
-    error InvalidAllocationAdapter(address allocationAdapter);
+    error InvalidPositionAdjustment();
+    error NoActivePosition();
+    error PositionAlreadyOpen();
+    error PositionDebtExceeded(uint256 amount, uint256 currentDebtPrincipal);
+    error PositionCollateralExceeded(uint256 amount, uint256 currentCollateral);
     error UnauthorizedCaller(address caller);
 
-    /// @notice Treasury administrator with authority to configure trusted adapters and direct admin actions.
+    /// @notice Treasury administrator with authority to configure protocol integrations and direct admin actions.
     address public immutable treasuryAdmin;
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
-    /// @notice Trusted borrow adapter allowed to route Mezo borrow origination into this account.
-    address public borrowAdapter;
+    /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
+    IBorrowerOperations public borrowerOperations;
     /// @notice Trusted allocation adapter allowed to route destination deposits and withdrawals.
     address public allocationAdapter;
 
     /// @notice Idle treasury-managed MUSD held inside the account and available for operations.
     uint256 public idleMUSD;
+    /// @notice Idle BTC held directly by the Treasury Account outside the active Mezo position.
+    uint256 public idleBTC;
+    /// @notice Tracked BTC collateral currently posted into the Mezo position.
+    uint256 public positionCollateral;
+    /// @notice Tracked MUSD debt principal drawn from the Mezo position, excluding protocol fees and accrual.
+    uint256 public positionDebtPrincipal;
+    /// @notice Whether the Treasury Account currently has an active Mezo position.
+    bool public positionActive;
     /// @notice Deployed MUSD amount tracked per approved destination.
     mapping(address destination => uint256 amount) public destinationAllocations;
 
@@ -53,27 +94,146 @@ contract TreasuryAccount {
         policyEngine = _policyEngine;
     }
 
-    /// @notice Records a borrow flow into the treasury idle balance.
-    /// @param _amount Amount of borrowed MUSD entering the treasury.
-    function recordBorrow(uint256 _amount) external {
-        require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
+    /// @notice Accepts BTC returned from Mezo position withdrawals and closes.
+    receive() external payable { }
 
-        policyEngine.validateBorrow(address(this), msg.sender, _amount, idleMUSD);
+    /// @notice Opens a Mezo position owned by this Treasury Account and borrows MUSD into idle treasury balance.
+    /// @param _musdAmount Amount of MUSD debt principal to draw.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function openTrove(uint256 _musdAmount, address _upperHint, address _lowerHint) external payable {
+        require(address(borrowerOperations) != address(0), InvalidBorrowerOperations(address(borrowerOperations)));
+        require(!positionActive, PositionAlreadyOpen());
 
-        idleMUSD += _amount;
-        emit BorrowRecorded(_amount, idleMUSD);
+        policyEngine.validateBorrow(address(this), msg.sender, _musdAmount, idleMUSD);
+        policyEngine.validateCollateralDeposit(address(this), msg.sender, msg.value);
+
+        borrowerOperations.openTrove{ value: msg.value }(_musdAmount, _upperHint, _lowerHint);
+
+        positionActive = true;
+        idleMUSD += _musdAmount;
+        positionCollateral = msg.value;
+        positionDebtPrincipal = _musdAmount;
+
+        emit PositionOpened(msg.value, _musdAmount, idleMUSD, positionCollateral, positionDebtPrincipal);
     }
 
-    /// @notice Records a borrow flow initiated through the configured borrow adapter.
-    /// @param _actor Treasury actor on whose behalf the borrow is being originated.
-    /// @param _amount Amount of borrowed MUSD entering the treasury.
-    function recordBorrowFromAdapter(address _actor, uint256 _amount) external {
-        require(msg.sender == borrowAdapter, UnauthorizedCaller(msg.sender));
+    /// @notice Adjusts the Mezo position using the protocol-native adjust flow.
+    /// @param _collWithdrawal Amount of BTC collateral to withdraw from the position.
+    /// @param _debtChange Amount of MUSD debt principal to change.
+    /// @param _isDebtIncrease Whether `_debtChange` increases or decreases debt principal.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function adjustTrove(
+        uint256 _collWithdrawal,
+        uint256 _debtChange,
+        bool _isDebtIncrease,
+        address _upperHint,
+        address _lowerHint
+    ) external payable {
+        _requireActivePosition();
+        _validatePositionAdjustment(msg.sender, msg.value, _collWithdrawal, _debtChange, _isDebtIncrease);
 
-        policyEngine.validateBorrow(address(this), _actor, _amount, idleMUSD);
+        borrowerOperations.adjustTrove{ value: msg.value }(
+            _collWithdrawal, _debtChange, _isDebtIncrease, _upperHint, _lowerHint
+        );
+
+        _applyPositionAdjustment(msg.value, _collWithdrawal, _debtChange, _isDebtIncrease);
+
+        emit PositionAdjusted(
+            msg.value,
+            _collWithdrawal,
+            _debtChange,
+            _isDebtIncrease,
+            idleMUSD,
+            idleBTC,
+            positionCollateral,
+            positionDebtPrincipal
+        );
+    }
+
+    /// @notice Adds BTC collateral to the active Mezo position.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function addCollateral(address _upperHint, address _lowerHint) external payable {
+        _requireActivePosition();
+        policyEngine.validateCollateralDeposit(address(this), msg.sender, msg.value);
+
+        borrowerOperations.addColl{ value: msg.value }(_upperHint, _lowerHint);
+
+        positionCollateral += msg.value;
+        emit CollateralDeposited(msg.value, positionCollateral);
+    }
+
+    /// @notice Withdraws BTC collateral from the active Mezo position.
+    /// @param _amount Amount of BTC collateral to withdraw.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function withdrawCollateral(uint256 _amount, address _upperHint, address _lowerHint) external {
+        _requireActivePosition();
+        require(positionCollateral >= _amount, PositionCollateralExceeded(_amount, positionCollateral));
+
+        policyEngine.validateCollateralWithdrawal(address(this), msg.sender, _amount);
+
+        borrowerOperations.withdrawColl(_amount, _upperHint, _lowerHint);
+
+        positionCollateral -= _amount;
+        idleBTC += _amount;
+
+        emit CollateralWithdrawn(_amount, idleBTC, positionCollateral);
+    }
+
+    /// @notice Draws additional MUSD debt principal from the active Mezo position.
+    /// @param _amount Amount of MUSD debt principal to draw.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function withdrawMUSD(uint256 _amount, address _upperHint, address _lowerHint) external {
+        _requireActivePosition();
+        policyEngine.validateBorrow(address(this), msg.sender, _amount, idleMUSD);
+
+        borrowerOperations.withdrawMUSD(_amount, _upperHint, _lowerHint);
 
         idleMUSD += _amount;
-        emit BorrowRecorded(_amount, idleMUSD);
+        positionDebtPrincipal += _amount;
+
+        emit DebtDrawn(_amount, idleMUSD, positionDebtPrincipal);
+    }
+
+    /// @notice Repays MUSD debt principal from idle treasury balance.
+    /// @param _amount Amount of MUSD debt principal to repay.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function repayMUSD(uint256 _amount, address _upperHint, address _lowerHint) external {
+        _requireActivePosition();
+        require(positionDebtPrincipal >= _amount, PositionDebtExceeded(_amount, positionDebtPrincipal));
+
+        policyEngine.validateDebtRepayment(address(this), msg.sender, _amount, idleMUSD);
+
+        borrowerOperations.repayMUSD(_amount, _upperHint, _lowerHint);
+
+        idleMUSD -= _amount;
+        positionDebtPrincipal -= _amount;
+
+        emit DebtRepaid(_amount, idleMUSD, positionDebtPrincipal);
+    }
+
+    /// @notice Closes the Mezo position and releases all posted collateral back into Treasury Account custody.
+    function closeTrove() external {
+        _requireActivePosition();
+        policyEngine.validateClosePosition(address(this), msg.sender, idleMUSD, positionDebtPrincipal);
+
+        uint256 collateralReleased = positionCollateral;
+        uint256 debtPrincipalRepaid = positionDebtPrincipal;
+
+        borrowerOperations.closeTrove();
+
+        idleMUSD -= debtPrincipalRepaid;
+        idleBTC += collateralReleased;
+        positionCollateral = 0;
+        positionDebtPrincipal = 0;
+        positionActive = false;
+
+        emit PositionClosed(collateralReleased, debtPrincipalRepaid, idleBTC, idleMUSD);
     }
 
     /// @notice Allocates idle MUSD into an approved destination.
@@ -147,14 +307,14 @@ contract TreasuryAccount {
         policyEngine.setPause(address(this), _paused);
     }
 
-    /// @notice Sets the trusted borrow adapter for TreasuryOS-originated Mezo borrow flows.
-    /// @param _borrowAdapter Borrow adapter allowed to record borrowed MUSD on behalf of treasury actors.
-    function setBorrowAdapter(address _borrowAdapter) external {
+    /// @notice Sets the Mezo borrower operations contract used for position lifecycle management.
+    /// @param _borrowerOperations Borrower operations contract for opening and managing the Mezo position.
+    function setBorrowerOperations(address _borrowerOperations) external {
         require(msg.sender == treasuryAdmin, UnauthorizedCaller(msg.sender));
-        require(_borrowAdapter != address(0), InvalidBorrowAdapter(_borrowAdapter));
+        require(_borrowerOperations != address(0), InvalidBorrowerOperations(_borrowerOperations));
 
-        borrowAdapter = _borrowAdapter;
-        emit BorrowAdapterUpdated(_borrowAdapter);
+        borrowerOperations = IBorrowerOperations(_borrowerOperations);
+        emit BorrowerOperationsUpdated(_borrowerOperations);
     }
 
     /// @notice Sets the trusted allocation adapter for routed deployment and withdrawal flows.
@@ -165,5 +325,71 @@ contract TreasuryAccount {
 
         allocationAdapter = _allocationAdapter;
         emit AllocationAdapterUpdated(_allocationAdapter);
+    }
+
+    /// @notice Returns whether the Treasury Account currently holds an active Mezo position.
+    function hasActivePosition() external view returns (bool) {
+        return positionActive;
+    }
+
+    function _applyPositionAdjustment(
+        uint256 _collateralDeposit,
+        uint256 _collateralWithdrawal,
+        uint256 _debtChange,
+        bool _isDebtIncrease
+    ) internal {
+        positionCollateral = positionCollateral + _collateralDeposit - _collateralWithdrawal;
+        idleBTC += _collateralWithdrawal;
+
+        if (_debtChange == 0) {
+            return;
+        }
+
+        if (_isDebtIncrease) {
+            idleMUSD += _debtChange;
+            positionDebtPrincipal += _debtChange;
+            return;
+        }
+
+        idleMUSD -= _debtChange;
+        positionDebtPrincipal -= _debtChange;
+    }
+
+    function _validatePositionAdjustment(
+        address _actor,
+        uint256 _collateralDeposit,
+        uint256 _collateralWithdrawal,
+        uint256 _debtChange,
+        bool _isDebtIncrease
+    ) internal view {
+        require(_collateralDeposit > 0 || _collateralWithdrawal > 0 || _debtChange > 0, InvalidPositionAdjustment());
+
+        if (_collateralDeposit > 0) {
+            policyEngine.validateCollateralDeposit(address(this), _actor, _collateralDeposit);
+        }
+
+        if (_collateralWithdrawal > 0) {
+            require(
+                positionCollateral >= _collateralWithdrawal,
+                PositionCollateralExceeded(_collateralWithdrawal, positionCollateral)
+            );
+            policyEngine.validateCollateralWithdrawal(address(this), _actor, _collateralWithdrawal);
+        }
+
+        if (_debtChange == 0) {
+            return;
+        }
+
+        if (_isDebtIncrease) {
+            policyEngine.validateBorrow(address(this), _actor, _debtChange, idleMUSD);
+            return;
+        }
+
+        require(positionDebtPrincipal >= _debtChange, PositionDebtExceeded(_debtChange, positionDebtPrincipal));
+        policyEngine.validateDebtRepayment(address(this), _actor, _debtChange, idleMUSD);
+    }
+
+    function _requireActivePosition() internal view {
+        require(positionActive, NoActivePosition());
     }
 }

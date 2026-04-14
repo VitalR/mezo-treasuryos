@@ -41,6 +41,39 @@ interface ITreasuryPolicyEngine {
     /// @param _idleBalance Current idle MUSD balance before the action.
     function validateBorrow(address _account, address _actor, uint256 _amount, uint256 _idleBalance) external view;
 
+    /// @notice Validates a debt repayment action funded from idle treasury MUSD.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action.
+    /// @param _amount Amount of MUSD being repaid.
+    /// @param _idleBalance Current idle MUSD balance before repayment.
+    function validateDebtRepayment(address _account, address _actor, uint256 _amount, uint256 _idleBalance)
+        external
+        view;
+
+    /// @notice Validates adding BTC collateral to an existing Mezo position.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action.
+    /// @param _amount Amount of BTC collateral being added.
+    function validateCollateralDeposit(address _account, address _actor, uint256 _amount) external view;
+
+    /// @notice Validates withdrawing BTC collateral from an existing Mezo position.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action.
+    /// @param _amount Amount of BTC collateral being withdrawn.
+    function validateCollateralWithdrawal(address _account, address _actor, uint256 _amount) external view;
+
+    /// @notice Validates fully closing a Mezo position.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action.
+    /// @param _idleBalance Current idle MUSD balance before close.
+    /// @param _positionDebtPrincipal Current tracked debt principal of the position.
+    function validateClosePosition(
+        address _account,
+        address _actor,
+        uint256 _idleBalance,
+        uint256 _positionDebtPrincipal
+    ) external view;
+
     /// @notice Validates deployment of idle MUSD into a destination.
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.

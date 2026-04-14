@@ -25,6 +25,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     error ApprovalRequired(address actor, uint256 amount, uint256 threshold);
     error FactoryAlreadySet(address factory);
     error InsufficientAllocation(address destination, uint256 amount, uint256 currentAllocation);
+    error InsufficientIdleBalance(uint256 amount, uint256 idleBalance);
     error InvalidAccount(address account);
     error InvalidActor(address actor);
     error InvalidAmount(uint256 amount);
@@ -101,13 +102,12 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         policy.paused = _config.startPaused;
         policy.initialized = true;
 
-        uint256 destinationCount = _config.approvedDestinations.length;
-        for (uint256 i = 0; i < destinationCount; ++i) {
-            address destination = _config.approvedDestinations[i];
-            require(destination != address(0), InvalidDestination(destination));
+        for (uint256 _i = 0; _i < _config.approvedDestinations.length; _i++) {
+            address _destination = _config.approvedDestinations[_i];
+            require(_destination != address(0), InvalidDestination(_destination));
 
-            approvedDestinations[_account][destination] = true;
-            destinationCaps[_account][destination] = _config.destinationCaps[i];
+            approvedDestinations[_account][_destination] = true;
+            destinationCaps[_account][_destination] = _config.destinationCaps[_i];
         }
 
         emit AccountPolicyInitialized(
@@ -129,7 +129,51 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(!policy.paused, PolicyPaused(_account));
         require(_amount > 0, InvalidAmount(_amount));
 
-        _requireBorrowAuthority(policy, _actor, _amount);
+        _requireBorrowAuthority(policy, _account, _actor, _amount);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateDebtRepayment(address _account, address _actor, uint256 _amount, uint256 _idleBalance)
+        external
+        view
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(_amount > 0, InvalidAmount(_amount));
+        require(_idleBalance >= _amount, InsufficientIdleBalance(_amount, _idleBalance));
+
+        _requireMovementAuthority(policy, _account, _actor, _amount);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateCollateralDeposit(address _account, address _actor, uint256 _amount) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(_amount > 0, InvalidAmount(_amount));
+        _requireRiskReducingAuthority(policy, _account, _actor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateCollateralWithdrawal(address _account, address _actor, uint256 _amount) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(!policy.paused, PolicyPaused(_account));
+        require(_amount > 0, InvalidAmount(_amount));
+
+        _requireElevatedAuthority(policy, _account, _actor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateClosePosition(
+        address _account,
+        address _actor,
+        uint256 _idleBalance,
+        uint256 _positionDebtPrincipal
+    ) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(_idleBalance >= _positionDebtPrincipal, InsufficientIdleBalance(_positionDebtPrincipal, _idleBalance));
+        _requireElevatedAuthority(policy, _account, _actor);
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
@@ -148,7 +192,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(_destination != address(0), InvalidDestination(_destination));
         require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
 
-        _requireMovementAuthority(policy, _actor, _amount);
+        _requireMovementAuthority(policy, _account, _actor, _amount);
 
         uint256 nextIdleBalance = _idleBalance - _amount;
         if (nextIdleBalance < policy.liquidityBuffer) {
@@ -177,7 +221,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(_destination != address(0), InvalidDestination(_destination));
         require(_currentAllocation >= _amount, InsufficientAllocation(_destination, _amount, _currentAllocation));
 
-        _requireMovementAuthority(policy, _actor, _amount);
+        _requireMovementAuthority(policy, _account, _actor, _amount);
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
@@ -239,29 +283,59 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(policy.initialized, InvalidAccount(_account));
     }
 
-    /// @notice Validates whether an actor may originate a borrow for the requested amount.
+    /// @notice Validates whether an actor may originate or increase debt for the requested amount.
     /// @param _policy Account policy state being enforced.
+    /// @param _account Treasury Account being checked.
     /// @param _actor Treasury actor attempting the borrow.
     /// @param _amount Borrow amount being requested.
-    function _requireBorrowAuthority(AccountPolicy storage _policy, address _actor, uint256 _amount) private view {
+    function _requireBorrowAuthority(AccountPolicy storage _policy, address _account, address _actor, uint256 _amount)
+        private
+        view
+    {
         if (_actor == _policy.treasuryAdmin || _actor == _policy.approver) {
             return;
         }
 
-        require(_actor == _policy.operator, UnauthorizedActor(address(0), _actor));
+        require(_actor == _policy.operator, UnauthorizedActor(_account, _actor));
         require(_amount <= _policy.approvalThreshold, ApprovalRequired(_actor, _amount, _policy.approvalThreshold));
     }
 
     /// @notice Validates whether an actor may move treasury funds for the requested amount.
     /// @param _policy Account policy state being enforced.
+    /// @param _account Treasury Account being checked.
     /// @param _actor Treasury actor attempting the movement.
-    /// @param _amount Allocation or withdrawal amount being requested.
-    function _requireMovementAuthority(AccountPolicy storage _policy, address _actor, uint256 _amount) private view {
+    /// @param _amount Allocation, withdrawal, or repayment amount being requested.
+    function _requireMovementAuthority(AccountPolicy storage _policy, address _account, address _actor, uint256 _amount)
+        private
+        view
+    {
         if (_actor == _policy.treasuryAdmin || _actor == _policy.approver) {
             return;
         }
 
-        require(_actor == _policy.operator, UnauthorizedActor(address(0), _actor));
+        require(_actor == _policy.operator, UnauthorizedActor(_account, _actor));
         require(_amount <= _policy.approvalThreshold, ApprovalRequired(_actor, _amount, _policy.approvalThreshold));
+    }
+
+    /// @notice Validates whether an actor may perform a risk-reducing action.
+    /// @param _policy Account policy state being enforced.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Treasury actor attempting the action.
+    function _requireRiskReducingAuthority(AccountPolicy storage _policy, address _account, address _actor)
+        private
+        view
+    {
+        require(
+            _actor == _policy.treasuryAdmin || _actor == _policy.approver || _actor == _policy.operator,
+            UnauthorizedActor(_account, _actor)
+        );
+    }
+
+    /// @notice Validates whether an actor has elevated authority for sensitive position actions.
+    /// @param _policy Account policy state being enforced.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Treasury actor attempting the action.
+    function _requireElevatedAuthority(AccountPolicy storage _policy, address _account, address _actor) private view {
+        require(_actor == _policy.treasuryAdmin || _actor == _policy.approver, UnauthorizedActor(_account, _actor));
     }
 }
