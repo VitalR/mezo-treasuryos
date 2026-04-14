@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {TreasuryAccount} from "./TreasuryAccount.sol";
+import {ITreasuryPolicyEngine} from "../interfaces/ITreasuryPolicyEngine.sol";
+
+/// @title TreasuryAccountFactory
+/// @notice Deploys and initializes client-isolated Treasury Accounts.
+contract TreasuryAccountFactory {
+    /// @notice Emitted when a new Treasury Account is deployed.
+    event TreasuryAccountDeployed(
+        address indexed treasuryAccount, address indexed treasuryAdmin, address indexed operator, address approver
+    );
+
+    error InvalidPolicyEngine(address policyEngine);
+    error InvalidTreasuryAdmin(address treasuryAdmin);
+
+    ITreasuryPolicyEngine public immutable policyEngine;
+
+    /// @param _policyEngine Policy engine used for Treasury Account initialization.
+    constructor(ITreasuryPolicyEngine _policyEngine) {
+        if (address(_policyEngine) == address(0)) {
+            revert InvalidPolicyEngine(address(_policyEngine));
+        }
+        policyEngine = _policyEngine;
+        _policyEngine.setFactory(address(this));
+    }
+
+    /// @notice Deploys a new Treasury Account for a treasury/client.
+    /// @param _treasuryAdmin Treasury administrator for the new account.
+    /// @param _config Initial policy configuration applied to the account.
+    /// @return treasuryAccount Newly deployed Treasury Account address.
+    function deployTreasuryAccount(address _treasuryAdmin, ITreasuryPolicyEngine.AccountPolicyConfig calldata _config)
+        external
+        returns (address treasuryAccount)
+    {
+        if (_treasuryAdmin == address(0)) {
+            revert InvalidTreasuryAdmin(_treasuryAdmin);
+        }
+
+        TreasuryAccount account = new TreasuryAccount(_treasuryAdmin, policyEngine);
+        treasuryAccount = address(account);
+
+        policyEngine.initializeAccount(treasuryAccount, _treasuryAdmin, _config);
+
+        emit TreasuryAccountDeployed(treasuryAccount, _treasuryAdmin, _config.operator, _config.approver);
+    }
+}
