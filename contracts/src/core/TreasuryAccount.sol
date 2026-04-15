@@ -69,6 +69,34 @@ contract TreasuryAccount is Ownable2Step {
     error PositionAlreadyOpen();
     error UnauthorizedCaller(address caller);
 
+    /// @notice Protocol-backed treasury position snapshot for service and dashboard consumption.
+    /// @param owner Treasury Account owner and admin.
+    /// @param borrowerOperations Connected Mezo borrower operations contract.
+    /// @param governableVariables Governable variables contract referenced by borrower operations.
+    /// @param troveManager Active TroveManager used for protocol position reads.
+    /// @param allocationAdapter Trusted allocation adapter for governed deployment flows.
+    /// @param idleMUSD Idle MUSD currently held in the treasury boundary.
+    /// @param idleBTC Idle BTC currently held in the treasury boundary outside the active trove.
+    /// @param positionCollateral BTC collateral currently locked in the Mezo position.
+    /// @param positionTotalDebt Full protocol debt for the active position.
+    /// @param positionCloseDebt Debt that must be repaid in MUSD to close the active position.
+    /// @param positionGasCompensation Gas compensation component embedded in protocol debt.
+    /// @param positionActive Whether the Treasury Account currently has an active Mezo position.
+    struct TreasuryPositionState {
+        address owner;
+        address borrowerOperations;
+        address governableVariables;
+        address troveManager;
+        address allocationAdapter;
+        uint256 idleMUSD;
+        uint256 idleBTC;
+        uint256 positionCollateral;
+        uint256 positionTotalDebt;
+        uint256 positionCloseDebt;
+        uint256 positionGasCompensation;
+        bool positionActive;
+    }
+
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
     /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
@@ -388,6 +416,38 @@ contract TreasuryAccount is Ownable2Step {
     function positionActive() public view returns (bool) {
         (,, bool _active) = _getPositionSnapshot();
         return _active;
+    }
+
+    /// @notice Returns a consolidated protocol-backed treasury position snapshot.
+    function getTreasuryPositionState() external view returns (TreasuryPositionState memory state) {
+        ITroveManager _troveManager = troveManager();
+        IGovernableVariables _governableVariables = governableVariables();
+        (uint256 _positionTotalDebt, uint256 _positionCollateral, bool _positionActive) = _getPositionSnapshot();
+
+        uint256 _positionGasCompensation;
+        if (address(_troveManager) != address(0)) {
+            _positionGasCompensation = _troveManager.MUSD_GAS_COMPENSATION();
+        }
+
+        uint256 _positionCloseDebt;
+        if (_positionTotalDebt > _positionGasCompensation) {
+            _positionCloseDebt = _positionTotalDebt - _positionGasCompensation;
+        }
+
+        state = TreasuryPositionState({
+            owner: owner(),
+            borrowerOperations: address(borrowerOperations),
+            governableVariables: address(_governableVariables),
+            troveManager: address(_troveManager),
+            allocationAdapter: allocationAdapter,
+            idleMUSD: idleMUSD,
+            idleBTC: idleBTC,
+            positionCollateral: _positionCollateral,
+            positionTotalDebt: _positionTotalDebt,
+            positionCloseDebt: _positionCloseDebt,
+            positionGasCompensation: _positionGasCompensation,
+            positionActive: _positionActive
+        });
     }
 
     function _applyPositionAdjustment(uint256 _collateralWithdrawal, uint256 _debtChange, bool _isDebtIncrease)

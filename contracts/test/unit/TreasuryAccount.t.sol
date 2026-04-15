@@ -218,6 +218,37 @@ contract TreasuryAccountTest is Test {
         assertEq(_account.positionCloseDebt(), 81 ether);
     }
 
+    function test_GetTreasuryPositionState_ReturnsProtocolBackedSnapshot() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        _borrowerOperations.setBorrowingFee(1 ether);
+        _borrowerOperations.setGasCompensation(20 ether);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 3 ether }(250 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 50 ether);
+
+        vm.prank(_APPROVER);
+        _account.withdrawCollateral(1 ether, _UPPER_HINT, _LOWER_HINT);
+
+        TreasuryAccount.TreasuryPositionState memory _state = _account.getTreasuryPositionState();
+
+        assertEq(_state.owner, _TREASURY_ADMIN);
+        assertEq(_state.borrowerOperations, address(_borrowerOperations));
+        assertEq(_state.governableVariables, address(_borrowerOperations.governableVariables()));
+        assertEq(_state.troveManager, address(_account.troveManager()));
+        assertEq(_state.allocationAdapter, address(0));
+        assertEq(_state.idleMUSD, 200 ether);
+        assertEq(_state.idleBTC, 1 ether);
+        assertEq(_state.positionCollateral, 2 ether);
+        assertEq(_state.positionTotalDebt, 271 ether);
+        assertEq(_state.positionCloseDebt, 251 ether);
+        assertEq(_state.positionGasCompensation, 20 ether);
+        assertTrue(_state.positionActive);
+    }
+
     function test_Allocate_OperatorCanAllocateWithinThresholdAndBuffer() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 
