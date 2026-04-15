@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { AllocationRouter } from "../../src/adapters/AllocationRouter.sol";
-import { SavingsVaultAdapter } from "../../src/adapters/SavingsVaultAdapter.sol";
+import { MUSDSavingsRateHandler } from "../../src/adapters/MUSDSavingsRateHandler.sol";
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
@@ -13,7 +13,7 @@ import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngin
 import { MockBorrowerOperations } from "../helpers/MockBorrowerOperations.sol";
 import { MockMUSDSavingsRate } from "../helpers/MockMUSDSavingsRate.sol";
 
-contract SavingsVaultAdapterTest is Test {
+contract MUSDSavingsRateHandlerTest is Test {
     address internal constant _TREASURY_ADMIN = address(0xA11CE);
     address internal constant _OPERATOR = address(0xB0B);
     address internal constant _APPROVER = address(0xCAFE);
@@ -25,7 +25,7 @@ contract SavingsVaultAdapterTest is Test {
     MockBorrowerOperations internal _borrowerOperations;
     MockMUSDSavingsRate internal _mockSavingsVault;
     AllocationRouter internal _allocationRouter;
-    SavingsVaultAdapter internal _savingsVaultAdapter;
+    MUSDSavingsRateHandler internal _savingsVaultHandler;
     TreasuryAccount internal _treasuryAccount;
 
     function setUp() public {
@@ -34,7 +34,7 @@ contract SavingsVaultAdapterTest is Test {
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
         _mockSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _allocationRouter = new AllocationRouter(_TREASURY_ADMIN);
-        _savingsVaultAdapter = new SavingsVaultAdapter(_mockSavingsVault, address(_allocationRouter));
+        _savingsVaultHandler = new MUSDSavingsRateHandler(_mockSavingsVault, address(_allocationRouter));
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
         vm.deal(_OPERATOR, 50 ether);
@@ -49,7 +49,7 @@ contract SavingsVaultAdapterTest is Test {
         _treasuryAccount.setAllocationRouter(address(_allocationRouter));
 
         vm.prank(_TREASURY_ADMIN);
-        _allocationRouter.setHandler(address(_mockSavingsVault), _savingsVaultAdapter);
+        _allocationRouter.setHandler(address(_mockSavingsVault), _savingsVaultHandler);
 
         vm.prank(_APPROVER);
         _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
@@ -67,7 +67,7 @@ contract SavingsVaultAdapterTest is Test {
 
     function test_Deposit_OperatorCanDepositIntoSavingsVaultWithinPolicy() public {
         vm.expectEmit(true, true, false, true);
-        emit SavingsVaultAdapter.SavingsDepositRouted(address(_treasuryAccount), _OPERATOR, 100 ether, 100 ether);
+        emit MUSDSavingsRateHandler.SavingsDepositRouted(address(_treasuryAccount), _OPERATOR, 100 ether, 100 ether);
 
         vm.prank(_OPERATOR);
         uint256 _shares = _allocationRouter.deposit(address(_treasuryAccount), address(_mockSavingsVault), 100 ether);
@@ -102,7 +102,7 @@ contract SavingsVaultAdapterTest is Test {
         _allocationRouter.deposit(address(_treasuryAccount), address(_mockSavingsVault), 100 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit SavingsVaultAdapter.SavingsWithdrawalRouted(address(_treasuryAccount), _OPERATOR, 40 ether, 40 ether);
+        emit MUSDSavingsRateHandler.SavingsWithdrawalRouted(address(_treasuryAccount), _OPERATOR, 40 ether, 40 ether);
 
         vm.prank(_OPERATOR);
         uint256 _shares = _allocationRouter.withdraw(address(_treasuryAccount), address(_mockSavingsVault), 40 ether);
@@ -121,7 +121,7 @@ contract SavingsVaultAdapterTest is Test {
         _mockSavingsVault.addClaimableYield(address(_treasuryAccount), 25 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit SavingsVaultAdapter.SavingsYieldClaimed(address(_treasuryAccount), _OPERATOR, 25 ether);
+        emit MUSDSavingsRateHandler.SavingsYieldClaimed(address(_treasuryAccount), _OPERATOR, 25 ether);
 
         vm.prank(_OPERATOR);
         uint256 _claimedYield = _allocationRouter.claimYield(address(_treasuryAccount), address(_mockSavingsVault));
@@ -142,10 +142,10 @@ contract SavingsVaultAdapterTest is Test {
         vm.prank(_APPROVER);
         _unconfiguredAccount.openTrove{ value: 4 ether }(400 ether, _UPPER_HINT, _LOWER_HINT);
 
-        vm.expectRevert(abi.encodeWithSelector(SavingsVaultAdapter.UnauthorizedCaller.selector, _OPERATOR));
+        vm.expectRevert(abi.encodeWithSelector(MUSDSavingsRateHandler.UnauthorizedCaller.selector, _OPERATOR));
 
         vm.prank(_OPERATOR);
-        _savingsVaultAdapter.deposit(address(_unconfiguredAccount), _OPERATOR, 50 ether);
+        _savingsVaultHandler.deposit(address(_unconfiguredAccount), _OPERATOR, 50 ether);
     }
 
     function _defaultConfig() internal view returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {

@@ -95,6 +95,20 @@ interface ITreasuryPolicyEngine {
         uint256 _idleBalance
     ) external view;
 
+    /// @notice Validates a withdrawal-accounting settlement reported by a destination handler.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller responsible for the routed action.
+    /// @param _destination Destination being reduced.
+    /// @param _allocationAmount Amount of tracked allocation being reduced.
+    /// @param _currentAllocation Current deployed amount for the destination before settlement.
+    function validateWithdrawalSettlement(
+        address _account,
+        address _actor,
+        address _destination,
+        uint256 _allocationAmount,
+        uint256 _currentAllocation
+    ) external view;
+
     /// @notice Validates deployment of idle MUSD into a destination.
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.

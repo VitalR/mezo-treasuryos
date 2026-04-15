@@ -10,35 +10,68 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 
 /// @title DemoMUSDSavingsRate
-/// @notice Demo-grade savings sleeve that mimics sMUSD principal and yield behavior with owner-funded yield injections.
+/// @notice Demo-grade external savings sleeve that mimics sMUSD principal and yield behavior with owner-funded yield
+/// injections. @dev This contract is intended for demos and local environments. It preserves the same user-facing
+/// mental model
+///      as Mezo's savings vault:
+///      1. MUSD principal is deposited and sMUSD receipts are minted 1:1.
+///      2. Yield is distributed through a global `yieldIndex`.
+///      3. Holders claim accumulated MUSD yield without changing principal balances.
 contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRate {
     using SafeERC20 for IERC20;
 
+    /// @notice Emitted when a depositor contributes MUSD principal and receives sMUSD.
+    /// @param user Depositor receiving the sMUSD receipts.
+    /// @param amount Amount of MUSD principal deposited.
     event Deposit(address indexed user, uint256 amount);
+    /// @notice Emitted when a depositor burns sMUSD and withdraws MUSD principal.
+    /// @param user Withdrawer burning the sMUSD receipts.
+    /// @param amount Amount of MUSD principal withdrawn.
     event Withdraw(address indexed user, uint256 amount);
+    /// @notice Emitted when a depositor claims accrued MUSD yield.
+    /// @param user Yield recipient.
+    /// @param amount Amount of MUSD yield claimed.
     event YieldClaimed(address indexed user, uint256 amount);
+    /// @notice Emitted when the owner funds demo yield into the vault.
+    /// @param funder Address funding the demo yield.
+    /// @param amount Amount of MUSD yield distributed or buffered.
     event YieldFunded(address indexed funder, uint256 amount);
 
+    /// @notice Reverts when a user attempts to withdraw more sMUSD than owned.
     error InsufficientBalance();
+    /// @notice Reverts when a user with no shares tries to claim yield.
     error NoShares();
+    /// @notice Reverts when a required address is zero.
     error ZeroAddress();
+    /// @notice Reverts when an amount is zero.
     error ZeroAmount();
 
+    /// @notice Underlying MUSD token accepted as principal and paid as yield.
     IERC20 public immutable musdToken;
+    /// @notice Global yield index scaled by `1e18` and used for pro-rata accrual.
     uint256 public yieldIndex;
+    /// @notice Buffered yield held when total sMUSD supply is zero.
     uint256 public pendingYield;
+    /// @notice Timestamp of the most recent owner-funded yield event.
     uint256 public lastYieldFundedAt;
+    /// @notice Amount funded during the most recent owner-funded yield event.
     uint256 public lastYieldFundedAmount;
 
+    /// @notice Claimable yield tracked per account after index synchronization.
     mapping(address account => uint256 amount) public claimableYield;
+    /// @notice Last synchronized global yield index per account.
     mapping(address account => uint256 index) public supplyYieldIndex;
 
+    /// @param _owner Owner allowed to fund simulated yield.
+    /// @param _musdToken Underlying MUSD token accepted by the vault.
     constructor(address _owner, IERC20 _musdToken) ERC20("Demo MUSD Savings Rate", "sMUSD") Ownable(_owner) {
         require(address(_musdToken) != address(0), ZeroAddress());
 
         musdToken = _musdToken;
     }
 
+    /// @notice Deposits MUSD principal and mints 1:1 sMUSD receipt tokens.
+    /// @param _amount Amount of MUSD principal deposited.
     function deposit(uint256 _amount) external nonReentrant {
         require(_amount > 0, ZeroAmount());
 
@@ -48,6 +81,8 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
         emit Deposit(msg.sender, _amount);
     }
 
+    /// @notice Withdraws MUSD principal by burning sMUSD and automatically claims pending yield first.
+    /// @param _amount Amount of principal to withdraw.
     function withdraw(uint256 _amount) external nonReentrant {
         require(_amount > 0, ZeroAmount());
         require(balanceOf(msg.sender) >= _amount, InsufficientBalance());
@@ -59,14 +94,17 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
         emit Withdraw(msg.sender, _amount);
     }
 
+    /// @inheritdoc IMUSDSavingsRate
     function claimYield() external nonReentrant returns (uint256 amount) {
         amount = _claimYield(msg.sender);
     }
 
+    /// @inheritdoc IMUSDSavingsRate
     function yieldToken() external view returns (address) {
         return address(musdToken);
     }
 
+    /// @inheritdoc IMUSDSavingsRate
     function balanceOf(address _account) public view override(ERC20, IMUSDSavingsRate) returns (uint256) {
         return super.balanceOf(_account);
     }
@@ -84,6 +122,9 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
         emit YieldFunded(msg.sender, _amount);
     }
 
+    /// @notice Claims yield for a specific account after synchronizing its accrual.
+    /// @param _account Account whose claimable yield should be paid out.
+    /// @return amount Amount of MUSD yield transferred to the account.
     function _claimYield(address _account) internal returns (uint256 amount) {
         require(balanceOf(_account) > 0, NoShares());
 
@@ -97,6 +138,8 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
         }
     }
 
+    /// @notice Receives new yield and updates the global yield index or buffers the yield when supply is zero.
+    /// @param _amount Yield amount being funded.
     function _receiveYield(uint256 _amount) internal {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply > 0) {
@@ -113,6 +156,8 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
         pendingYield += _amount;
     }
 
+    /// @notice Synchronizes the account's claimable yield using the global yield index.
+    /// @param _account Account whose accrual should be updated.
     function _updateYieldFor(address _account) internal {
         uint256 _supplied = balanceOf(_account);
         uint256 _currentYieldIndex = yieldIndex;
@@ -130,6 +175,10 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
         }
     }
 
+    /// @notice Updates yield accrual for both sides of a transfer before the ERC20 balances change.
+    /// @param _from Sender in the token transfer.
+    /// @param _to Receiver in the token transfer.
+    /// @param _value Amount of sMUSD transferred.
     function _update(address _from, address _to, uint256 _value) internal override {
         _updateYieldFor(_from);
         _updateYieldFor(_to);

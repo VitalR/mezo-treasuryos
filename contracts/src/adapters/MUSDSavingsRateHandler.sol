@@ -5,9 +5,9 @@ import { TreasuryAccount } from "../core/TreasuryAccount.sol";
 import { IAllocationHandler } from "../interfaces/IAllocationHandler.sol";
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 
-/// @title SavingsVaultAdapter
-/// @notice Single-sleeve allocation router that routes governed MUSD into the configured MUSDSavingsRate destination.
-contract SavingsVaultAdapter is IAllocationHandler {
+/// @title MUSDSavingsRateHandler
+/// @notice Single-sleeve allocation handler that routes governed MUSD into the configured MUSDSavingsRate destination.
+contract MUSDSavingsRateHandler is IAllocationHandler {
     /// @notice Emitted when TreasuryOS routes idle MUSD into MUSDSavingsRate.
     event SavingsDepositRouted(address indexed treasuryAccount, address indexed actor, uint256 amount, uint256 shares);
 

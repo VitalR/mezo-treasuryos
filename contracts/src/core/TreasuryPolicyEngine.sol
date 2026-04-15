@@ -265,6 +265,27 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
+    function validateWithdrawalSettlement(
+        address _account,
+        address _actor,
+        address _destination,
+        uint256 _allocationAmount,
+        uint256 _currentAllocation
+    ) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(!policy.paused, PolicyPaused(_account));
+        require(_destination != address(0), InvalidDestination(_destination));
+        require(_allocationAmount > 0, InvalidAmount(_allocationAmount));
+        require(
+            _currentAllocation >= _allocationAmount,
+            InsufficientAllocation(_destination, _allocationAmount, _currentAllocation)
+        );
+
+        _requireMovementAuthority(policy, _account, _actor, _allocationAmount);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
     function setPause(address _account, bool _paused) external {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
         require(

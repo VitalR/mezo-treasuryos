@@ -69,6 +69,14 @@ contract TreasuryAccount is Ownable2Step {
     event IdleMUSDFunded(address indexed funder, uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when idle MUSD is disbursed to an external operating recipient.
     event TreasuryDisbursed(address indexed actor, address indexed recipient, uint256 amount, uint256 idleBalanceAfter);
+    /// @notice Emitted when a destination handler settles a routed withdrawal with explicit idle-balance proceeds.
+    event WithdrawalSettledFromDestination(
+        address indexed destination,
+        uint256 allocationAmount,
+        uint256 idleMUSDIncrease,
+        uint256 idleBalanceAfter,
+        uint256 allocationAfter
+    );
 
     error InvalidAllocationRouter(address allocationRouter);
     error InvalidAmount(uint256 amount);
@@ -76,6 +84,9 @@ contract TreasuryAccount is Ownable2Step {
     error InvalidMUSDToken(address musdToken);
     error InvalidPolicyEngine(address policyEngine);
     error InvalidPositionAdjustment();
+    error InvalidToken(address token);
+    error InvalidExecutionTarget(address target);
+    error InvalidSpender(address spender);
     error NoActivePosition();
     error NotPendingOwner(address caller);
     error PositionCloseDebtExceeded(uint256 amount, uint256 currentCloseDebt);
@@ -357,6 +368,35 @@ contract TreasuryAccount is Ownable2Step {
         emit TreasuryDisbursed(msg.sender, _recipient, _amount, idleMUSD);
     }
 
+    /// @notice Sets token allowance from the Treasury Account for an authorized router handler.
+    /// @param _token Token being approved.
+    /// @param _spender Spender receiving the allowance.
+    /// @param _amount Allowance amount to set.
+    function forceApproveTokenFromHandler(address _token, address _spender, uint256 _amount) external {
+        _requireAuthorizedAllocationCaller();
+        require(_token != address(0), InvalidToken(_token));
+        require(_spender != address(0), InvalidSpender(_spender));
+
+        IERC20(_token).forceApprove(_spender, _amount);
+    }
+
+    /// @notice Executes an arbitrary external call from the Treasury Account for an authorized router handler.
+    /// @param _target External contract being called.
+    /// @param _value Native value forwarded with the call.
+    /// @param _data Calldata executed against the target.
+    /// @return result Raw return data from the external call.
+    function executeFromHandler(address _target, uint256 _value, bytes calldata _data)
+        external
+        returns (bytes memory result)
+    {
+        _requireAuthorizedAllocationCaller();
+        require(_target != address(0), InvalidExecutionTarget(_target));
+
+        (bool _success, bytes memory _result) = _target.call{ value: _value }(_data);
+        require(_success, string(_result));
+        return _result;
+    }
+
     /// @notice Deposits idle MUSD into the configured MUSD Savings Rate vault through the trusted adapter flow.
     /// @param _actor Treasury actor on whose behalf the deposit is being performed.
     /// @param _savingsRate Savings Rate destination receiving the principal.
@@ -495,6 +535,33 @@ contract TreasuryAccount is Ownable2Step {
         idleMUSD += _amount;
 
         emit WithdrawalExecuted(_destination, _amount, idleMUSD, destinationAllocations[_destination]);
+    }
+
+    /// @notice Settles a handler-routed withdrawal where actual MUSD proceeds can differ from tracked allocation
+    /// reduction. @param _actor Treasury actor on whose behalf the settlement is being performed.
+    /// @param _destination Destination being reduced.
+    /// @param _allocationAmount Amount of tracked allocation being reduced.
+    /// @param _idleMUSDIncrease Actual MUSD proceeds restored to idle treasury balance.
+    function settleWithdrawalFromHandler(
+        address _actor,
+        address _destination,
+        uint256 _allocationAmount,
+        uint256 _idleMUSDIncrease
+    ) external {
+        _requireAuthorizedAllocationCaller();
+
+        uint256 currentAllocation = destinationAllocations[_destination];
+
+        policyEngine.validateWithdrawalSettlement(
+            address(this), _actor, _destination, _allocationAmount, currentAllocation
+        );
+
+        destinationAllocations[_destination] = currentAllocation - _allocationAmount;
+        idleMUSD += _idleMUSDIncrease;
+
+        emit WithdrawalSettledFromDestination(
+            _destination, _allocationAmount, _idleMUSDIncrease, idleMUSD, destinationAllocations[_destination]
+        );
     }
 
     /// @notice Updates the paused state of the Treasury Account.

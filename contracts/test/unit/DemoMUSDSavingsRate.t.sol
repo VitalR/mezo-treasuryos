@@ -3,7 +3,7 @@ pragma solidity 0.8.34;
 
 import { Test } from "forge-std/Test.sol";
 
-import { DemoMUSDSavingsRate } from "../../src/demo/DemoMUSDSavingsRate.sol";
+import { DemoMUSDSavingsRate } from "../../src/external/DemoMUSDSavingsRate.sol";
 import { MockMUSDToken } from "../helpers/MockMUSDToken.sol";
 
 contract DemoMUSDSavingsRateTest is Test {
