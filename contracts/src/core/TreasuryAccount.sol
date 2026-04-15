@@ -112,12 +112,25 @@ contract TreasuryAccount is Ownable2Step {
     /// @param allocationCap Maximum allowed deployment for the destination.
     /// @param allocatedMUSD Current MUSD allocated to the destination.
     /// @param remainingCapacity Additional MUSD that can be allocated before the cap is reached.
+    /// @param yieldToken Yield token exposed by the destination when supported. Zero for unsupported destination types.
+    /// @param receiptToken Receipt token address held by the Treasury Account for the destination when supported.
+    ///        Zero for unsupported destination types.
+    /// @param receiptBalance Current destination receipt-token balance held by the Treasury Account.
+    ///        Zero for unsupported destination types.
+    /// @param claimableYield Current claimable yield exposed by the destination for the Treasury Account.
+    ///        Zero for unsupported destination types.
+    /// @param supportsSavingsRate Whether the destination supports MUSDSavingsRate-compatible reporting.
     struct DestinationExposure {
         address destination;
         bool approved;
         uint256 allocationCap;
         uint256 allocatedMUSD;
         uint256 remainingCapacity;
+        address yieldToken;
+        address receiptToken;
+        uint256 receiptBalance;
+        uint256 claimableYield;
+        bool supportsSavingsRate;
     }
 
     /// @notice Treasury composition snapshot for service and dashboard consumption.
@@ -601,9 +614,24 @@ contract TreasuryAccount is Ownable2Step {
             uint256 _allocationCap = policyEngine.allocationCap(address(this), _destination);
             bool _approved = policyEngine.isDestinationApproved(address(this), _destination);
             uint256 _remainingCapacity;
+            address _yieldToken;
+            address _receiptToken;
+            uint256 _receiptBalance;
+            uint256 _claimableYield;
+            bool _supportsSavingsRate;
 
             if (_allocationCap > _allocatedMUSD) {
                 _remainingCapacity = _allocationCap - _allocatedMUSD;
+            }
+
+            if (_destination.code.length > 0) {
+                try IMUSDSavingsRate(_destination).yieldToken() returns (address _reportedYieldToken) {
+                    _yieldToken = _reportedYieldToken;
+                    _receiptToken = _destination;
+                    _receiptBalance = IMUSDSavingsRate(_destination).balanceOf(address(this));
+                    _claimableYield = IMUSDSavingsRate(_destination).claimableYield(address(this));
+                    _supportsSavingsRate = true;
+                } catch { }
             }
 
             _totalAllocatedMUSD += _allocatedMUSD;
@@ -612,7 +640,12 @@ contract TreasuryAccount is Ownable2Step {
                 approved: _approved,
                 allocationCap: _allocationCap,
                 allocatedMUSD: _allocatedMUSD,
-                remainingCapacity: _remainingCapacity
+                remainingCapacity: _remainingCapacity,
+                yieldToken: _yieldToken,
+                receiptToken: _receiptToken,
+                receiptBalance: _receiptBalance,
+                claimableYield: _claimableYield,
+                supportsSavingsRate: _supportsSavingsRate
             });
         }
 

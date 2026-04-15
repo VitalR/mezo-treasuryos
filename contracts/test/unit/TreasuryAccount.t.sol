@@ -10,6 +10,7 @@ import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.so
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
 import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
 import { MockBorrowerOperations } from "../helpers/MockBorrowerOperations.sol";
+import { MockMUSDSavingsRate } from "../helpers/MockMUSDSavingsRate.sol";
 
 contract TreasuryAccountTest is Test {
     address internal constant _TREASURY_ADMIN = address(0xA11CE);
@@ -17,17 +18,20 @@ contract TreasuryAccountTest is Test {
     address internal constant _APPROVER = address(0xCAFE);
     address internal constant _SAVINGS_VAULT = address(0xD00D);
     address internal constant _SECOND_DESTINATION = address(0xE11E);
+    address internal constant _ALLOCATION_ADAPTER = address(0xF00D);
     address internal constant _UPPER_HINT = address(0xAAA1);
     address internal constant _LOWER_HINT = address(0xAAA2);
 
     TreasuryPolicyEngine internal _policyEngine;
     TreasuryAccountFactory internal _factory;
     MockBorrowerOperations internal _borrowerOperations;
+    MockMUSDSavingsRate internal _mockSavingsVault;
 
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _mockSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
         vm.deal(_OPERATOR, 50 ether);
@@ -250,17 +254,22 @@ contract TreasuryAccountTest is Test {
         assertTrue(_state.positionActive);
     }
 
-    function test_GetTreasuryComposition_ReturnsExposureAndBufferSnapshot() public {
-        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+    function test_GetTreasuryComposition_ReturnsExposureBufferAndSavingsState() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount(address(_mockSavingsVault));
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.setAllocationAdapter(_ALLOCATION_ADAPTER);
 
         vm.prank(_APPROVER);
         _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
 
-        vm.prank(_OPERATOR);
-        _account.allocate(_SAVINGS_VAULT, 100 ether);
+        vm.prank(_ALLOCATION_ADAPTER);
+        _account.depositIntoSavingsRateFromAdapter(_OPERATOR, address(_mockSavingsVault), 100 ether);
+
+        _mockSavingsVault.addClaimableYield(address(_account), 25 ether);
 
         address[] memory _destinations = new address[](2);
-        _destinations[0] = _SAVINGS_VAULT;
+        _destinations[0] = address(_mockSavingsVault);
         _destinations[1] = _SECOND_DESTINATION;
 
         TreasuryAccount.TreasuryCompositionState memory _state = _account.getTreasuryComposition(_destinations);
@@ -277,17 +286,27 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_state.exposures.length, 2);
 
-        assertEq(_state.exposures[0].destination, _SAVINGS_VAULT);
+        assertEq(_state.exposures[0].destination, address(_mockSavingsVault));
         assertTrue(_state.exposures[0].approved);
         assertEq(_state.exposures[0].allocationCap, 500 ether);
         assertEq(_state.exposures[0].allocatedMUSD, 100 ether);
         assertEq(_state.exposures[0].remainingCapacity, 400 ether);
+        assertEq(_state.exposures[0].yieldToken, _borrowerOperations.musdToken());
+        assertEq(_state.exposures[0].receiptToken, address(_mockSavingsVault));
+        assertEq(_state.exposures[0].receiptBalance, 100 ether);
+        assertEq(_state.exposures[0].claimableYield, 25 ether);
+        assertTrue(_state.exposures[0].supportsSavingsRate);
 
         assertEq(_state.exposures[1].destination, _SECOND_DESTINATION);
         assertFalse(_state.exposures[1].approved);
         assertEq(_state.exposures[1].allocationCap, 0);
         assertEq(_state.exposures[1].allocatedMUSD, 0);
         assertEq(_state.exposures[1].remainingCapacity, 0);
+        assertEq(_state.exposures[1].yieldToken, address(0));
+        assertEq(_state.exposures[1].receiptToken, address(0));
+        assertEq(_state.exposures[1].receiptBalance, 0);
+        assertEq(_state.exposures[1].claimableYield, 0);
+        assertFalse(_state.exposures[1].supportsSavingsRate);
     }
 
     function test_Allocate_OperatorCanAllocateWithinThresholdAndBuffer() public {
@@ -381,6 +400,16 @@ contract TreasuryAccountTest is Test {
         _account.setBorrowerOperations(address(_borrowerOperations));
     }
 
+    function _deployConfiguredTreasuryAccount(address _approvedDestination)
+        internal
+        returns (TreasuryAccount _account)
+    {
+        _account = _deployTreasuryAccount(_defaultConfig(_approvedDestination));
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.setBorrowerOperations(address(_borrowerOperations));
+    }
+
     function _deployTreasuryAccount(ITreasuryPolicyEngine.AccountPolicyConfig memory _config)
         internal
         returns (TreasuryAccount)
@@ -389,8 +418,16 @@ contract TreasuryAccountTest is Test {
     }
 
     function _defaultConfig() internal pure returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {
+        return _defaultConfig(_SAVINGS_VAULT);
+    }
+
+    function _defaultConfig(address _approvedDestination)
+        internal
+        pure
+        returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config)
+    {
         address[] memory _destinations = new address[](1);
-        _destinations[0] = _SAVINGS_VAULT;
+        _destinations[0] = _approvedDestination;
 
         uint256[] memory _caps = new uint256[](1);
         _caps[0] = 500 ether;
