@@ -71,13 +71,10 @@ interface ITreasuryPolicyEngine {
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.
     /// @param _idleBalance Current idle MUSD balance before close.
-    /// @param _positionDebtPrincipal Current tracked debt principal of the position.
-    function validateClosePosition(
-        address _account,
-        address _actor,
-        uint256 _idleBalance,
-        uint256 _positionDebtPrincipal
-    ) external view;
+    /// @param _positionCloseDebt Current protocol debt that must be repaid to close the position.
+    function validateClosePosition(address _account, address _actor, uint256 _idleBalance, uint256 _positionCloseDebt)
+        external
+        view;
 
     /// @notice Validates deployment of idle MUSD into a destination.
     /// @param _account Treasury Account being checked.

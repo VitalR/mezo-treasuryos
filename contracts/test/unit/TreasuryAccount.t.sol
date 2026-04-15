@@ -95,9 +95,9 @@ contract TreasuryAccountTest is Test {
         assertTrue(_account.positionActive());
         assertEq(_account.idleMUSD(), 80 ether);
         assertEq(_account.positionCollateral(), 2 ether);
-        assertEq(_account.positionDebtPrincipal(), 80 ether);
-        assertEq(_borrowerOperations.totalCollateral(), 2 ether);
-        assertEq(_borrowerOperations.totalDebtPrincipal(), 80 ether);
+        assertEq(_account.positionTotalDebt(), 80 ether);
+        assertEq(_borrowerOperations.totalCollateral(address(_account)), 2 ether);
+        assertEq(_borrowerOperations.totalDebt(address(_account)), 80 ether);
     }
 
     function test_OpenTrove_OperatorCannotOpenAboveApprovalThreshold() public {
@@ -121,7 +121,7 @@ contract TreasuryAccountTest is Test {
         _account.withdrawMUSD(120 ether, _UPPER_HINT, _LOWER_HINT);
 
         assertEq(_account.idleMUSD(), 270 ether);
-        assertEq(_account.positionDebtPrincipal(), 270 ether);
+        assertEq(_account.positionTotalDebt(), 270 ether);
     }
 
     function test_RepayMUSD_OperatorCanRepayWithinApprovalThreshold() public {
@@ -134,7 +134,7 @@ contract TreasuryAccountTest is Test {
         _account.repayMUSD(50 ether, _UPPER_HINT, _LOWER_HINT);
 
         assertEq(_account.idleMUSD(), 100 ether);
-        assertEq(_account.positionDebtPrincipal(), 100 ether);
+        assertEq(_account.positionTotalDebt(), 100 ether);
     }
 
     function test_AddCollateral_OperatorCanAddCollateralWhilePaused() public {
@@ -182,7 +182,7 @@ contract TreasuryAccountTest is Test {
         assertEq(_account.idleMUSD(), 110 ether);
         assertEq(_account.idleBTC(), 1 ether);
         assertEq(_account.positionCollateral(), 3 ether);
-        assertEq(_account.positionDebtPrincipal(), 110 ether);
+        assertEq(_account.positionTotalDebt(), 110 ether);
     }
 
     function test_CloseTrove_ApproverCanCloseAndRestoreBTC() public {
@@ -200,7 +200,22 @@ contract TreasuryAccountTest is Test {
         assertEq(_account.idleMUSD(), 0);
         assertEq(_account.idleBTC(), 2 ether);
         assertEq(_account.positionCollateral(), 0);
-        assertEq(_account.positionDebtPrincipal(), 0);
+        assertEq(_account.positionTotalDebt(), 0);
+    }
+
+    function test_PositionDebtViews_ProtocolDebtIncludesFeeAndGasCompensation() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        _borrowerOperations.setBorrowingFee(1 ether);
+        _borrowerOperations.setGasCompensation(20 ether);
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        assertEq(_account.idleMUSD(), 80 ether);
+        assertEq(_account.positionTotalDebt(), 101 ether);
+        assertEq(_account.positionGasCompensation(), 20 ether);
+        assertEq(_account.positionCloseDebt(), 81 ether);
     }
 
     function test_Allocate_OperatorCanAllocateWithinThresholdAndBuffer() public {

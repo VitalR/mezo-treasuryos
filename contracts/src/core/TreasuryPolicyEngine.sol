@@ -181,15 +181,13 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
-    function validateClosePosition(
-        address _account,
-        address _actor,
-        uint256 _idleBalance,
-        uint256 _positionDebtPrincipal
-    ) external view {
+    function validateClosePosition(address _account, address _actor, uint256 _idleBalance, uint256 _positionCloseDebt)
+        external
+        view
+    {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
-        require(_idleBalance >= _positionDebtPrincipal, InsufficientIdleBalance(_positionDebtPrincipal, _idleBalance));
+        require(_idleBalance >= _positionCloseDebt, InsufficientIdleBalance(_positionCloseDebt, _idleBalance));
         _requireElevatedAuthority(policy, _account, _actor);
     }
 

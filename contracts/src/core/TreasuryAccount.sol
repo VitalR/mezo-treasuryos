@@ -5,7 +5,9 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
+import { IGovernableVariables } from "../interfaces/IGovernableVariables.sol";
 import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
+import { ITroveManager } from "../interfaces/ITroveManager.sol";
 
 /// @title TreasuryAccount
 /// @notice Client-isolated treasury operating boundary for Mezo position management and governed MUSD allocation.
@@ -19,19 +21,19 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Emitted when a Mezo position is opened for this Treasury Account.
     event PositionOpened(
         uint256 collateralDeposited,
-        uint256 debtPrincipalBorrowed,
+        uint256 musdBorrowed,
         uint256 idleMUSDAfter,
         uint256 positionCollateralAfter,
-        uint256 positionDebtPrincipalAfter
+        uint256 positionDebtAfter
     );
     /// @notice Emitted when collateral is added to the Mezo position.
     event CollateralDeposited(uint256 amount, uint256 positionCollateralAfter);
     /// @notice Emitted when collateral is withdrawn from the Mezo position back into Treasury Account custody.
     event CollateralWithdrawn(uint256 amount, uint256 idleBTCAfter, uint256 positionCollateralAfter);
-    /// @notice Emitted when additional MUSD debt principal is drawn from the Mezo position.
-    event DebtDrawn(uint256 amount, uint256 idleMUSDAfter, uint256 positionDebtPrincipalAfter);
-    /// @notice Emitted when MUSD debt principal is repaid from idle treasury balance.
-    event DebtRepaid(uint256 amount, uint256 idleMUSDAfter, uint256 positionDebtPrincipalAfter);
+    /// @notice Emitted when additional MUSD debt is drawn from the Mezo position.
+    event DebtDrawn(uint256 amount, uint256 idleMUSDAfter, uint256 positionDebtAfter);
+    /// @notice Emitted when MUSD debt is repaid from idle treasury balance.
+    event DebtRepaid(uint256 amount, uint256 idleMUSDAfter, uint256 positionDebtAfter);
     /// @notice Emitted when the Mezo position is adjusted through the generic adjust flow.
     event PositionAdjusted(
         uint256 collateralDeposited,
@@ -41,11 +43,11 @@ contract TreasuryAccount is Ownable2Step {
         uint256 idleMUSDAfter,
         uint256 idleBTCAfter,
         uint256 positionCollateralAfter,
-        uint256 positionDebtPrincipalAfter
+        uint256 positionDebtAfter
     );
     /// @notice Emitted when the Mezo position is fully closed.
     event PositionClosed(
-        uint256 collateralReleased, uint256 debtPrincipalRepaid, uint256 idleBTCAfter, uint256 idleMUSDAfter
+        uint256 collateralReleased, uint256 debtRepaidToClose, uint256 idleBTCAfter, uint256 idleMUSDAfter
     );
     /// @notice Emitted when idle MUSD is allocated to an approved destination.
     event AllocationExecuted(
@@ -62,9 +64,9 @@ contract TreasuryAccount is Ownable2Step {
     error InvalidPositionAdjustment();
     error NoActivePosition();
     error NotPendingOwner(address caller);
-    error PositionAlreadyOpen();
-    error PositionDebtExceeded(uint256 amount, uint256 currentDebtPrincipal);
+    error PositionCloseDebtExceeded(uint256 amount, uint256 currentCloseDebt);
     error PositionCollateralExceeded(uint256 amount, uint256 currentCollateral);
+    error PositionAlreadyOpen();
     error UnauthorizedCaller(address caller);
 
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
@@ -78,12 +80,6 @@ contract TreasuryAccount is Ownable2Step {
     uint256 public idleMUSD;
     /// @notice Idle BTC held directly by the Treasury Account outside the active Mezo position.
     uint256 public idleBTC;
-    /// @notice Tracked BTC collateral currently posted into the Mezo position.
-    uint256 public positionCollateral;
-    /// @notice Tracked MUSD debt principal drawn from the Mezo position, excluding protocol fees and accrual.
-    uint256 public positionDebtPrincipal;
-    /// @notice Whether the Treasury Account currently has an active Mezo position.
-    bool public positionActive;
     /// @notice Deployed MUSD amount tracked per approved destination.
     mapping(address destination => uint256 amount) public destinationAllocations;
 
@@ -99,30 +95,28 @@ contract TreasuryAccount is Ownable2Step {
     receive() external payable { }
 
     /// @notice Opens a Mezo position owned by this Treasury Account and borrows MUSD into idle treasury balance.
-    /// @param _musdAmount Amount of MUSD debt principal to draw.
+    /// @param _musdAmount Amount of MUSD to draw into the Treasury Account.
     /// @param _upperHint Upper insertion hint for Mezo sorted troves.
     /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
     function openTrove(uint256 _musdAmount, address _upperHint, address _lowerHint) external payable {
         require(address(borrowerOperations) != address(0), InvalidBorrowerOperations(address(borrowerOperations)));
-        require(!positionActive, PositionAlreadyOpen());
+        require(!positionActive(), PositionAlreadyOpen());
 
         policyEngine.validateBorrow(address(this), msg.sender, _musdAmount, idleMUSD);
         policyEngine.validateCollateralDeposit(address(this), msg.sender, msg.value);
 
         borrowerOperations.openTrove{ value: msg.value }(_musdAmount, _upperHint, _lowerHint);
 
-        positionActive = true;
         idleMUSD += _musdAmount;
-        positionCollateral = msg.value;
-        positionDebtPrincipal = _musdAmount;
 
-        emit PositionOpened(msg.value, _musdAmount, idleMUSD, positionCollateral, positionDebtPrincipal);
+        (uint256 _positionDebt, uint256 _positionCollateral,) = _getPositionSnapshot();
+        emit PositionOpened(msg.value, _musdAmount, idleMUSD, _positionCollateral, _positionDebt);
     }
 
     /// @notice Adjusts the Mezo position using the protocol-native adjust flow.
     /// @param _collWithdrawal Amount of BTC collateral to withdraw from the position.
-    /// @param _debtChange Amount of MUSD debt principal to change.
-    /// @param _isDebtIncrease Whether `_debtChange` increases or decreases debt principal.
+    /// @param _debtChange Amount of MUSD debt to change.
+    /// @param _isDebtIncrease Whether `_debtChange` increases or decreases debt.
     /// @param _upperHint Upper insertion hint for Mezo sorted troves.
     /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
     function adjustTrove(
@@ -139,8 +133,9 @@ contract TreasuryAccount is Ownable2Step {
             _collWithdrawal, _debtChange, _isDebtIncrease, _upperHint, _lowerHint
         );
 
-        _applyPositionAdjustment(msg.value, _collWithdrawal, _debtChange, _isDebtIncrease);
+        _applyPositionAdjustment(_collWithdrawal, _debtChange, _isDebtIncrease);
 
+        (uint256 _positionDebt, uint256 _positionCollateral,) = _getPositionSnapshot();
         emit PositionAdjusted(
             msg.value,
             _collWithdrawal,
@@ -148,8 +143,8 @@ contract TreasuryAccount is Ownable2Step {
             _isDebtIncrease,
             idleMUSD,
             idleBTC,
-            positionCollateral,
-            positionDebtPrincipal
+            _positionCollateral,
+            _positionDebt
         );
     }
 
@@ -162,8 +157,7 @@ contract TreasuryAccount is Ownable2Step {
 
         borrowerOperations.addColl{ value: msg.value }(_upperHint, _lowerHint);
 
-        positionCollateral += msg.value;
-        emit CollateralDeposited(msg.value, positionCollateral);
+        emit CollateralDeposited(msg.value, positionCollateral());
     }
 
     /// @notice Withdraws BTC collateral from the active Mezo position.
@@ -172,20 +166,21 @@ contract TreasuryAccount is Ownable2Step {
     /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
     function withdrawCollateral(uint256 _amount, address _upperHint, address _lowerHint) external {
         _requireActivePosition();
-        require(positionCollateral >= _amount, PositionCollateralExceeded(_amount, positionCollateral));
+
+        uint256 _currentCollateral = positionCollateral();
+        require(_currentCollateral >= _amount, PositionCollateralExceeded(_amount, _currentCollateral));
 
         policyEngine.validateCollateralWithdrawal(address(this), msg.sender, _amount);
 
         borrowerOperations.withdrawColl(_amount, _upperHint, _lowerHint);
 
-        positionCollateral -= _amount;
         idleBTC += _amount;
 
-        emit CollateralWithdrawn(_amount, idleBTC, positionCollateral);
+        emit CollateralWithdrawn(_amount, idleBTC, positionCollateral());
     }
 
-    /// @notice Draws additional MUSD debt principal from the active Mezo position.
-    /// @param _amount Amount of MUSD debt principal to draw.
+    /// @notice Draws additional MUSD debt from the active Mezo position.
+    /// @param _amount Amount of MUSD to draw.
     /// @param _upperHint Upper insertion hint for Mezo sorted troves.
     /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
     function withdrawMUSD(uint256 _amount, address _upperHint, address _lowerHint) external {
@@ -195,46 +190,44 @@ contract TreasuryAccount is Ownable2Step {
         borrowerOperations.withdrawMUSD(_amount, _upperHint, _lowerHint);
 
         idleMUSD += _amount;
-        positionDebtPrincipal += _amount;
 
-        emit DebtDrawn(_amount, idleMUSD, positionDebtPrincipal);
+        emit DebtDrawn(_amount, idleMUSD, positionTotalDebt());
     }
 
-    /// @notice Repays MUSD debt principal from idle treasury balance.
-    /// @param _amount Amount of MUSD debt principal to repay.
+    /// @notice Repays MUSD debt from idle treasury balance.
+    /// @param _amount Amount of MUSD to repay.
     /// @param _upperHint Upper insertion hint for Mezo sorted troves.
     /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
     function repayMUSD(uint256 _amount, address _upperHint, address _lowerHint) external {
         _requireActivePosition();
-        require(positionDebtPrincipal >= _amount, PositionDebtExceeded(_amount, positionDebtPrincipal));
+
+        uint256 _currentCloseDebt = positionCloseDebt();
+        require(_currentCloseDebt >= _amount, PositionCloseDebtExceeded(_amount, _currentCloseDebt));
 
         policyEngine.validateDebtRepayment(address(this), msg.sender, _amount, idleMUSD);
 
         borrowerOperations.repayMUSD(_amount, _upperHint, _lowerHint);
 
         idleMUSD -= _amount;
-        positionDebtPrincipal -= _amount;
 
-        emit DebtRepaid(_amount, idleMUSD, positionDebtPrincipal);
+        emit DebtRepaid(_amount, idleMUSD, positionTotalDebt());
     }
 
     /// @notice Closes the Mezo position and releases all posted collateral back into Treasury Account custody.
     function closeTrove() external {
         _requireActivePosition();
-        policyEngine.validateClosePosition(address(this), msg.sender, idleMUSD, positionDebtPrincipal);
 
-        uint256 collateralReleased = positionCollateral;
-        uint256 debtPrincipalRepaid = positionDebtPrincipal;
+        uint256 _closeDebt = positionCloseDebt();
+        uint256 _collateral = positionCollateral();
+
+        policyEngine.validateClosePosition(address(this), msg.sender, idleMUSD, _closeDebt);
 
         borrowerOperations.closeTrove();
 
-        idleMUSD -= debtPrincipalRepaid;
-        idleBTC += collateralReleased;
-        positionCollateral = 0;
-        positionDebtPrincipal = 0;
-        positionActive = false;
+        idleMUSD -= _closeDebt;
+        idleBTC += _collateral;
 
-        emit PositionClosed(collateralReleased, debtPrincipalRepaid, idleBTC, idleMUSD);
+        emit PositionClosed(_collateral, _closeDebt, idleBTC, idleMUSD);
     }
 
     /// @notice Allocates idle MUSD into an approved destination.
@@ -338,18 +331,68 @@ contract TreasuryAccount is Ownable2Step {
         emit TreasuryAdminSynced(_previousTreasuryAdmin, owner());
     }
 
-    /// @notice Returns whether the Treasury Account currently holds an active Mezo position.
-    function hasActivePosition() external view returns (bool) {
-        return positionActive;
+    /// @notice Returns the protocol governable variables contract configured by borrower operations.
+    function governableVariables() public view returns (IGovernableVariables) {
+        if (address(borrowerOperations) == address(0)) {
+            return IGovernableVariables(address(0));
+        }
+
+        return borrowerOperations.governableVariables();
     }
 
-    function _applyPositionAdjustment(
-        uint256 _collateralDeposit,
-        uint256 _collateralWithdrawal,
-        uint256 _debtChange,
-        bool _isDebtIncrease
-    ) internal {
-        positionCollateral = positionCollateral + _collateralDeposit - _collateralWithdrawal;
+    /// @notice Returns the active TroveManager used for protocol-backed position reads.
+    function troveManager() public view returns (ITroveManager) {
+        IGovernableVariables _governableVariables = governableVariables();
+        if (address(_governableVariables) == address(0)) {
+            return ITroveManager(address(0));
+        }
+
+        return ITroveManager(_governableVariables.troveManager());
+    }
+
+    /// @notice Returns the full protocol debt for the active position, including fee, gas compensation, and accrual.
+    function positionTotalDebt() public view returns (uint256) {
+        (uint256 _positionDebt,,) = _getPositionSnapshot();
+        return _positionDebt;
+    }
+
+    /// @notice Returns the currently locked collateral for the active position.
+    function positionCollateral() public view returns (uint256) {
+        (, uint256 _positionCollateral,) = _getPositionSnapshot();
+        return _positionCollateral;
+    }
+
+    /// @notice Returns the protocol gas compensation attached to the active trove.
+    function positionGasCompensation() public view returns (uint256) {
+        ITroveManager _troveManager = troveManager();
+        if (address(_troveManager) == address(0)) {
+            return 0;
+        }
+
+        return _troveManager.MUSD_GAS_COMPENSATION();
+    }
+
+    /// @notice Returns the MUSD amount that must be available to close the active position.
+    function positionCloseDebt() public view returns (uint256) {
+        uint256 _positionDebt = positionTotalDebt();
+        uint256 _gasCompensation = positionGasCompensation();
+
+        if (_positionDebt <= _gasCompensation) {
+            return 0;
+        }
+
+        return _positionDebt - _gasCompensation;
+    }
+
+    /// @notice Returns whether the Treasury Account currently holds an active Mezo position.
+    function positionActive() public view returns (bool) {
+        (,, bool _active) = _getPositionSnapshot();
+        return _active;
+    }
+
+    function _applyPositionAdjustment(uint256 _collateralWithdrawal, uint256 _debtChange, bool _isDebtIncrease)
+        internal
+    {
         idleBTC += _collateralWithdrawal;
 
         if (_debtChange == 0) {
@@ -358,12 +401,24 @@ contract TreasuryAccount is Ownable2Step {
 
         if (_isDebtIncrease) {
             idleMUSD += _debtChange;
-            positionDebtPrincipal += _debtChange;
             return;
         }
 
         idleMUSD -= _debtChange;
-        positionDebtPrincipal -= _debtChange;
+    }
+
+    function _getPositionSnapshot()
+        internal
+        view
+        returns (uint256 _positionDebt, uint256 _positionCollateral, bool _active)
+    {
+        ITroveManager _troveManager = troveManager();
+        if (address(_troveManager) == address(0)) {
+            return (0, 0, false);
+        }
+
+        (_positionDebt, _positionCollateral) = _troveManager.getEntireDebtAndColl(address(this));
+        _active = _positionDebt > 0 || _positionCollateral > 0;
     }
 
     function _validatePositionAdjustment(
@@ -380,9 +435,10 @@ contract TreasuryAccount is Ownable2Step {
         }
 
         if (_collateralWithdrawal > 0) {
+            uint256 _currentCollateral = positionCollateral();
             require(
-                positionCollateral >= _collateralWithdrawal,
-                PositionCollateralExceeded(_collateralWithdrawal, positionCollateral)
+                _currentCollateral >= _collateralWithdrawal,
+                PositionCollateralExceeded(_collateralWithdrawal, _currentCollateral)
             );
             policyEngine.validateCollateralWithdrawal(address(this), _actor, _collateralWithdrawal);
         }
@@ -396,11 +452,12 @@ contract TreasuryAccount is Ownable2Step {
             return;
         }
 
-        require(positionDebtPrincipal >= _debtChange, PositionDebtExceeded(_debtChange, positionDebtPrincipal));
+        uint256 _currentCloseDebt = positionCloseDebt();
+        require(_currentCloseDebt >= _debtChange, PositionCloseDebtExceeded(_debtChange, _currentCloseDebt));
         policyEngine.validateDebtRepayment(address(this), _actor, _debtChange, idleMUSD);
     }
 
     function _requireActivePosition() internal view {
-        require(positionActive, NoActivePosition());
+        require(positionActive(), NoActivePosition());
     }
 }

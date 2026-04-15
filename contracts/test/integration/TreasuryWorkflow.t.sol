@@ -85,11 +85,11 @@ contract TreasuryWorkflowIntegrationTest is Test {
         assertEq(_treasuryAccount.idleMUSD(), 0);
         assertEq(_treasuryAccount.idleBTC(), 6 ether);
         assertEq(_treasuryAccount.positionCollateral(), 0);
-        assertEq(_treasuryAccount.positionDebtPrincipal(), 0);
+        assertEq(_treasuryAccount.positionTotalDebt(), 0);
         assertEq(_treasuryAccount.destinationAllocations(address(_savingsVault)), 0);
         assertEq(_savingsVault.totalAssets(), 0);
-        assertEq(_borrowerOperations.totalCollateral(), 0);
-        assertEq(_borrowerOperations.totalDebtPrincipal(), 0);
+        assertEq(_borrowerOperations.totalCollateral(address(_treasuryAccount)), 0);
+        assertEq(_borrowerOperations.totalDebt(address(_treasuryAccount)), 0);
     }
 
     function _defaultConfig() internal view returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {
