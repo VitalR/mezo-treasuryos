@@ -249,6 +249,46 @@ contract TreasuryAccountTest is Test {
         assertTrue(_state.positionActive);
     }
 
+    function test_GetTreasuryComposition_ReturnsExposureAndBufferSnapshot() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_OPERATOR);
+        _account.allocate(_SAVINGS_VAULT, 100 ether);
+
+        address[] memory _destinations = new address[](2);
+        _destinations[0] = _SAVINGS_VAULT;
+        _destinations[1] = _SECOND_DESTINATION;
+
+        TreasuryAccount.TreasuryCompositionState memory _state = _account.getTreasuryComposition(_destinations);
+
+        assertEq(_state.idleMUSD, 500 ether);
+        assertEq(_state.idleBTC, 0);
+        assertEq(_state.totalAllocatedMUSD, 100 ether);
+        assertEq(_state.totalManagedMUSD, 600 ether);
+        assertEq(_state.liquidityBuffer, 200 ether);
+        assertEq(_state.deployableSurplus, 300 ether);
+        assertEq(_state.approvalThreshold, 100 ether);
+        assertTrue(_state.automationEnabled);
+        assertFalse(_state.paused);
+
+        assertEq(_state.exposures.length, 2);
+
+        assertEq(_state.exposures[0].destination, _SAVINGS_VAULT);
+        assertTrue(_state.exposures[0].approved);
+        assertEq(_state.exposures[0].allocationCap, 500 ether);
+        assertEq(_state.exposures[0].allocatedMUSD, 100 ether);
+        assertEq(_state.exposures[0].remainingCapacity, 400 ether);
+
+        assertEq(_state.exposures[1].destination, _SECOND_DESTINATION);
+        assertFalse(_state.exposures[1].approved);
+        assertEq(_state.exposures[1].allocationCap, 0);
+        assertEq(_state.exposures[1].allocatedMUSD, 0);
+        assertEq(_state.exposures[1].remainingCapacity, 0);
+    }
+
     function test_Allocate_OperatorCanAllocateWithinThresholdAndBuffer() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 

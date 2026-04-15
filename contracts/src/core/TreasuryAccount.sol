@@ -97,6 +97,44 @@ contract TreasuryAccount is Ownable2Step {
         bool positionActive;
     }
 
+    /// @notice Per-destination treasury exposure used in composition snapshots.
+    /// @param destination Destination address being reported.
+    /// @param approved Whether the destination is approved by treasury policy.
+    /// @param allocationCap Maximum allowed deployment for the destination.
+    /// @param allocatedMUSD Current MUSD allocated to the destination.
+    /// @param remainingCapacity Additional MUSD that can be allocated before the cap is reached.
+    struct DestinationExposure {
+        address destination;
+        bool approved;
+        uint256 allocationCap;
+        uint256 allocatedMUSD;
+        uint256 remainingCapacity;
+    }
+
+    /// @notice Treasury composition snapshot for service and dashboard consumption.
+    /// @param idleMUSD Idle treasury-managed MUSD currently available inside the account.
+    /// @param idleBTC Idle BTC currently held outside the active Mezo position.
+    /// @param totalAllocatedMUSD Aggregate MUSD deployed across the reported destinations.
+    /// @param totalManagedMUSD Total treasury-managed MUSD across idle and reported deployed balances.
+    /// @param liquidityBuffer Minimum idle MUSD policy buffer.
+    /// @param deployableSurplus Idle MUSD available above the configured liquidity buffer.
+    /// @param approvalThreshold Maximum operator-controlled movement amount before approver authority is required.
+    /// @param automationEnabled Whether automation is enabled in policy.
+    /// @param paused Whether treasury operations are currently paused.
+    /// @param exposures Per-destination treasury exposure entries.
+    struct TreasuryCompositionState {
+        uint256 idleMUSD;
+        uint256 idleBTC;
+        uint256 totalAllocatedMUSD;
+        uint256 totalManagedMUSD;
+        uint256 liquidityBuffer;
+        uint256 deployableSurplus;
+        uint256 approvalThreshold;
+        bool automationEnabled;
+        bool paused;
+        DestinationExposure[] exposures;
+    }
+
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
     /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
@@ -447,6 +485,59 @@ contract TreasuryAccount is Ownable2Step {
             positionCloseDebt: _positionCloseDebt,
             positionGasCompensation: _positionGasCompensation,
             positionActive: _positionActive
+        });
+    }
+
+    /// @notice Returns treasury composition and destination exposures for the provided destination set.
+    /// @param _destinations Destination addresses to include in the composition snapshot.
+    function getTreasuryComposition(address[] calldata _destinations)
+        external
+        view
+        returns (TreasuryCompositionState memory state)
+    {
+        (,,, uint256 _liquidityBuffer, uint256 _approvalThreshold, bool _automationEnabled, bool _paused,) =
+            policyEngine.getAccountPolicy(address(this));
+
+        DestinationExposure[] memory _exposures = new DestinationExposure[](_destinations.length);
+        uint256 _totalAllocatedMUSD;
+
+        for (uint256 _i = 0; _i < _destinations.length; _i++) {
+            address _destination = _destinations[_i];
+            uint256 _allocatedMUSD = destinationAllocations[_destination];
+            uint256 _allocationCap = policyEngine.allocationCap(address(this), _destination);
+            bool _approved = policyEngine.isDestinationApproved(address(this), _destination);
+            uint256 _remainingCapacity;
+
+            if (_allocationCap > _allocatedMUSD) {
+                _remainingCapacity = _allocationCap - _allocatedMUSD;
+            }
+
+            _totalAllocatedMUSD += _allocatedMUSD;
+            _exposures[_i] = DestinationExposure({
+                destination: _destination,
+                approved: _approved,
+                allocationCap: _allocationCap,
+                allocatedMUSD: _allocatedMUSD,
+                remainingCapacity: _remainingCapacity
+            });
+        }
+
+        uint256 _deployableSurplus;
+        if (idleMUSD > _liquidityBuffer) {
+            _deployableSurplus = idleMUSD - _liquidityBuffer;
+        }
+
+        state = TreasuryCompositionState({
+            idleMUSD: idleMUSD,
+            idleBTC: idleBTC,
+            totalAllocatedMUSD: _totalAllocatedMUSD,
+            totalManagedMUSD: idleMUSD + _totalAllocatedMUSD,
+            liquidityBuffer: _liquidityBuffer,
+            deployableSurplus: _deployableSurplus,
+            approvalThreshold: _approvalThreshold,
+            automationEnabled: _automationEnabled,
+            paused: _paused,
+            exposures: _exposures
         });
     }
 
