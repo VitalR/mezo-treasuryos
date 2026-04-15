@@ -244,7 +244,7 @@ contract TreasuryAccountTest is Test {
         assertEq(_state.borrowerOperations, address(_borrowerOperations));
         assertEq(_state.governableVariables, address(_borrowerOperations.governableVariables()));
         assertEq(_state.troveManager, address(_account.troveManager()));
-        assertEq(_state.allocationAdapter, address(0));
+        assertEq(_state.allocationRouter, address(0));
         assertEq(_state.idleMUSD, 200 ether);
         assertEq(_state.idleBTC, 1 ether);
         assertEq(_state.positionCollateral, 2 ether);
@@ -258,7 +258,7 @@ contract TreasuryAccountTest is Test {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount(address(_mockSavingsVault));
 
         vm.prank(_TREASURY_ADMIN);
-        _account.setAllocationAdapter(_ALLOCATION_ADAPTER);
+        _account.setAllocationRouter(_ALLOCATION_ADAPTER);
 
         vm.prank(_APPROVER);
         _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);

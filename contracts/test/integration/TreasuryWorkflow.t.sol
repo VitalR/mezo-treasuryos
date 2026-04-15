@@ -43,7 +43,7 @@ contract TreasuryWorkflowIntegrationTest is Test {
         _treasuryAccount.setBorrowerOperations(address(_borrowerOperations));
 
         vm.prank(_TREASURY_ADMIN);
-        _treasuryAccount.setAllocationAdapter(address(_savingsVaultAdapter));
+        _treasuryAccount.setAllocationRouter(address(_savingsVaultAdapter));
     }
 
     function test_TreasuryWorkflow_OpenAllocateRepayWithdrawAndClose() public {

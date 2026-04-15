@@ -43,20 +43,20 @@ contract SavingsVaultAdapterTest is Test {
         _treasuryAccount.setBorrowerOperations(address(_borrowerOperations));
 
         vm.prank(_TREASURY_ADMIN);
-        _treasuryAccount.setAllocationAdapter(address(_savingsVaultAdapter));
+        _treasuryAccount.setAllocationRouter(address(_savingsVaultAdapter));
 
         vm.prank(_APPROVER);
         _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
     }
 
-    function test_SetAllocationAdapter_TreasuryAdminCanSetAllocationAdapter() public {
+    function test_SetAllocationRouter_TreasuryAdminCanSetAllocationRouter() public {
         TreasuryAccount _account =
             TreasuryAccount(payable(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _defaultConfig())));
 
         vm.prank(_TREASURY_ADMIN);
-        _account.setAllocationAdapter(address(_savingsVaultAdapter));
+        _account.setAllocationRouter(address(_savingsVaultAdapter));
 
-        assertEq(_account.allocationAdapter(), address(_savingsVaultAdapter));
+        assertEq(_account.allocationRouter(), address(_savingsVaultAdapter));
     }
 
     function test_Deposit_OperatorCanDepositIntoSavingsVaultWithinPolicy() public {

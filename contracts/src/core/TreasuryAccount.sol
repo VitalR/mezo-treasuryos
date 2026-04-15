@@ -19,8 +19,8 @@ contract TreasuryAccount is Ownable2Step {
 
     /// @notice Emitted when the connected Mezo borrower operations contract is updated.
     event BorrowerOperationsUpdated(address indexed borrowerOperations);
-    /// @notice Emitted when the trusted allocation adapter is updated.
-    event AllocationAdapterUpdated(address indexed allocationAdapter);
+    /// @notice Emitted when the trusted allocation router is updated.
+    event AllocationRouterUpdated(address indexed allocationRouter);
     /// @notice Emitted when Treasury Account ownership is finalized and synced into policy state.
     event TreasuryAdminSynced(address indexed previousTreasuryAdmin, address indexed newTreasuryAdmin);
     /// @notice Emitted when a Mezo position is opened for this Treasury Account.
@@ -65,7 +65,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Emitted when yield is claimed from a treasury destination back into idle treasury balance.
     event YieldClaimedFromDestination(address indexed destination, uint256 amount, uint256 idleBalanceAfter);
 
-    error InvalidAllocationAdapter(address allocationAdapter);
+    error InvalidAllocationRouter(address allocationRouter);
     error InvalidBorrowerOperations(address borrowerOperations);
     error InvalidMUSDToken(address musdToken);
     error InvalidPolicyEngine(address policyEngine);
@@ -83,7 +83,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @param borrowerOperations Connected Mezo borrower operations contract.
     /// @param governableVariables Governable variables contract referenced by borrower operations.
     /// @param troveManager Active TroveManager used for protocol position reads.
-    /// @param allocationAdapter Trusted allocation adapter for governed deployment flows.
+    /// @param allocationRouter Trusted allocation router for governed deployment flows.
     /// @param idleMUSD Idle MUSD currently held in the treasury boundary.
     /// @param idleBTC Idle BTC currently held in the treasury boundary outside the active trove.
     /// @param positionCollateral BTC collateral currently locked in the Mezo position.
@@ -96,7 +96,7 @@ contract TreasuryAccount is Ownable2Step {
         address borrowerOperations;
         address governableVariables;
         address troveManager;
-        address allocationAdapter;
+        address allocationRouter;
         uint256 idleMUSD;
         uint256 idleBTC;
         uint256 positionCollateral;
@@ -163,8 +163,8 @@ contract TreasuryAccount is Ownable2Step {
     IERC20 public immutable musdToken;
     /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
     IBorrowerOperations public borrowerOperations;
-    /// @notice Trusted allocation adapter allowed to route destination deposits and withdrawals.
-    address public allocationAdapter;
+    /// @notice Trusted allocation router allowed to orchestrate governed destination flows.
+    address public allocationRouter;
 
     /// @notice Idle treasury-managed MUSD held inside the account and available for operations.
     uint256 public idleMUSD;
@@ -334,7 +334,7 @@ contract TreasuryAccount is Ownable2Step {
         external
         returns (uint256 mintedShares)
     {
-        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
 
         IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
         _requireSupportedYieldToken(savingsRate);
@@ -363,7 +363,7 @@ contract TreasuryAccount is Ownable2Step {
         external
         returns (uint256 burnedShares)
     {
-        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
 
         IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
         _requireSupportedYieldToken(savingsRate);
@@ -390,7 +390,7 @@ contract TreasuryAccount is Ownable2Step {
         external
         returns (uint256 claimedYield)
     {
-        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
 
         IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
         _requireSupportedYieldToken(savingsRate);
@@ -417,12 +417,12 @@ contract TreasuryAccount is Ownable2Step {
         emit AllocationExecuted(_destination, _amount, idleMUSD, destinationAllocations[_destination]);
     }
 
-    /// @notice Allocates idle MUSD through the configured allocation adapter on behalf of a treasury actor.
+    /// @notice Allocates idle MUSD through the configured allocation router on behalf of a treasury actor.
     /// @param _actor Treasury actor on whose behalf the allocation is being performed.
     /// @param _destination Destination receiving funds.
     /// @param _amount Amount being allocated.
     function allocateFromAdapter(address _actor, address _destination, uint256 _amount) external {
-        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
 
         uint256 currentAllocation = destinationAllocations[_destination];
 
@@ -448,12 +448,12 @@ contract TreasuryAccount is Ownable2Step {
         emit WithdrawalExecuted(_destination, _amount, idleMUSD, destinationAllocations[_destination]);
     }
 
-    /// @notice Withdraws previously allocated MUSD through the configured allocation adapter.
+    /// @notice Withdraws previously allocated MUSD through the configured allocation router.
     /// @param _actor Treasury actor on whose behalf the withdrawal is being performed.
     /// @param _destination Destination being withdrawn from.
     /// @param _amount Amount being withdrawn.
     function withdrawFromAdapter(address _actor, address _destination, uint256 _amount) external {
-        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
 
         uint256 currentAllocation = destinationAllocations[_destination];
 
@@ -483,13 +483,13 @@ contract TreasuryAccount is Ownable2Step {
         emit BorrowerOperationsUpdated(_borrowerOperations);
     }
 
-    /// @notice Sets the trusted allocation adapter for routed deployment and withdrawal flows.
-    /// @param _allocationAdapter Allocation adapter allowed to mutate treasury allocation state.
-    function setAllocationAdapter(address _allocationAdapter) external onlyOwner {
-        require(_allocationAdapter != address(0), InvalidAllocationAdapter(_allocationAdapter));
+    /// @notice Sets the trusted allocation router for routed deployment and withdrawal flows.
+    /// @param _allocationRouter Allocation router allowed to mutate treasury allocation state.
+    function setAllocationRouter(address _allocationRouter) external onlyOwner {
+        require(_allocationRouter != address(0), InvalidAllocationRouter(_allocationRouter));
 
-        allocationAdapter = _allocationAdapter;
-        emit AllocationAdapterUpdated(_allocationAdapter);
+        allocationRouter = _allocationRouter;
+        emit AllocationRouterUpdated(_allocationRouter);
     }
 
     /// @notice Finalizes a pending ownership transfer and syncs the policy engine's treasury admin.
@@ -584,7 +584,7 @@ contract TreasuryAccount is Ownable2Step {
             borrowerOperations: address(borrowerOperations),
             governableVariables: address(_governableVariables),
             troveManager: address(_troveManager),
-            allocationAdapter: allocationAdapter,
+            allocationRouter: allocationRouter,
             idleMUSD: idleMUSD,
             idleBTC: idleBTC,
             positionCollateral: _positionCollateral,
