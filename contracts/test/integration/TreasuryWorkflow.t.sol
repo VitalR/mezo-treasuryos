@@ -4,6 +4,7 @@ pragma solidity 0.8.34;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
+import { AllocationRouter } from "../../src/adapters/AllocationRouter.sol";
 import { SavingsVaultAdapter } from "../../src/adapters/SavingsVaultAdapter.sol";
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
@@ -23,6 +24,7 @@ contract TreasuryWorkflowIntegrationTest is Test {
     TreasuryAccountFactory internal _factory;
     MockBorrowerOperations internal _borrowerOperations;
     MockMUSDSavingsRate internal _savingsVault;
+    AllocationRouter internal _allocationRouter;
     SavingsVaultAdapter internal _savingsVaultAdapter;
     TreasuryAccount internal _treasuryAccount;
 
@@ -31,7 +33,8 @@ contract TreasuryWorkflowIntegrationTest is Test {
         _borrowerOperations = new MockBorrowerOperations();
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
         _savingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
-        _savingsVaultAdapter = new SavingsVaultAdapter(_savingsVault);
+        _allocationRouter = new AllocationRouter(_TREASURY_ADMIN);
+        _savingsVaultAdapter = new SavingsVaultAdapter(_savingsVault, address(_allocationRouter));
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
         vm.deal(_OPERATOR, 50 ether);
@@ -43,7 +46,10 @@ contract TreasuryWorkflowIntegrationTest is Test {
         _treasuryAccount.setBorrowerOperations(address(_borrowerOperations));
 
         vm.prank(_TREASURY_ADMIN);
-        _treasuryAccount.setAllocationRouter(address(_savingsVaultAdapter));
+        _treasuryAccount.setAllocationRouter(address(_allocationRouter));
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.setHandler(address(_savingsVault), _savingsVaultAdapter);
     }
 
     function test_TreasuryWorkflow_OpenAllocateRepayWithdrawAndClose() public {
@@ -51,7 +57,7 @@ contract TreasuryWorkflowIntegrationTest is Test {
         _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
 
         vm.prank(_OPERATOR);
-        _savingsVaultAdapter.deposit(_treasuryAccount, 100 ether);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_savingsVault), 100 ether);
 
         vm.prank(_OPERATOR);
         _treasuryAccount.repayMUSD(50 ether, _UPPER_HINT, _LOWER_HINT);
@@ -60,7 +66,7 @@ contract TreasuryWorkflowIntegrationTest is Test {
         _treasuryAccount.withdrawCollateral(1 ether, _UPPER_HINT, _LOWER_HINT);
 
         vm.prank(_OPERATOR);
-        _savingsVaultAdapter.withdraw(_treasuryAccount, 100 ether);
+        _allocationRouter.withdraw(address(_treasuryAccount), address(_savingsVault), 100 ether);
 
         vm.prank(_APPROVER);
         _treasuryAccount.closeTrove();

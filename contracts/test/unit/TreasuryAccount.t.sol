@@ -19,6 +19,7 @@ contract TreasuryAccountTest is Test {
     address internal constant _SAVINGS_VAULT = address(0xD00D);
     address internal constant _SECOND_DESTINATION = address(0xE11E);
     address internal constant _ALLOCATION_ADAPTER = address(0xF00D);
+    address internal constant _OPERATING_RECIPIENT = address(0xABCD);
     address internal constant _UPPER_HINT = address(0xAAA1);
     address internal constant _LOWER_HINT = address(0xAAA2);
 
@@ -140,6 +141,50 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_account.idleMUSD(), 100 ether);
         assertEq(_account.positionTotalDebt(), 100 ether);
+    }
+
+    function test_FundIdleMUSD_IncreasesIdleTreasuryBalance() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        _borrowerOperations.musdTokenContract().mint(_TREASURY_ADMIN, 75 ether);
+
+        vm.startPrank(_TREASURY_ADMIN);
+        _borrowerOperations.musdTokenContract().approve(address(_account), 75 ether);
+        _account.fundIdleMUSD(75 ether);
+        vm.stopPrank();
+
+        assertEq(_account.idleMUSD(), 75 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_account)), 75 ether);
+    }
+
+    function test_DisburseMUSD_TreasuryAdminCanSendOperatingCash() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 3 ether }(300 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.expectEmit(true, true, false, true);
+        emit TreasuryAccount.TreasuryDisbursed(_TREASURY_ADMIN, _OPERATING_RECIPIENT, 80 ether, 220 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 80 ether);
+
+        assertEq(_account.idleMUSD(), 220 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(_OPERATING_RECIPIENT), 80 ether);
+    }
+
+    function test_DisburseMUSD_OperatorCannotSendAboveApprovalThreshold() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 3 ether }(300 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.ApprovalRequired.selector, _OPERATOR, 150 ether, 100 ether)
+        );
+
+        vm.prank(_OPERATOR);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 150 ether);
     }
 
     function test_AddCollateral_OperatorCanAddCollateralWhilePaused() public {

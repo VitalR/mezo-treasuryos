@@ -81,6 +81,20 @@ interface ITreasuryPolicyEngine {
     /// @param _actor Caller attempting the action.
     function validateYieldClaim(address _account, address _actor) external view;
 
+    /// @notice Validates a treasury disbursement from idle MUSD to an external recipient.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action.
+    /// @param _recipient Recipient of the treasury cash movement.
+    /// @param _amount Amount of MUSD being disbursed.
+    /// @param _idleBalance Current idle MUSD balance before disbursement.
+    function validateDisbursement(
+        address _account,
+        address _actor,
+        address _recipient,
+        uint256 _amount,
+        uint256 _idleBalance
+    ) external view;
+
     /// @notice Validates deployment of idle MUSD into a destination.
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.

@@ -12,7 +12,9 @@ contract MockMUSDSavingsRate is ERC20, IMUSDSavingsRate {
     using SafeERC20 for IERC20;
 
     MockMUSDToken public immutable musdToken;
+    uint256 public yieldIndex;
     mapping(address account => uint256 amount) public claimableYield;
+    mapping(address account => uint256 index) public supplyYieldIndex;
 
     constructor(MockMUSDToken _musdToken) ERC20("Mock sMUSD", "sMUSD") {
         musdToken = _musdToken;

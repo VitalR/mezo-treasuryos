@@ -199,6 +199,24 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
+    function validateDisbursement(
+        address _account,
+        address _actor,
+        address _recipient,
+        uint256 _amount,
+        uint256 _idleBalance
+    ) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(!policy.paused, PolicyPaused(_account));
+        require(_recipient != address(0), InvalidDestination(_recipient));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(_idleBalance >= _amount, InsufficientIdleBalance(_amount, _idleBalance));
+
+        _requireMovementAuthority(policy, _account, _actor, _amount);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
     function validateAllocate(
         address _account,
         address _actor,

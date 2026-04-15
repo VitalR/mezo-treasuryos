@@ -26,4 +26,11 @@ interface IMUSDSavingsRate {
     /// @notice Returns claimable MUSD yield for an account.
     /// @param _account Account to query.
     function claimableYield(address _account) external view returns (uint256);
+
+    /// @notice Returns the global yield index used to derive pending pro-rata yield.
+    function yieldIndex() external view returns (uint256);
+
+    /// @notice Returns the account's last synchronized yield index.
+    /// @param _account Account to query.
+    function supplyYieldIndex(address _account) external view returns (uint256);
 }

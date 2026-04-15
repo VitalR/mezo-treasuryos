@@ -6,6 +6,7 @@ import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import { IAllocationRouterAuthority } from "../interfaces/IAllocationRouterAuthority.sol";
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../interfaces/IGovernableVariables.sol";
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
@@ -64,8 +65,13 @@ contract TreasuryAccount is Ownable2Step {
     );
     /// @notice Emitted when yield is claimed from a treasury destination back into idle treasury balance.
     event YieldClaimedFromDestination(address indexed destination, uint256 amount, uint256 idleBalanceAfter);
+    /// @notice Emitted when MUSD is funded back into idle treasury balance.
+    event IdleMUSDFunded(address indexed funder, uint256 amount, uint256 idleBalanceAfter);
+    /// @notice Emitted when idle MUSD is disbursed to an external operating recipient.
+    event TreasuryDisbursed(address indexed actor, address indexed recipient, uint256 amount, uint256 idleBalanceAfter);
 
     error InvalidAllocationRouter(address allocationRouter);
+    error InvalidAmount(uint256 amount);
     error InvalidBorrowerOperations(address borrowerOperations);
     error InvalidMUSDToken(address musdToken);
     error InvalidPolicyEngine(address policyEngine);
@@ -75,6 +81,7 @@ contract TreasuryAccount is Ownable2Step {
     error PositionCloseDebtExceeded(uint256 amount, uint256 currentCloseDebt);
     error PositionCollateralExceeded(uint256 amount, uint256 currentCollateral);
     error PositionAlreadyOpen();
+    error InvalidTreasuryRecipient(address recipient);
     error UnsupportedYieldToken(address expected, address actual);
     error UnauthorizedCaller(address caller);
 
@@ -325,6 +332,31 @@ contract TreasuryAccount is Ownable2Step {
         emit PositionClosed(_collateral, _closeDebt, idleBTC, idleMUSD);
     }
 
+    /// @notice Funds idle treasury MUSD so the account can restore working capital or repay debt.
+    /// @param _amount Amount of MUSD transferred into the Treasury Account.
+    function fundIdleMUSD(uint256 _amount) external {
+        require(_amount > 0, InvalidAmount(_amount));
+
+        musdToken.safeTransferFrom(msg.sender, address(this), _amount);
+        idleMUSD += _amount;
+
+        emit IdleMUSDFunded(msg.sender, _amount, idleMUSD);
+    }
+
+    /// @notice Disburses idle MUSD to an external operating recipient.
+    /// @param _recipient Recipient receiving the treasury cash movement.
+    /// @param _amount Amount of MUSD being disbursed.
+    function disburseMUSD(address _recipient, uint256 _amount) external {
+        require(_recipient != address(0), InvalidTreasuryRecipient(_recipient));
+
+        policyEngine.validateDisbursement(address(this), msg.sender, _recipient, _amount, idleMUSD);
+
+        idleMUSD -= _amount;
+        musdToken.safeTransfer(_recipient, _amount);
+
+        emit TreasuryDisbursed(msg.sender, _recipient, _amount, idleMUSD);
+    }
+
     /// @notice Deposits idle MUSD into the configured MUSD Savings Rate vault through the trusted adapter flow.
     /// @param _actor Treasury actor on whose behalf the deposit is being performed.
     /// @param _savingsRate Savings Rate destination receiving the principal.
@@ -334,7 +366,7 @@ contract TreasuryAccount is Ownable2Step {
         external
         returns (uint256 mintedShares)
     {
-        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        _requireAuthorizedAllocationCaller();
 
         IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
         _requireSupportedYieldToken(savingsRate);
@@ -363,7 +395,7 @@ contract TreasuryAccount is Ownable2Step {
         external
         returns (uint256 burnedShares)
     {
-        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        _requireAuthorizedAllocationCaller();
 
         IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
         _requireSupportedYieldToken(savingsRate);
@@ -390,7 +422,7 @@ contract TreasuryAccount is Ownable2Step {
         external
         returns (uint256 claimedYield)
     {
-        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        _requireAuthorizedAllocationCaller();
 
         IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
         _requireSupportedYieldToken(savingsRate);
@@ -422,7 +454,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @param _destination Destination receiving funds.
     /// @param _amount Amount being allocated.
     function allocateFromAdapter(address _actor, address _destination, uint256 _amount) external {
-        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        _requireAuthorizedAllocationCaller();
 
         uint256 currentAllocation = destinationAllocations[_destination];
 
@@ -453,7 +485,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @param _destination Destination being withdrawn from.
     /// @param _amount Amount being withdrawn.
     function withdrawFromAdapter(address _actor, address _destination, uint256 _amount) external {
-        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        _requireAuthorizedAllocationCaller();
 
         uint256 currentAllocation = destinationAllocations[_destination];
 
@@ -629,7 +661,7 @@ contract TreasuryAccount is Ownable2Step {
                     _yieldToken = _reportedYieldToken;
                     _receiptToken = _destination;
                     _receiptBalance = IMUSDSavingsRate(_destination).balanceOf(address(this));
-                    _claimableYield = IMUSDSavingsRate(_destination).claimableYield(address(this));
+                    _claimableYield = _previewSavingsRateClaimableYield(IMUSDSavingsRate(_destination), _receiptBalance);
                     _supportsSavingsRate = true;
                 } catch { }
             }
@@ -702,6 +734,42 @@ contract TreasuryAccount is Ownable2Step {
     function _requireSupportedYieldToken(IMUSDSavingsRate _savingsRate) internal view {
         address _yieldToken = _savingsRate.yieldToken();
         require(_yieldToken == address(musdToken), UnsupportedYieldToken(address(musdToken), _yieldToken));
+    }
+
+    function _previewSavingsRateClaimableYield(IMUSDSavingsRate _savingsRate, uint256 _receiptBalance)
+        internal
+        view
+        returns (uint256 claimableYield)
+    {
+        claimableYield = _savingsRate.claimableYield(address(this));
+
+        if (_receiptBalance == 0) {
+            return claimableYield;
+        }
+
+        uint256 _yieldIndex = _savingsRate.yieldIndex();
+        uint256 _accountYieldIndex = _savingsRate.supplyYieldIndex(address(this));
+
+        if (_yieldIndex > _accountYieldIndex) {
+            claimableYield += (_receiptBalance * (_yieldIndex - _accountYieldIndex)) / 1e18;
+        }
+    }
+
+    function _requireAuthorizedAllocationCaller() internal view {
+        if (msg.sender == allocationRouter) {
+            return;
+        }
+
+        if (allocationRouter != address(0)) {
+            try IAllocationRouterAuthority(allocationRouter).isAuthorizedHandler(msg.sender) returns (
+                bool _authorized
+            ) {
+                require(_authorized, UnauthorizedCaller(msg.sender));
+                return;
+            } catch { }
+        }
+
+        revert UnauthorizedCaller(msg.sender);
     }
 
     function _validatePositionAdjustment(
