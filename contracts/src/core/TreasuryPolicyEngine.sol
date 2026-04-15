@@ -192,6 +192,13 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
+    function validateYieldClaim(address _account, address _actor) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireRiskReducingAuthority(policy, _account, _actor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
     function validateAllocate(
         address _account,
         address _actor,

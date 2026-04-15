@@ -4,6 +4,7 @@ pragma solidity 0.8.34;
 import { IBorrowerOperations } from "../../src/interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../../src/interfaces/IGovernableVariables.sol";
 import { ITroveManager } from "../../src/interfaces/ITroveManager.sol";
+import { MockMUSDToken } from "./MockMUSDToken.sol";
 
 contract MockTroveManager is ITroveManager {
     uint256 public MUSD_GAS_COMPENSATION;
@@ -53,10 +54,12 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     MockTroveManager public troveManagerContract;
     IGovernableVariables public governableVariables;
+    MockMUSDToken public musdTokenContract;
 
     constructor() {
         troveManagerContract = new MockTroveManager();
         governableVariables = new MockGovernableVariables(address(troveManagerContract));
+        musdTokenContract = new MockMUSDToken();
     }
 
     receive() external payable { }
@@ -67,6 +70,10 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     function setGasCompensation(uint256 _gasCompensation) external {
         troveManagerContract.setGasCompensation(_gasCompensation);
+    }
+
+    function musdToken() external view returns (address) {
+        return address(musdTokenContract);
     }
 
     function totalDebt(address _borrower) external view returns (uint256) {
@@ -85,6 +92,7 @@ contract MockBorrowerOperations is IBorrowerOperations {
         uint256 _entireDebt = _debtAmount + borrowingFee + troveManagerContract.MUSD_GAS_COMPENSATION();
 
         troveManagerContract.setPosition(msg.sender, _entireDebt, msg.value);
+        musdTokenContract.mint(msg.sender, _debtAmount);
         lastCollateralDeposit = msg.value;
         lastCollateralWithdrawal = 0;
         lastDebtChange = _debtAmount;
@@ -96,7 +104,7 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     function restrictedOpenTrove(
         address _borrower,
-        address,
+        address _recipient,
         uint256 _debtAmount,
         address _upperHint,
         address _lowerHint
@@ -105,6 +113,7 @@ contract MockBorrowerOperations is IBorrowerOperations {
             _debtAmount + borrowingFee + troveManagerContract.MUSD_GAS_COMPENSATION();
 
         troveManagerContract.setPosition(_borrower, _entireDebt, msg.value);
+        musdTokenContract.mint(_recipient, _debtAmount);
         lastCollateralDeposit = msg.value;
         lastCollateralWithdrawal = 0;
         lastDebtChange = _debtAmount;
@@ -173,6 +182,7 @@ contract MockBorrowerOperations is IBorrowerOperations {
             troveManagerContract.entireDebts(msg.sender) + _amount,
             troveManagerContract.entireCollaterals(msg.sender)
         );
+        musdTokenContract.mint(msg.sender, _amount);
         lastDebtChange = _amount;
         lastDebtIncrease = true;
         lastUpperHint = _upperHint;
@@ -181,6 +191,7 @@ contract MockBorrowerOperations is IBorrowerOperations {
     }
 
     function repayMUSD(uint256 _amount, address _upperHint, address _lowerHint) external {
+        musdTokenContract.burnFrom(msg.sender, _amount);
         troveManagerContract.setPosition(
             msg.sender,
             troveManagerContract.entireDebts(msg.sender) - _amount,
@@ -195,6 +206,11 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     function closeTrove() external {
         uint256 _collateralToReturn = troveManagerContract.entireCollaterals(msg.sender);
+        uint256 _closeDebt = troveManagerContract.entireDebts(msg.sender) - troveManagerContract.MUSD_GAS_COMPENSATION();
+
+        if (_closeDebt > 0) {
+            musdTokenContract.burnFrom(msg.sender, _closeDebt);
+        }
 
         troveManagerContract.setPosition(msg.sender, 0, 0);
         lastAction = keccak256("closeTrove");
@@ -205,6 +221,11 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     function restrictedCloseTrove(address, address, address _recipient) external {
         uint256 _collateralToReturn = troveManagerContract.entireCollaterals(msg.sender);
+        uint256 _closeDebt = troveManagerContract.entireDebts(msg.sender) - troveManagerContract.MUSD_GAS_COMPENSATION();
+
+        if (_closeDebt > 0) {
+            musdTokenContract.burnFrom(msg.sender, _closeDebt);
+        }
 
         troveManagerContract.setPosition(msg.sender, 0, 0);
         lastAction = keccak256("restrictedCloseTrove");

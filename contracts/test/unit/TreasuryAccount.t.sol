@@ -2,6 +2,7 @@
 pragma solidity 0.8.34;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
@@ -25,8 +26,8 @@ contract TreasuryAccountTest is Test {
 
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
-        _factory = new TreasuryAccountFactory(_policyEngine);
         _borrowerOperations = new MockBorrowerOperations();
+        _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
         vm.deal(_OPERATOR, 50 ether);

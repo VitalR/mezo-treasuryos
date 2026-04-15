@@ -2,27 +2,29 @@
 pragma solidity 0.8.34;
 
 import { TreasuryAccount } from "../core/TreasuryAccount.sol";
-import { IMUSDSavingsVault } from "../interfaces/IMUSDSavingsVault.sol";
+import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 
 /// @title SavingsVaultAdapter
-/// @notice Routes governed MUSD allocation into the configured savings destination.
+/// @notice Routes governed MUSD allocation into the configured MUSDSavingsRate destination.
 contract SavingsVaultAdapter {
-    /// @notice Emitted when TreasuryOS routes idle MUSD into the savings vault.
+    /// @notice Emitted when TreasuryOS routes idle MUSD into MUSDSavingsRate.
     event SavingsDepositRouted(address indexed treasuryAccount, address indexed actor, uint256 amount, uint256 shares);
 
-    /// @notice Emitted when TreasuryOS restores idle MUSD from the savings vault.
+    /// @notice Emitted when TreasuryOS restores idle MUSD principal from MUSDSavingsRate.
     event SavingsWithdrawalRouted(
         address indexed treasuryAccount, address indexed actor, uint256 amount, uint256 shares
     );
+    /// @notice Emitted when TreasuryOS claims yield from MUSDSavingsRate back into idle treasury balance.
+    event SavingsYieldClaimed(address indexed treasuryAccount, address indexed actor, uint256 amount);
 
     error InvalidSavingsVault(address savingsVault);
     error InvalidTreasuryAccount(address treasuryAccount);
     error InvalidAmount(uint256 amount);
 
-    IMUSDSavingsVault public immutable savingsVault;
+    IMUSDSavingsRate public immutable savingsVault;
 
     /// @param _savingsVault Savings destination used for governed allocation.
-    constructor(IMUSDSavingsVault _savingsVault) {
+    constructor(IMUSDSavingsRate _savingsVault) {
         require(address(_savingsVault) != address(0), InvalidSavingsVault(address(_savingsVault)));
 
         savingsVault = _savingsVault;
@@ -36,8 +38,7 @@ contract SavingsVaultAdapter {
         require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
         require(_amount > 0, InvalidAmount(_amount));
 
-        _treasuryAccount.allocateFromAdapter(msg.sender, address(savingsVault), _amount);
-        shares = savingsVault.deposit(_amount, address(_treasuryAccount));
+        shares = _treasuryAccount.depositIntoSavingsRateFromAdapter(msg.sender, address(savingsVault), _amount);
 
         emit SavingsDepositRouted(address(_treasuryAccount), msg.sender, _amount, shares);
     }
@@ -50,9 +51,19 @@ contract SavingsVaultAdapter {
         require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
         require(_amount > 0, InvalidAmount(_amount));
 
-        shares = savingsVault.withdraw(_amount, address(_treasuryAccount), address(_treasuryAccount));
-        _treasuryAccount.withdrawFromAdapter(msg.sender, address(savingsVault), _amount);
+        shares = _treasuryAccount.withdrawFromSavingsRateFromAdapter(msg.sender, address(savingsVault), _amount);
 
         emit SavingsWithdrawalRouted(address(_treasuryAccount), msg.sender, _amount, shares);
+    }
+
+    /// @notice Claims MUSD yield from MUSDSavingsRate back into the Treasury Account idle balance.
+    /// @param _treasuryAccount Treasury Account receiving the claimed yield.
+    /// @return amount Amount of MUSD yield claimed.
+    function claimYield(TreasuryAccount _treasuryAccount) external returns (uint256 amount) {
+        require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
+
+        amount = _treasuryAccount.claimSavingsRateYieldFromAdapter(msg.sender, address(savingsVault));
+
+        emit SavingsYieldClaimed(address(_treasuryAccount), msg.sender, amount);
     }
 }

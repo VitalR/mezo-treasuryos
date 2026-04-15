@@ -76,6 +76,11 @@ interface ITreasuryPolicyEngine {
         external
         view;
 
+    /// @notice Validates claiming yield from an approved treasury destination.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action.
+    function validateYieldClaim(address _account, address _actor) external view;
+
     /// @notice Validates deployment of idle MUSD into a destination.
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.

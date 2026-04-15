@@ -1,32 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.34;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { SavingsVaultAdapter } from "../../src/adapters/SavingsVaultAdapter.sol";
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
-import { IMUSDSavingsVault } from "../../src/interfaces/IMUSDSavingsVault.sol";
 import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
 import { MockBorrowerOperations } from "../helpers/MockBorrowerOperations.sol";
-
-contract MockWorkflowSavingsVault is IMUSDSavingsVault {
-    uint256 public totalAssets;
-    uint256 public totalShares;
-
-    function deposit(uint256 _assets, address) external returns (uint256 shares) {
-        totalAssets += _assets;
-        totalShares += _assets;
-        shares = _assets;
-    }
-
-    function withdraw(uint256 _assets, address, address) external returns (uint256 shares) {
-        totalAssets -= _assets;
-        totalShares -= _assets;
-        shares = _assets;
-    }
-}
+import { MockMUSDSavingsRate } from "../helpers/MockMUSDSavingsRate.sol";
 
 contract TreasuryWorkflowIntegrationTest is Test {
     address internal constant _TREASURY_ADMIN = address(0xA11CE);
@@ -38,15 +22,15 @@ contract TreasuryWorkflowIntegrationTest is Test {
     TreasuryPolicyEngine internal _policyEngine;
     TreasuryAccountFactory internal _factory;
     MockBorrowerOperations internal _borrowerOperations;
-    MockWorkflowSavingsVault internal _savingsVault;
+    MockMUSDSavingsRate internal _savingsVault;
     SavingsVaultAdapter internal _savingsVaultAdapter;
     TreasuryAccount internal _treasuryAccount;
 
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
-        _factory = new TreasuryAccountFactory(_policyEngine);
         _borrowerOperations = new MockBorrowerOperations();
-        _savingsVault = new MockWorkflowSavingsVault();
+        _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _savingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _savingsVaultAdapter = new SavingsVaultAdapter(_savingsVault);
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
@@ -87,7 +71,7 @@ contract TreasuryWorkflowIntegrationTest is Test {
         assertEq(_treasuryAccount.positionCollateral(), 0);
         assertEq(_treasuryAccount.positionTotalDebt(), 0);
         assertEq(_treasuryAccount.destinationAllocations(address(_savingsVault)), 0);
-        assertEq(_savingsVault.totalAssets(), 0);
+        assertEq(_savingsVault.balanceOf(address(_treasuryAccount)), 0);
         assertEq(_borrowerOperations.totalCollateral(address(_treasuryAccount)), 0);
         assertEq(_borrowerOperations.totalDebt(address(_treasuryAccount)), 0);
     }

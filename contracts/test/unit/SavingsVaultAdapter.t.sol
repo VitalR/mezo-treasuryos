@@ -1,42 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.34;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { SavingsVaultAdapter } from "../../src/adapters/SavingsVaultAdapter.sol";
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
-import { IMUSDSavingsVault } from "../../src/interfaces/IMUSDSavingsVault.sol";
 import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
 import { MockBorrowerOperations } from "../helpers/MockBorrowerOperations.sol";
-
-contract MockMUSDSavingsVault is IMUSDSavingsVault {
-    uint256 public totalAssets;
-    uint256 public totalShares;
-    uint256 public lastDepositAssets;
-    address public lastDepositReceiver;
-    uint256 public lastWithdrawAssets;
-    address public lastWithdrawReceiver;
-    address public lastWithdrawOwner;
-
-    function deposit(uint256 _assets, address _receiver) external returns (uint256 shares) {
-        totalAssets += _assets;
-        totalShares += _assets;
-        lastDepositAssets = _assets;
-        lastDepositReceiver = _receiver;
-        shares = _assets;
-    }
-
-    function withdraw(uint256 _assets, address _receiver, address _owner) external returns (uint256 shares) {
-        totalAssets -= _assets;
-        totalShares -= _assets;
-        lastWithdrawAssets = _assets;
-        lastWithdrawReceiver = _receiver;
-        lastWithdrawOwner = _owner;
-        shares = _assets;
-    }
-}
+import { MockMUSDSavingsRate } from "../helpers/MockMUSDSavingsRate.sol";
 
 contract SavingsVaultAdapterTest is Test {
     address internal constant _TREASURY_ADMIN = address(0xA11CE);
@@ -48,15 +22,15 @@ contract SavingsVaultAdapterTest is Test {
     TreasuryPolicyEngine internal _policyEngine;
     TreasuryAccountFactory internal _factory;
     MockBorrowerOperations internal _borrowerOperations;
-    MockMUSDSavingsVault internal _mockSavingsVault;
+    MockMUSDSavingsRate internal _mockSavingsVault;
     SavingsVaultAdapter internal _savingsVaultAdapter;
     TreasuryAccount internal _treasuryAccount;
 
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
-        _factory = new TreasuryAccountFactory(_policyEngine);
         _borrowerOperations = new MockBorrowerOperations();
-        _mockSavingsVault = new MockMUSDSavingsVault();
+        _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _mockSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _savingsVaultAdapter = new SavingsVaultAdapter(_mockSavingsVault);
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
@@ -95,9 +69,8 @@ contract SavingsVaultAdapterTest is Test {
         assertEq(_shares, 100 ether);
         assertEq(_treasuryAccount.idleMUSD(), 500 ether);
         assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 100 ether);
-        assertEq(_mockSavingsVault.totalAssets(), 100 ether);
-        assertEq(_mockSavingsVault.lastDepositAssets(), 100 ether);
-        assertEq(_mockSavingsVault.lastDepositReceiver(), address(_treasuryAccount));
+        assertEq(_mockSavingsVault.balanceOf(address(_treasuryAccount)), 100 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_treasuryAccount)), 500 ether);
     }
 
     function test_Deposit_OperatorCannotDepositAboveApprovalThreshold() public {
@@ -115,6 +88,7 @@ contract SavingsVaultAdapterTest is Test {
 
         assertEq(_treasuryAccount.idleMUSD(), 450 ether);
         assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 150 ether);
+        assertEq(_mockSavingsVault.balanceOf(address(_treasuryAccount)), 150 ether);
     }
 
     function test_Withdraw_RestoresIdleTreasuryBalance() public {
@@ -130,10 +104,26 @@ contract SavingsVaultAdapterTest is Test {
         assertEq(_shares, 40 ether);
         assertEq(_treasuryAccount.idleMUSD(), 540 ether);
         assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 60 ether);
-        assertEq(_mockSavingsVault.totalAssets(), 60 ether);
-        assertEq(_mockSavingsVault.lastWithdrawAssets(), 40 ether);
-        assertEq(_mockSavingsVault.lastWithdrawReceiver(), address(_treasuryAccount));
-        assertEq(_mockSavingsVault.lastWithdrawOwner(), address(_treasuryAccount));
+        assertEq(_mockSavingsVault.balanceOf(address(_treasuryAccount)), 60 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_treasuryAccount)), 540 ether);
+    }
+
+    function test_ClaimYield_AddsClaimedYieldToIdleTreasuryBalance() public {
+        vm.prank(_OPERATOR);
+        _savingsVaultAdapter.deposit(_treasuryAccount, 100 ether);
+
+        _mockSavingsVault.addClaimableYield(address(_treasuryAccount), 25 ether);
+
+        vm.expectEmit(true, true, false, true);
+        emit SavingsVaultAdapter.SavingsYieldClaimed(address(_treasuryAccount), _OPERATOR, 25 ether);
+
+        vm.prank(_OPERATOR);
+        uint256 _claimedYield = _savingsVaultAdapter.claimYield(_treasuryAccount);
+
+        assertEq(_claimedYield, 25 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 525 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 100 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_treasuryAccount)), 525 ether);
     }
 
     function test_Deposit_UnconfiguredTreasuryAccountReverts() public {

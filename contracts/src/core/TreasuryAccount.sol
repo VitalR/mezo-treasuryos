@@ -3,15 +3,20 @@ pragma solidity 0.8.34;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../interfaces/IGovernableVariables.sol";
+import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 import { ITroveManager } from "../interfaces/ITroveManager.sol";
 
 /// @title TreasuryAccount
 /// @notice Client-isolated treasury operating boundary for Mezo position management and governed MUSD allocation.
 contract TreasuryAccount is Ownable2Step {
+    using SafeERC20 for IERC20;
+
     /// @notice Emitted when the connected Mezo borrower operations contract is updated.
     event BorrowerOperationsUpdated(address indexed borrowerOperations);
     /// @notice Emitted when the trusted allocation adapter is updated.
@@ -57,9 +62,12 @@ contract TreasuryAccount is Ownable2Step {
     event WithdrawalExecuted(
         address indexed destination, uint256 amount, uint256 idleBalanceAfter, uint256 allocationAfter
     );
+    /// @notice Emitted when yield is claimed from a treasury destination back into idle treasury balance.
+    event YieldClaimedFromDestination(address indexed destination, uint256 amount, uint256 idleBalanceAfter);
 
     error InvalidAllocationAdapter(address allocationAdapter);
     error InvalidBorrowerOperations(address borrowerOperations);
+    error InvalidMUSDToken(address musdToken);
     error InvalidPolicyEngine(address policyEngine);
     error InvalidPositionAdjustment();
     error NoActivePosition();
@@ -67,6 +75,7 @@ contract TreasuryAccount is Ownable2Step {
     error PositionCloseDebtExceeded(uint256 amount, uint256 currentCloseDebt);
     error PositionCollateralExceeded(uint256 amount, uint256 currentCollateral);
     error PositionAlreadyOpen();
+    error UnsupportedYieldToken(address expected, address actual);
     error UnauthorizedCaller(address caller);
 
     /// @notice Protocol-backed treasury position snapshot for service and dashboard consumption.
@@ -137,6 +146,8 @@ contract TreasuryAccount is Ownable2Step {
 
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
+    /// @notice MUSD token used for debt repayment and treasury destination allocations.
+    IERC20 public immutable musdToken;
     /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
     IBorrowerOperations public borrowerOperations;
     /// @notice Trusted allocation adapter allowed to route destination deposits and withdrawals.
@@ -151,10 +162,13 @@ contract TreasuryAccount is Ownable2Step {
 
     /// @param _owner Treasury administrator and initial owner for the account.
     /// @param _policyEngine Policy engine enforcing TreasuryOS internal controls.
-    constructor(address _owner, ITreasuryPolicyEngine _policyEngine) Ownable(_owner) {
+    /// @param _musdToken MUSD token used by this Treasury Account.
+    constructor(address _owner, ITreasuryPolicyEngine _policyEngine, IERC20 _musdToken) Ownable(_owner) {
         require(address(_policyEngine) != address(0), InvalidPolicyEngine(address(_policyEngine)));
+        require(address(_musdToken) != address(0), InvalidMUSDToken(address(_musdToken)));
 
         policyEngine = _policyEngine;
+        musdToken = _musdToken;
     }
 
     /// @notice Accepts BTC returned from Mezo position withdrawals and closes.
@@ -272,6 +286,7 @@ contract TreasuryAccount is Ownable2Step {
 
         policyEngine.validateDebtRepayment(address(this), msg.sender, _amount, idleMUSD);
 
+        musdToken.forceApprove(address(borrowerOperations), _amount);
         borrowerOperations.repayMUSD(_amount, _upperHint, _lowerHint);
 
         idleMUSD -= _amount;
@@ -288,12 +303,91 @@ contract TreasuryAccount is Ownable2Step {
 
         policyEngine.validateClosePosition(address(this), msg.sender, idleMUSD, _closeDebt);
 
+        musdToken.forceApprove(address(borrowerOperations), _closeDebt);
         borrowerOperations.closeTrove();
 
         idleMUSD -= _closeDebt;
         idleBTC += _collateral;
 
         emit PositionClosed(_collateral, _closeDebt, idleBTC, idleMUSD);
+    }
+
+    /// @notice Deposits idle MUSD into the configured MUSD Savings Rate vault through the trusted adapter flow.
+    /// @param _actor Treasury actor on whose behalf the deposit is being performed.
+    /// @param _savingsRate Savings Rate destination receiving the principal.
+    /// @param _amount Amount of MUSD principal being deposited.
+    /// @return mintedShares Amount of sMUSD minted to the Treasury Account.
+    function depositIntoSavingsRateFromAdapter(address _actor, address _savingsRate, uint256 _amount)
+        external
+        returns (uint256 mintedShares)
+    {
+        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+
+        IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
+        _requireSupportedYieldToken(savingsRate);
+
+        uint256 currentAllocation = destinationAllocations[_savingsRate];
+
+        policyEngine.validateAllocate(address(this), _actor, _savingsRate, _amount, idleMUSD, currentAllocation);
+
+        uint256 previousShareBalance = savingsRate.balanceOf(address(this));
+        musdToken.forceApprove(_savingsRate, _amount);
+        savingsRate.deposit(_amount);
+        mintedShares = savingsRate.balanceOf(address(this)) - previousShareBalance;
+
+        idleMUSD -= _amount;
+        destinationAllocations[_savingsRate] = currentAllocation + _amount;
+
+        emit AllocationExecuted(_savingsRate, _amount, idleMUSD, destinationAllocations[_savingsRate]);
+    }
+
+    /// @notice Withdraws principal from the configured MUSD Savings Rate vault through the trusted adapter flow.
+    /// @param _actor Treasury actor on whose behalf the withdrawal is being performed.
+    /// @param _savingsRate Savings Rate destination being withdrawn from.
+    /// @param _amount Amount of MUSD principal being withdrawn.
+    /// @return burnedShares Amount of sMUSD burned from the Treasury Account.
+    function withdrawFromSavingsRateFromAdapter(address _actor, address _savingsRate, uint256 _amount)
+        external
+        returns (uint256 burnedShares)
+    {
+        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+
+        IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
+        _requireSupportedYieldToken(savingsRate);
+
+        uint256 currentAllocation = destinationAllocations[_savingsRate];
+
+        policyEngine.validateWithdraw(address(this), _actor, _savingsRate, _amount, currentAllocation);
+
+        uint256 previousShareBalance = savingsRate.balanceOf(address(this));
+        savingsRate.withdraw(_amount);
+        burnedShares = previousShareBalance - savingsRate.balanceOf(address(this));
+
+        destinationAllocations[_savingsRate] = currentAllocation - _amount;
+        idleMUSD += _amount;
+
+        emit WithdrawalExecuted(_savingsRate, _amount, idleMUSD, destinationAllocations[_savingsRate]);
+    }
+
+    /// @notice Claims accrued yield from the configured MUSD Savings Rate vault through the trusted adapter flow.
+    /// @param _actor Treasury actor on whose behalf the yield claim is being performed.
+    /// @param _savingsRate Savings Rate destination paying the yield.
+    /// @return claimedYield Amount of MUSD yield claimed into idle treasury balance.
+    function claimSavingsRateYieldFromAdapter(address _actor, address _savingsRate)
+        external
+        returns (uint256 claimedYield)
+    {
+        require(msg.sender == allocationAdapter, UnauthorizedCaller(msg.sender));
+
+        IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
+        _requireSupportedYieldToken(savingsRate);
+
+        policyEngine.validateYieldClaim(address(this), _actor);
+
+        claimedYield = savingsRate.claimYield();
+        idleMUSD += claimedYield;
+
+        emit YieldClaimedFromDestination(_savingsRate, claimedYield, idleMUSD);
     }
 
     /// @notice Allocates idle MUSD into an approved destination.
@@ -570,6 +664,11 @@ contract TreasuryAccount is Ownable2Step {
 
         (_positionDebt, _positionCollateral) = _troveManager.getEntireDebtAndColl(address(this));
         _active = _positionDebt > 0 || _positionCollateral > 0;
+    }
+
+    function _requireSupportedYieldToken(IMUSDSavingsRate _savingsRate) internal view {
+        address _yieldToken = _savingsRate.yieldToken();
+        require(_yieldToken == address(musdToken), UnsupportedYieldToken(address(musdToken), _yieldToken));
     }
 
     function _validatePositionAdjustment(
