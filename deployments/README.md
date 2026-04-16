@@ -95,3 +95,28 @@ If the demo uses the external savings mock, keep:
 - `contracts.externalMusdSavingsRateMock.address` filled
 
 If the demo uses an official Mezo testnet savings contract, do the opposite.
+
+---
+
+## Deployment Script
+
+The repo now includes a Foundry deployment entrypoint:
+
+- `contracts/script/DeployTreasuryOS.s.sol`
+
+Typical local usage:
+
+```bash
+set -a
+. ./.env
+set +a
+forge script script/DeployTreasuryOS.s.sol:DeployTreasuryOS --root contracts --rpc-url "$MEZO_RPC_URL" --broadcast
+```
+
+The script:
+
+- deploys the core TreasuryOS contracts
+- optionally deploys `ExternalMUSDSavingsRateMock` when no official savings address is set
+- optionally deploys the Tigris handler when the paired stable token address is configured
+- deploys one demo Treasury Account through the factory
+- writes a deployment manifest to `DEPLOYMENT_MANIFEST_PATH`
