@@ -2,7 +2,7 @@
 
 ## One-Line Pitch
 
-**Mezo TreasuryOS turns Mezo's BTC-backed MUSD borrowing into a governed treasury workflow with isolated treasury accounts, policy controls, approved allocation, automated operations, and reporting.**
+**Mezo TreasuryOS turns Mezo's BTC-backed MUSD borrowing into a governed treasury workflow with isolated treasury accounts, policy controls, approved allocation routing, automated operations, and reporting.**
 
 ---
 
@@ -35,7 +35,7 @@ It gives each client:
 - an isolated **Treasury Account**
 - a **Treasury Policy Engine** for internal controls and approvals
 - wrapped Mezo borrow origination directly through TreasuryOS
-- governed allocation into approved Mezo-native destinations
+- governed allocation routing into approved Mezo-native sleeves
 - bounded automated treasury operations
 - treasury reporting and reviewer visibility
 
@@ -46,13 +46,14 @@ For the hackathon build, TreasuryOS uses **Spectrum Nodes** as the primary Mezo 
 ## How It Works
 
 1. A treasury creates a Treasury Account in TreasuryOS.
-2. The treasury configures roles, approvals, liquidity buffer, and allowed destinations.
+2. The treasury configures roles, approvals, liquidity buffer, and allowed sleeves.
 3. The treasury deposits BTC and opens a Mezo-backed MUSD position through TreasuryOS.
 4. Minted MUSD lands directly into the Treasury Account.
 5. TreasuryOS keeps the required operating buffer liquid.
-6. Only surplus MUSD can be allocated into approved Mezo-native destinations.
-7. TreasuryOS monitors treasury conditions and proposes or executes bounded actions.
-8. TreasuryOS produces reviewer-ready reporting and action logs.
+6. Treasury can disburse idle MUSD for real operating use under policy.
+7. Only surplus MUSD can be allocated into approved Mezo-native sleeves.
+8. TreasuryOS monitors treasury conditions and proposes or executes bounded actions.
+9. TreasuryOS produces reviewer-ready reporting and action logs.
 
 ---
 
@@ -108,15 +109,16 @@ V1 proves one serious workflow:
 - BTC deposit and borrow through TreasuryOS
 - MUSD lands into an isolated Treasury Account
 - policy-governed buffer management
-- one approved Mezo-native allocation path
+- router-based multi-sleeve allocation
 - one automated treasury response flow
 - one reviewer-facing treasury report
 
-Recommended primary destination:
+Current V1 sleeves:
 
-- **MUSD Savings Vault**
+- **MUSD Savings Rate**
+- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
 
-That keeps V1 disciplined and credible.
+That keeps V1 additive to Mezo while still showing more than a single passive vault path.
 
 ---
 
@@ -126,8 +128,9 @@ TreasuryOS includes automated treasury operations, but in a bounded and explaina
 
 Examples:
 
-- sweep excess idle MUSD into the approved destination
-- withdraw from the destination to restore operating buffer
+- sweep excess idle MUSD into an approved sleeve
+- withdraw from a sleeve to restore operating buffer
+- disburse idle MUSD for treasury operations under policy
 - block actions that violate treasury policy
 - pause allocation under stress or policy changes
 - generate clear action summaries for operators and reviewers
@@ -144,10 +147,11 @@ The strongest demo is:
 2. Configure policy and approvals
 3. Deposit BTC and borrow MUSD through TreasuryOS
 4. Show MUSD arriving into the Treasury Account
-5. Keep an operating buffer and allocate only surplus MUSD
-6. Trigger a stress or liquidity event
-7. Show TreasuryOS restoring buffer or blocking a risky action
-8. Show the reporting view explaining what happened and why
+5. Disburse a portion for treasury operating use
+6. Keep an operating buffer and allocate only surplus MUSD into approved sleeves
+7. Trigger a stress or liquidity event
+8. Show TreasuryOS restoring buffer or blocking a risky action
+9. Show the reporting view explaining what happened and why
 
 Throughout the flow, show that live reads, monitoring, and transaction execution are running through **Spectrum Nodes** on Mezo testnet.
 

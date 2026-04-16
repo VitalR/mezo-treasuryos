@@ -2,14 +2,14 @@
 
 ## Purpose
 
-This document defines the V1 architecture for **Mezo TreasuryOS** based on the updated product direction.
+This document defines the V1 architecture for **Mezo TreasuryOS** based on the current product direction.
 
 The architecture should support one serious treasury workflow:
 
 - client-isolated treasury setup
 - BTC-backed borrow origination through TreasuryOS
 - governed MUSD treasury management
-- approved allocation into a Mezo-native destination
+- approved allocation into Mezo-native sleeves
 - bounded automated treasury operations
 - reviewer-facing reporting
 
@@ -75,9 +75,10 @@ Responsibilities:
 
 - deploy isolated Treasury Accounts
 - hold treasury-managed MUSD
+- own the Mezo position lifecycle
 - route allowed treasury actions
 - enforce treasury policy constraints
-- integrate with Mezo borrow and allocation flows
+- integrate with Mezo borrow and sleeve allocation flows
 - emit treasury activity events
 
 ### Layer 2 — Offchain treasury operations layer
@@ -105,7 +106,7 @@ Responsibilities:
 
 ## Onchain Components
 
-V1 should keep the onchain system small.
+V1 should keep the onchain system small, but not fake.
 
 ### 1. TreasuryAccountFactory
 
@@ -129,11 +130,18 @@ The core treasury operating boundary.
 Responsibilities:
 
 - receive borrowed MUSD
+- own the Mezo borrow position
 - hold idle treasury-managed MUSD
-- execute approved allocation and withdrawal actions
-- execute approved repay or debt-management actions if included
+- execute approved disbursement, allocation, and withdrawal actions
+- execute approved repay, adjust, and close-position actions
 - anchor treasury policy configuration
 - emit treasury activity events
+
+Production-oriented read model:
+
+- protocol-backed debt and collateral reads from Mezo
+- consolidated treasury position snapshot
+- consolidated treasury composition snapshot
 
 The Treasury Account should be:
 
@@ -156,7 +164,7 @@ Responsibilities:
 - validate actor permissions
 - validate approval requirements
 - validate liquidity buffer constraints
-- validate allowed destination rules
+- validate allowed sleeve rules
 - validate allocation cap limits
 - enforce pause conditions
 - validate automation permissions for low-risk actions
@@ -166,33 +174,58 @@ Design note:
 - V1 can implement this as a dedicated module or tightly scoped policy layer
 - what matters is clear control logic, not maximum modularity
 
-### 4. MezoBorrowAdapter
+### 4. AllocationRouter
 
-The adapter that wraps Mezo's native BTC-backed borrow flow for TreasuryOS.
-
-Responsibilities:
-
-- route deposit plus borrow actions through TreasuryOS
-- keep the debt-position relationship visible in the system model
-- connect minted MUSD flows to the Treasury Account
-- support repay or unwind path if needed for the core demo
-
-This component is what upgrades TreasuryOS from a post-draw wrapper into a true treasury operating layer.
-
-### 5. SavingsVaultAdapter
-
-Primary V1 allocation adapter for the Mezo-native destination.
+The governed routing layer for downstream treasury sleeves.
 
 Responsibilities:
 
-- deposit MUSD into the approved savings destination
-- withdraw MUSD to restore treasury liquidity
-- expose destination balance state for reporting
+- map approved destinations to handler contracts
+- route treasury deposits, withdrawals, and yield claims
+- authorize sleeve handlers without giving them ownership of treasury assets
 
-V1 recommendation:
+Why this matters:
 
-- keep one primary destination adapter
-- prove disciplined allocation rather than broad adapter coverage
+- one Treasury Account can support multiple sleeves
+- sleeve-specific logic stays out of the account
+- the product can expand without rewriting the core treasury boundary
+
+### 5. MUSDSavingsRateHandler
+
+Primary treasury savings sleeve handler.
+
+Responsibilities:
+
+- route idle MUSD into Mezo's `MUSDSavingsRate`
+- ensure the Treasury Account remains the holder of `sMUSD`
+- claim yield back into Treasury Account idle MUSD
+- expose savings-specific reporting metadata
+
+### 6. TigrisStablePoolHandler
+
+Secondary treasury LP sleeve handler for Mezo testnet.
+
+Responsibilities:
+
+- swap a portion of MUSD into the paired stable token
+- add liquidity into an approved Tigris stable pool
+- keep LP receipt tokens owned by the Treasury Account
+- remove liquidity and swap back into MUSD on withdrawal
+- expose Tigris-specific reporting metadata
+
+Current V1 testnet target:
+
+- Tigris `MUSD/mUSDC` stable pool on Mezo testnet
+
+### 7. ExternalMUSDSavingsRateMock
+
+Deployable external mock used for demo-grade savings interactions where controlled yield injection is needed.
+
+Responsibilities:
+
+- simulate a production-style `MUSDSavingsRate` surface
+- allow owner-funded yield injection for demos
+- support end-to-end treasury savings flows without pretending proprietary TreasuryOS yield
 
 ---
 
@@ -225,7 +258,7 @@ Why this matters:
 Responsibilities:
 
 - index onchain treasury activity
-- aggregate Treasury Account balances and adapter balances
+- aggregate Treasury Account balances and sleeve balances
 - maintain treasury state model for the UI
 - expose idle vs allocated composition
 - expose policy state and recent decisions
@@ -271,7 +304,7 @@ Shows:
 - treasury identity and account creation
 - signer or approver assignment
 - policy configuration
-- initial destination approval and cap setup
+- sleeve approval and cap setup
 
 ### 2. Treasury Overview
 
@@ -280,6 +313,7 @@ Shows:
 - debt-position context
 - borrowed MUSD now held in Treasury Account
 - idle vs allocated MUSD
+- savings and LP sleeve exposures
 - operating buffer status
 - treasury policy status
 
@@ -287,10 +321,10 @@ Shows:
 
 Shows:
 
-- approved destination
-- deployed amount
+- approved sleeves
+- deployed amount by sleeve
 - remaining allocation capacity
-- restore-liquidity or withdraw action path
+- restore-liquidity, disbursement, or withdraw action path
 
 ### 4. Operations View
 
@@ -322,7 +356,7 @@ The asset flow should be explicit and easy to explain.
 ### Step 2 — BTC-backed borrow origination
 
 - Treasury initiates deposit plus borrow through TreasuryOS
-- TreasuryOS routes the action into Mezo's native borrow mechanism
+- Treasury Account becomes the governed owner of the Mezo position lifecycle
 
 ### Step 3 — MUSD operating capital lands in Treasury Account
 
@@ -330,107 +364,39 @@ The asset flow should be explicit and easy to explain.
 
 ### Step 4 — Treasury policy is enforced
 
-- TreasuryOS checks role, approval, buffer, and destination policies before actions
+- TreasuryOS checks role, approval, buffer, and sleeve policies before actions
 
-### Step 5 — Approved allocation
+### Step 5 — Operating disbursement or approved allocation
 
-- Only idle MUSD above the required buffer may be routed into the approved destination
+- Idle MUSD can be disbursed for operating use under policy
+- Only approved surplus MUSD may be routed into approved sleeves
 
 ### Step 6 — Automated treasury response
 
-- TreasuryOS monitors conditions and proposes or performs bounded actions such as:
-  - idle cash sweep
-  - buffer restoration
-  - action blocking
-  - allocation pause
+- TreasuryOS can restore the buffer, block non-compliant actions, or pause riskier flows under policy
 
 ### Step 7 — Reporting
 
-- TreasuryOS records and surfaces treasury state, actions, and policy outcomes
+- TreasuryOS produces a clear account of treasury state, exposures, and actions taken
 
 ---
 
-## Control Boundary Decisions
+## Current Testnet Integration Targets
 
-### What must stay onchain
+### Spectrum Nodes
 
-- Treasury Account isolation
-- treasury action execution
-- treasury policy enforcement
-- approval-aware action gating
-- allocation and withdrawal execution
-- treasury activity events
+Primary Mezo testnet RPC provider for:
 
-### What should stay offchain
+- live reads
+- monitoring
+- transaction submission
 
-- threshold monitoring
-- reporting logic
-- reviewer summary generation
-- automation orchestration
-- alerting and explanation
-- RPC-backed state reads and transaction broadcasting
+### Tigris stable-pool sleeve
 
-### Why
+Current official Mezo testnet targets:
 
-This keeps:
+- Router: `0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9`
+- PoolFactory: `0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A`
+- `MUSD/mUSDC` pool: `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
-- critical fund controls deterministic and auditable
-- the treasury workflow explainable
-- operations and reporting flexible
-- V1 complexity within reach
-- the Spectrum Nodes integration attached to real product behavior rather than generic infra
-
----
-
-## Required V1 Architectural Behaviors
-
-The system must support:
-
-- isolated Treasury Account deployment
-- borrow origination through TreasuryOS
-- policy-blocked and policy-allowed actions
-- one approved destination allocation path
-- liquidity buffer preservation
-- one automated treasury response flow
-- one reporting flow that ties actions to state changes
-
-If the architecture cannot support those behaviors cleanly, it is too abstract.
-
----
-
-## What V1 Must Not Become
-
-V1 should not become:
-
-- a vault marketplace
-- a giant modular contract system
-- a generalized institutional custody stack
-- a multi-destination strategy framework
-- an AI-native treasury decision engine
-
-Those directions increase complexity faster than they increase credibility.
-
----
-
-## Mainnet-Conscious Design
-
-Even in V1, the system should look like it could mature into production after security review and operational hardening.
-
-That means:
-
-- client isolation is explicit
-- treasury control logic is deterministic
-- adapter boundaries are clear
-- asset ownership is legible
-- automated actions are bounded
-- reporting is tied to real execution state
-
-For the hackathon build, the Mezo testnet path should be explicitly powered by **Spectrum Nodes** as the primary RPC provider for state reads, monitoring, and transaction submission.
-
-The architecture should look like treasury software built on top of Mezo, not a hackathon-only shell around protocol calls.
-
----
-
-## Final Architecture Statement
-
-**TreasuryOS V1 should use a small onchain control layer and a focused offchain operations layer to turn Mezo's BTC-backed borrow rail into a governed treasury workflow with isolated accounts, treasury policy enforcement, one approved allocation path, bounded automation, and reporting.**
+These are the reference instances TreasuryOS should target for the current hackathon build.
