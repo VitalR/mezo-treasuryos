@@ -2,11 +2,14 @@
 pragma solidity 0.8.34;
 
 import { Test } from "forge-std/Test.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { ExternalMUSDSavingsRateMock } from "../../src/external/ExternalMUSDSavingsRateMock.sol";
 import { MockMUSDToken } from "../helpers/MockMUSDToken.sol";
 
 contract ExternalMUSDSavingsRateMockTest is Test {
+    using Math for uint256;
+
     address internal _owner;
     address internal _alice;
     address internal _bob;
@@ -76,5 +79,41 @@ contract ExternalMUSDSavingsRateMockTest is Test {
         assertEq(_claimed, 20 ether);
         assertEq(_musdToken.balanceOf(_alice), _aliceBalanceBefore + 20 ether);
         assertEq(_savingsRate.claimableYield(_alice), 0);
+    }
+
+    function test_QuoteYieldForAnnualRateBps_ReturnsWeeklyAmountForFivePercentAnnualRate() public {
+        vm.startPrank(_alice);
+        _musdToken.approve(address(_savingsRate), 400 ether);
+        _savingsRate.deposit(400 ether);
+        vm.stopPrank();
+
+        uint256 _quoted = _savingsRate.quoteYieldForAnnualRateBps(500, 7 days);
+        uint256 _expected = uint256(400 ether).mulDiv(500 * 7 days, 10_000 * 365 days);
+
+        assertEq(_quoted, _expected);
+    }
+
+    function test_FundYieldForAnnualRateBps_FundsQuotedYieldAndMakesItClaimable() public {
+        vm.startPrank(_alice);
+        _musdToken.approve(address(_savingsRate), 400 ether);
+        _savingsRate.deposit(400 ether);
+        vm.stopPrank();
+
+        uint256 _expected = _savingsRate.quoteYieldForAnnualRateBps(500, 7 days);
+
+        vm.prank(_owner);
+        _musdToken.approve(address(_savingsRate), _expected);
+
+        vm.prank(_owner);
+        uint256 _funded = _savingsRate.fundYieldForAnnualRateBps(500, 7 days);
+
+        vm.prank(_alice);
+        uint256 _claimed = _savingsRate.claimYield();
+
+        assertEq(_funded, _expected);
+        assertLe(_claimed, _expected);
+        assertGe(_claimed, _expected - 100);
+        assertEq(_savingsRate.lastYieldFundedAmount(), _expected);
+        assertEq(_savingsRate.lastYieldFundedAt(), block.timestamp);
     }
 }

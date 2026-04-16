@@ -5,6 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
@@ -19,6 +20,7 @@ import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 ///      3. Holders claim accumulated MUSD yield without changing principal balances.
 contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRate {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     /// @notice Emitted when a depositor contributes MUSD principal and receives sMUSD.
     /// @param user Depositor receiving the sMUSD receipts.
@@ -120,6 +122,54 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
         lastYieldFundedAmount = _amount;
 
         emit YieldFunded(msg.sender, _amount);
+    }
+
+    /// @notice Quotes the MUSD yield required to simulate a target annual rate over a given elapsed period.
+    /// @dev This is useful for demo flows that want to approximate the public MUSD savings-rate presentation,
+    ///      for example funding a weekly 5% annualized yield increment.
+    /// @param _annualRateBps Target annualized rate in basis points. For 5%, pass `500`.
+    /// @param _elapsedSeconds Elapsed accrual window to simulate. For a weekly step, pass `7 days`.
+    /// @return amount Amount of MUSD yield that should be funded for the current total supply.
+    function quoteYieldForAnnualRateBps(uint256 _annualRateBps, uint256 _elapsedSeconds)
+        public
+        view
+        returns (uint256 amount)
+    {
+        require(_annualRateBps > 0, ZeroAmount());
+        require(_elapsedSeconds > 0, ZeroAmount());
+
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            return 0;
+        }
+
+        amount = _totalSupply.mulDiv(_annualRateBps * _elapsedSeconds, 10_000 * 365 days);
+    }
+
+    /// @notice Funds demo yield using an annualized rate target rather than a raw amount.
+    /// @dev The owner must hold and approve enough MUSD for the quoted amount. If total supply is zero,
+    ///      this function funds nothing and returns zero.
+    /// @param _annualRateBps Target annualized rate in basis points. For 5%, pass `500`.
+    /// @param _elapsedSeconds Elapsed accrual window to simulate.
+    /// @return amount Amount of MUSD funded into the mock vault.
+    function fundYieldForAnnualRateBps(uint256 _annualRateBps, uint256 _elapsedSeconds)
+        external
+        onlyOwner
+        nonReentrant
+        returns (uint256 amount)
+    {
+        amount = quoteYieldForAnnualRateBps(_annualRateBps, _elapsedSeconds);
+
+        if (amount == 0) {
+            return 0;
+        }
+
+        musdToken.safeTransferFrom(msg.sender, address(this), amount);
+        _receiveYield(amount);
+        lastYieldFundedAt = block.timestamp;
+        lastYieldFundedAmount = amount;
+
+        emit YieldFunded(msg.sender, amount);
     }
 
     /// @notice Claims yield for a specific account after synchronizing its accrual.
