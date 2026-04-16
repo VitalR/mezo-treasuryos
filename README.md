@@ -199,6 +199,12 @@ In the current implementation, the Treasury Account owns:
 - [Roadmap](docs/ROADMAP.md)
 - [Judge Pitch](docs/JUDGE_PITCH.md)
 
+### Operational references
+
+- [Config](config/README.md)
+- [Deployments](deployments/README.md)
+- [.env example](.env.example)
+
 ### Draft archive
 
 - [Archived V1 docs and earlier drafts](draft/docs/README.md)
