@@ -23,6 +23,7 @@ Use one file per network and scenario, for example:
 
 - `mezo-testnet.json`
 - `mezo-testnet-demo.json`
+- `mezo-testnet-demo.template.json`
 
 Each manifest should include:
 
@@ -36,6 +37,10 @@ Each manifest should include:
 - `tigrisStablePoolHandler`
 - `externalMusdSavingsRateMock` when used for demo
 - `references` for Mezo / Tigris dependencies
+
+The repo now includes a starter template:
+
+- `mezo-testnet-demo.template.json`
 
 ---
 
@@ -67,3 +72,26 @@ If a live official testnet savings contract is unavailable or not yet confirmed,
 - `ExternalMUSDSavingsRateMock`
 
 That keeps the sleeve behavior realistic without inventing TreasuryOS-native yield.
+
+---
+
+## Template Usage
+
+Start from:
+
+- `deployments/mezo-testnet-demo.template.json`
+
+Then fill in:
+
+- deployed TreasuryOS contract addresses
+- deployer and owner addresses
+- block numbers
+- git commit reference
+- the actual savings sleeve reference used for the scenario
+
+If the demo uses the external savings mock, keep:
+
+- `references.musd.savingsRate.address` empty
+- `contracts.externalMusdSavingsRateMock.address` filled
+
+If the demo uses an official Mezo testnet savings contract, do the opposite.

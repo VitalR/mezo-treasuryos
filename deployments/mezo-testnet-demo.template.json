@@ -1,0 +1,108 @@
+{
+  "manifestVersion": 1,
+  "scenario": "mezo-testnet-demo",
+  "status": "template",
+  "network": {
+    "name": "Mezo Testnet",
+    "chainId": 31611,
+    "currencySymbol": "BTC"
+  },
+  "rpc": {
+    "provider": "Spectrum Nodes",
+    "urlEnv": "MEZO_RPC_URL"
+  },
+  "deployment": {
+    "timestamp": "",
+    "gitCommit": "",
+    "deployer": "",
+    "blockNumber": 0
+  },
+  "actors": {
+    "treasuryOwner": "",
+    "treasuryApprover": "",
+    "treasuryOperator": ""
+  },
+  "contracts": {
+    "treasuryPolicyEngine": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
+    "treasuryAccountFactory": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
+    "allocationRouter": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
+    "musdSavingsRateHandler": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
+    "tigrisStablePoolHandler": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
+    "externalMusdSavingsRateMock": {
+      "address": "",
+      "deploymentTxHash": "",
+      "enabled": false
+    }
+  },
+  "router": {
+    "owner": "",
+    "handlers": [
+      {
+        "destination": "",
+        "handler": "",
+        "label": "MUSD Savings Rate"
+      },
+      {
+        "destination": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+        "handler": "",
+        "label": "Tigris MUSD/mUSDC"
+      }
+    ]
+  },
+  "references": {
+    "musd": {
+      "token": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
+      "borrowerOperations": "0xCdF7028ceAB81fA0C6971208e83fa7872994beE5",
+      "troveManager": "0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0",
+      "hintHelpers": "0x4e4cBA3779d56386ED43631b4dCD6d8EacEcBCF6",
+      "sortedTroves": "0x722E4D24FD6Ff8b0AC679450F3D91294607268fA",
+      "priceFeed": "0x86bCF0841622a5dAC14A313a15f96A95421b9366",
+      "savingsRate": {
+        "address": "",
+        "source": "set this if using an official Mezo testnet savings deployment"
+      }
+    },
+    "tigris": {
+      "router": "0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9",
+      "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
+      "musdMusdcPool": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+      "musdMusdtPool": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e",
+      "musdBtcPool": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9"
+    }
+  },
+  "treasuryScenario": {
+    "liquidityBuffer": "0",
+    "approvalThreshold": "0",
+    "approvedSleeves": [
+      {
+        "label": "MUSD Savings Rate",
+        "destination": "",
+        "cap": "0"
+      },
+      {
+        "label": "Tigris MUSD/mUSDC",
+        "destination": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+        "cap": "0"
+      }
+    ]
+  },
+  "notes": [
+    "If using ExternalMUSDSavingsRateMock, record its address under contracts.externalMusdSavingsRateMock.address and keep references.musd.savingsRate.address empty.",
+    "If using an official Mezo testnet MUSDSavingsRate deployment, fill references.musd.savingsRate.address and set the savings router destination to that address."
+  ]
+}

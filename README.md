@@ -204,6 +204,7 @@ In the current implementation, the Treasury Account owns:
 - [Config](config/README.md)
 - [Deployments](deployments/README.md)
 - [.env example](.env.example)
+- [Mezo testnet demo manifest template](deployments/mezo-testnet-demo.template.json)
 
 ### Draft archive
 
