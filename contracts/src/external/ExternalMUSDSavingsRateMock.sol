@@ -9,15 +9,15 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 
-/// @title DemoMUSDSavingsRate
-/// @notice Demo-grade external savings sleeve that mimics sMUSD principal and yield behavior with owner-funded yield
+/// @title ExternalMUSDSavingsRateMock
+/// @notice External savings-rate mock that mimics sMUSD principal and yield behavior with owner-funded yield
 /// injections. @dev This contract is intended for demos and local environments. It preserves the same user-facing
 /// mental model
 ///      as Mezo's savings vault:
 ///      1. MUSD principal is deposited and sMUSD receipts are minted 1:1.
 ///      2. Yield is distributed through a global `yieldIndex`.
 ///      3. Holders claim accumulated MUSD yield without changing principal balances.
-contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRate {
+contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRate {
     using SafeERC20 for IERC20;
 
     /// @notice Emitted when a depositor contributes MUSD principal and receives sMUSD.
@@ -32,7 +32,7 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
     /// @param user Yield recipient.
     /// @param amount Amount of MUSD yield claimed.
     event YieldClaimed(address indexed user, uint256 amount);
-    /// @notice Emitted when the owner funds demo yield into the vault.
+    /// @notice Emitted when the owner funds mock yield into the vault.
     /// @param funder Address funding the demo yield.
     /// @param amount Amount of MUSD yield distributed or buffered.
     event YieldFunded(address indexed funder, uint256 amount);
@@ -64,7 +64,7 @@ contract DemoMUSDSavingsRate is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRat
 
     /// @param _owner Owner allowed to fund simulated yield.
     /// @param _musdToken Underlying MUSD token accepted by the vault.
-    constructor(address _owner, IERC20 _musdToken) ERC20("Demo MUSD Savings Rate", "sMUSD") Ownable(_owner) {
+    constructor(address _owner, IERC20 _musdToken) ERC20("External MUSD Savings Rate Mock", "sMUSD") Ownable(_owner) {
         require(address(_musdToken) != address(0), ZeroAddress());
 
         musdToken = _musdToken;

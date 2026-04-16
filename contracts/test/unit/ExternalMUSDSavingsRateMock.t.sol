@@ -3,16 +3,16 @@ pragma solidity 0.8.34;
 
 import { Test } from "forge-std/Test.sol";
 
-import { DemoMUSDSavingsRate } from "../../src/external/DemoMUSDSavingsRate.sol";
+import { ExternalMUSDSavingsRateMock } from "../../src/external/ExternalMUSDSavingsRateMock.sol";
 import { MockMUSDToken } from "../helpers/MockMUSDToken.sol";
 
-contract DemoMUSDSavingsRateTest is Test {
+contract ExternalMUSDSavingsRateMockTest is Test {
     address internal _owner;
     address internal _alice;
     address internal _bob;
 
     MockMUSDToken internal _musdToken;
-    DemoMUSDSavingsRate internal _savingsRate;
+    ExternalMUSDSavingsRateMock internal _savingsRate;
 
     function setUp() public {
         _owner = makeAddr("owner");
@@ -20,7 +20,7 @@ contract DemoMUSDSavingsRateTest is Test {
         _bob = makeAddr("bob");
 
         _musdToken = new MockMUSDToken();
-        _savingsRate = new DemoMUSDSavingsRate(_owner, _musdToken);
+        _savingsRate = new ExternalMUSDSavingsRateMock(_owner, _musdToken);
 
         _musdToken.mint(_owner, 1000 ether);
         _musdToken.mint(_alice, 500 ether);

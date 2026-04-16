@@ -7,10 +7,12 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IAllocationRouterAuthority } from "../interfaces/IAllocationRouterAuthority.sol";
+import { IAllocationRouterView } from "../interfaces/IAllocationRouterView.sol";
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../interfaces/IGovernableVariables.sol";
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
+import { ITigrisStablePoolHandlerMetadata } from "../interfaces/ITigrisStablePoolHandlerMetadata.sol";
 import { ITroveManager } from "../interfaces/ITroveManager.sol";
 
 /// @title TreasuryAccount
@@ -131,6 +133,9 @@ contract TreasuryAccount is Ownable2Step {
     /// @param allocatedMUSD Current MUSD allocated to the destination.
     /// @param remainingCapacity Additional MUSD that can be allocated before the cap is reached.
     /// @param yieldToken Yield token exposed by the destination when supported. Zero for unsupported destination types.
+    /// @param pairedToken Paired stable token exposed by a Tigris stable-pool handler when supported.
+    ///        Zero for unsupported destination types.
+    /// @param handler Registered allocation handler for the destination when one exists.
     /// @param receiptToken Receipt token address held by the Treasury Account for the destination when supported.
     ///        Zero for unsupported destination types.
     /// @param receiptBalance Current destination receipt-token balance held by the Treasury Account.
@@ -138,6 +143,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @param claimableYield Current claimable yield exposed by the destination for the Treasury Account.
     ///        Zero for unsupported destination types.
     /// @param supportsSavingsRate Whether the destination supports MUSDSavingsRate-compatible reporting.
+    /// @param supportsTigrisStablePool Whether the destination is routed by a Tigris stable-pool handler.
     struct DestinationExposure {
         address destination;
         bool approved;
@@ -145,10 +151,13 @@ contract TreasuryAccount is Ownable2Step {
         uint256 allocatedMUSD;
         uint256 remainingCapacity;
         address yieldToken;
+        address pairedToken;
+        address handler;
         address receiptToken;
         uint256 receiptBalance;
         uint256 claimableYield;
         bool supportsSavingsRate;
+        bool supportsTigrisStablePool;
     }
 
     /// @notice Treasury composition snapshot for service and dashboard consumption.
@@ -708,44 +717,9 @@ contract TreasuryAccount is Ownable2Step {
         uint256 _totalAllocatedMUSD;
 
         for (uint256 _i = 0; _i < _destinations.length; _i++) {
-            address _destination = _destinations[_i];
-            uint256 _allocatedMUSD = destinationAllocations[_destination];
-            uint256 _allocationCap = policyEngine.allocationCap(address(this), _destination);
-            bool _approved = policyEngine.isDestinationApproved(address(this), _destination);
-            uint256 _remainingCapacity;
-            address _yieldToken;
-            address _receiptToken;
-            uint256 _receiptBalance;
-            uint256 _claimableYield;
-            bool _supportsSavingsRate;
-
-            if (_allocationCap > _allocatedMUSD) {
-                _remainingCapacity = _allocationCap - _allocatedMUSD;
-            }
-
-            if (_destination.code.length > 0) {
-                try IMUSDSavingsRate(_destination).yieldToken() returns (address _reportedYieldToken) {
-                    _yieldToken = _reportedYieldToken;
-                    _receiptToken = _destination;
-                    _receiptBalance = IMUSDSavingsRate(_destination).balanceOf(address(this));
-                    _claimableYield = _previewSavingsRateClaimableYield(IMUSDSavingsRate(_destination), _receiptBalance);
-                    _supportsSavingsRate = true;
-                } catch { }
-            }
-
+            (DestinationExposure memory _exposure, uint256 _allocatedMUSD) = _getDestinationExposure(_destinations[_i]);
             _totalAllocatedMUSD += _allocatedMUSD;
-            _exposures[_i] = DestinationExposure({
-                destination: _destination,
-                approved: _approved,
-                allocationCap: _allocationCap,
-                allocatedMUSD: _allocatedMUSD,
-                remainingCapacity: _remainingCapacity,
-                yieldToken: _yieldToken,
-                receiptToken: _receiptToken,
-                receiptBalance: _receiptBalance,
-                claimableYield: _claimableYield,
-                supportsSavingsRate: _supportsSavingsRate
-            });
+            _exposures[_i] = _exposure;
         }
 
         uint256 _deployableSurplus;
@@ -796,6 +770,71 @@ contract TreasuryAccount is Ownable2Step {
 
         (_positionDebt, _positionCollateral) = _troveManager.getEntireDebtAndColl(address(this));
         _active = _positionDebt > 0 || _positionCollateral > 0;
+    }
+
+    function _getDestinationExposure(address _destination)
+        internal
+        view
+        returns (DestinationExposure memory exposure, uint256 allocatedMUSD)
+    {
+        allocatedMUSD = destinationAllocations[_destination];
+        uint256 _allocationCap = policyEngine.allocationCap(address(this), _destination);
+        bool _approved = policyEngine.isDestinationApproved(address(this), _destination);
+        uint256 _remainingCapacity;
+        address _yieldToken;
+        address _pairedToken;
+        address _handler;
+        address _receiptToken;
+        uint256 _receiptBalance;
+        uint256 _claimableYield;
+        bool _supportsSavingsRate;
+        bool _supportsTigrisStablePool;
+
+        if (_allocationCap > allocatedMUSD) {
+            _remainingCapacity = _allocationCap - allocatedMUSD;
+        }
+
+        if (_destination.code.length > 0) {
+            try IMUSDSavingsRate(_destination).yieldToken() returns (address _reportedYieldToken) {
+                _yieldToken = _reportedYieldToken;
+                _receiptToken = _destination;
+                _receiptBalance = IMUSDSavingsRate(_destination).balanceOf(address(this));
+                _claimableYield = _previewSavingsRateClaimableYield(IMUSDSavingsRate(_destination), _receiptBalance);
+                _supportsSavingsRate = true;
+            } catch { }
+        }
+
+        if (allocationRouter.code.length > 0) {
+            try IAllocationRouterView(allocationRouter).handlers(_destination) returns (address _registeredHandler) {
+                _handler = _registeredHandler;
+                if (_registeredHandler != address(0)) {
+                    try ITigrisStablePoolHandlerMetadata(_registeredHandler).pairedToken() returns (
+                        address _reportedPairedToken
+                    ) {
+                        _pairedToken = _reportedPairedToken;
+                        _receiptToken = _destination;
+                        _receiptBalance = IERC20(_destination).balanceOf(address(this));
+                        _supportsTigrisStablePool = true;
+                    } catch { }
+                }
+            } catch { }
+        }
+
+        exposure = DestinationExposure({
+            destination: _destination,
+            approved: _approved,
+            allocationCap: _allocationCap,
+            allocatedMUSD: allocatedMUSD,
+            remainingCapacity: _remainingCapacity,
+            yieldToken: _yieldToken,
+            pairedToken: _pairedToken,
+            handler: _handler,
+            receiptToken: _receiptToken,
+            receiptBalance: _receiptBalance,
+            claimableYield: _claimableYield,
+            supportsSavingsRate: _supportsSavingsRate,
+            supportsTigrisStablePool: _supportsTigrisStablePool
+        });
     }
 
     function _requireSupportedYieldToken(IMUSDSavingsRate _savingsRate) internal view {

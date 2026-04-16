@@ -93,6 +93,27 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
     }
 
+    function test_GetTreasuryComposition_ReturnsTigrisStablePoolMetadata() public {
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+
+        address[] memory _destinations = new address[](1);
+        _destinations[0] = address(_poolToken);
+
+        TreasuryAccount.TreasuryCompositionState memory _state = _treasuryAccount.getTreasuryComposition(_destinations);
+
+        assertEq(_state.exposures.length, 1);
+        assertEq(_state.exposures[0].destination, address(_poolToken));
+        assertEq(_state.exposures[0].handler, address(_handler));
+        assertEq(_state.exposures[0].pairedToken, address(_pairedStable));
+        assertEq(_state.exposures[0].receiptToken, address(_poolToken));
+        assertEq(_state.exposures[0].receiptBalance, 100 ether);
+        assertTrue(_state.exposures[0].supportsTigrisStablePool);
+        assertFalse(_state.exposures[0].supportsSavingsRate);
+        assertEq(_state.exposures[0].claimableYield, 0);
+        assertEq(_state.exposures[0].yieldToken, address(0));
+    }
+
     function _defaultConfig() internal view returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {
         address[] memory _destinations = new address[](1);
         _destinations[0] = address(_poolToken);
