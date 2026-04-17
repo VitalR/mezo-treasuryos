@@ -160,6 +160,8 @@ contract MUSDSavingsRateHandlerTest is Test {
             approver: _APPROVER,
             liquidityBuffer: 200 ether,
             approvalThreshold: 100 ether,
+            warningCollateralRatioBps: 18_000,
+            criticalCollateralRatioBps: 15_000,
             automationEnabled: true,
             startPaused: false,
             approvedDestinations: _destinations,

@@ -3,6 +3,7 @@ pragma solidity 0.8.34;
 
 import { IBorrowerOperations } from "../../src/interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../../src/interfaces/IGovernableVariables.sol";
+import { IPriceFeed } from "../../src/interfaces/IPriceFeed.sol";
 import { ITroveManager } from "../../src/interfaces/ITroveManager.sol";
 import { MockMUSDToken } from "./MockMUSDToken.sol";
 
@@ -31,13 +32,35 @@ contract MockTroveManager is ITroveManager {
 
 contract MockGovernableVariables is IGovernableVariables {
     address public troveManager;
+    address public priceFeed;
 
-    constructor(address _troveManager) {
+    constructor(address _troveManager, address _priceFeed) {
         troveManager = _troveManager;
+        priceFeed = _priceFeed;
     }
 
     function setTroveManager(address _troveManager) external {
         troveManager = _troveManager;
+    }
+
+    function setPriceFeed(address _priceFeed) external {
+        priceFeed = _priceFeed;
+    }
+}
+
+contract MockPriceFeed is IPriceFeed {
+    uint256 public price;
+
+    constructor(uint256 _price) {
+        price = _price;
+    }
+
+    function setPrice(uint256 _price) external {
+        price = _price;
+    }
+
+    function fetchPrice() external view returns (uint256) {
+        return price;
     }
 }
 
@@ -53,12 +76,14 @@ contract MockBorrowerOperations is IBorrowerOperations {
     bytes32 public lastAction;
 
     MockTroveManager public troveManagerContract;
+    MockPriceFeed public priceFeedContract;
     IGovernableVariables public governableVariables;
     MockMUSDToken public musdTokenContract;
 
     constructor() {
         troveManagerContract = new MockTroveManager();
-        governableVariables = new MockGovernableVariables(address(troveManagerContract));
+        priceFeedContract = new MockPriceFeed(100 ether);
+        governableVariables = new MockGovernableVariables(address(troveManagerContract), address(priceFeedContract));
         musdTokenContract = new MockMUSDToken();
     }
 
@@ -70,6 +95,10 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     function setGasCompensation(uint256 _gasCompensation) external {
         troveManagerContract.setGasCompensation(_gasCompensation);
+    }
+
+    function setCollateralPrice(uint256 _price) external {
+        priceFeedContract.setPrice(_price);
     }
 
     function musdToken() external view returns (address) {

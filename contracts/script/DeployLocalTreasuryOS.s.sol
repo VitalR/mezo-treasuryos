@@ -22,6 +22,8 @@ contract DeployLocalTreasuryOS is Script {
 
     uint256 internal constant DEFAULT_LIQUIDITY_BUFFER = 500e18;
     uint256 internal constant DEFAULT_APPROVAL_THRESHOLD = 250e18;
+    uint256 internal constant DEFAULT_WARNING_COLLATERAL_RATIO_BPS = 18_000;
+    uint256 internal constant DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS = 15_000;
     uint256 internal constant DEFAULT_SAVINGS_CAP = 10_000e18;
     uint256 internal constant DEFAULT_OWNER_MUSD_SEED = 50_000e18;
 
@@ -34,6 +36,8 @@ contract DeployLocalTreasuryOS is Script {
         address treasuryOperator;
         uint256 liquidityBuffer;
         uint256 approvalThreshold;
+        uint256 warningCollateralRatioBps;
+        uint256 criticalCollateralRatioBps;
         bool automationEnabled;
         bool startPaused;
         uint256 savingsCap;
@@ -94,6 +98,10 @@ contract DeployLocalTreasuryOS is Script {
 
         config.liquidityBuffer = vm.envOr("ANVIL_TREASURY_LIQUIDITY_BUFFER", DEFAULT_LIQUIDITY_BUFFER);
         config.approvalThreshold = vm.envOr("ANVIL_TREASURY_APPROVAL_THRESHOLD", DEFAULT_APPROVAL_THRESHOLD);
+        config.warningCollateralRatioBps =
+            vm.envOr("ANVIL_TREASURY_WARNING_COLLATERAL_RATIO_BPS", DEFAULT_WARNING_COLLATERAL_RATIO_BPS);
+        config.criticalCollateralRatioBps =
+            vm.envOr("ANVIL_TREASURY_CRITICAL_COLLATERAL_RATIO_BPS", DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS);
         config.automationEnabled = vm.envOr("ANVIL_TREASURY_AUTOMATION_ENABLED", true);
         config.startPaused = vm.envOr("ANVIL_TREASURY_START_PAUSED", false);
         config.savingsCap = vm.envOr("ANVIL_SAVINGS_CAP", DEFAULT_SAVINGS_CAP);
@@ -131,6 +139,8 @@ contract DeployLocalTreasuryOS is Script {
             approver: config.treasuryApprover,
             liquidityBuffer: config.liquidityBuffer,
             approvalThreshold: config.approvalThreshold,
+            warningCollateralRatioBps: config.warningCollateralRatioBps,
+            criticalCollateralRatioBps: config.criticalCollateralRatioBps,
             automationEnabled: config.automationEnabled,
             startPaused: config.startPaused,
             approvedDestinations: approvedDestinations,

@@ -14,6 +14,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         address approver,
         uint256 liquidityBuffer,
         uint256 approvalThreshold,
+        uint256 warningCollateralRatioBps,
+        uint256 criticalCollateralRatioBps,
         bool automationEnabled,
         bool startPaused
     );
@@ -25,21 +27,65 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         address indexed account, address indexed previousTreasuryAdmin, address indexed newTreasuryAdmin
     );
 
+    /// @notice Raised when policy initialization is attempted more than once for the same account.
+    /// @param account Treasury Account already initialized in the policy engine.
     error AccountAlreadyInitialized(address account);
+    /// @notice Raised when an operator attempts to move more than the configured approval threshold.
+    /// @param actor Treasury actor attempting the movement.
+    /// @param amount Requested movement amount.
+    /// @param threshold Configured operator approval threshold.
     error ApprovalRequired(address actor, uint256 amount, uint256 threshold);
-    error FactoryAlreadySet(address factory);
-    error InsufficientAllocation(address destination, uint256 amount, uint256 currentAllocation);
-    error InsufficientIdleBalance(uint256 amount, uint256 idleBalance);
-    error InvalidAccount(address account);
-    error InvalidActor(address actor);
-    error InvalidAmount(uint256 amount);
-    error InvalidDestination(address destination);
-    error InvalidDestinationConfigLength(uint256 destinations, uint256 caps);
-    error InvalidRoleConfiguration();
-    error LiquidityBufferBreached(uint256 nextIdleBalance, uint256 requiredBuffer);
-    error NotApprovedDestination(address destination);
-    error PolicyPaused(address account);
+    /// @notice Raised when a destination allocation exceeds the configured cap.
+    /// @param nextAllocation Proposed post-action allocation.
+    /// @param cap Configured destination cap.
     error AllocationCapExceeded(uint256 nextAllocation, uint256 cap);
+    /// @notice Raised when the factory is configured more than once.
+    /// @param factory Previously configured factory address.
+    error FactoryAlreadySet(address factory);
+    /// @notice Raised when a destination withdrawal or settlement exceeds tracked allocation.
+    /// @param destination Destination being reduced.
+    /// @param amount Requested allocation reduction.
+    /// @param currentAllocation Current tracked allocation.
+    error InsufficientAllocation(address destination, uint256 amount, uint256 currentAllocation);
+    /// @notice Raised when idle MUSD is insufficient for the requested action.
+    /// @param amount Requested MUSD amount.
+    /// @param idleBalance Current idle treasury balance.
+    error InsufficientIdleBalance(uint256 amount, uint256 idleBalance);
+    /// @notice Raised when an unknown Treasury Account is referenced.
+    /// @param account Treasury Account address being checked.
+    error InvalidAccount(address account);
+    /// @notice Raised when a required actor address is zero.
+    /// @param actor Invalid actor address.
+    error InvalidActor(address actor);
+    /// @notice Raised when an action amount is zero or otherwise invalid.
+    /// @param amount Invalid amount value.
+    error InvalidAmount(uint256 amount);
+    /// @notice Raised when a destination address is zero or otherwise invalid.
+    /// @param destination Invalid destination address.
+    error InvalidDestination(address destination);
+    /// @notice Raised when destination approval and cap arrays have different lengths.
+    /// @param destinations Number of approved destinations supplied.
+    /// @param caps Number of destination caps supplied.
+    error InvalidDestinationConfigLength(uint256 destinations, uint256 caps);
+    /// @notice Raised when treasury warning and critical collateral thresholds are invalid.
+    /// @param warningCollateralRatioBps Proposed warning threshold in basis points.
+    /// @param criticalCollateralRatioBps Proposed critical threshold in basis points.
+    error InvalidRiskThresholds(uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps);
+    /// @notice Raised when operator and approver roles are configured inconsistently.
+    error InvalidRoleConfiguration();
+    /// @notice Raised when an allocation would breach the minimum idle liquidity buffer.
+    /// @param nextIdleBalance Proposed post-action idle balance.
+    /// @param requiredBuffer Configured minimum liquidity buffer.
+    error LiquidityBufferBreached(uint256 nextIdleBalance, uint256 requiredBuffer);
+    /// @notice Raised when a destination is not approved for treasury allocation.
+    /// @param destination Destination being checked.
+    error NotApprovedDestination(address destination);
+    /// @notice Raised when a paused treasury attempts a blocked action.
+    /// @param account Treasury Account currently paused.
+    error PolicyPaused(address account);
+    /// @notice Raised when a caller lacks the authority required for an action.
+    /// @param account Treasury Account being protected.
+    /// @param actor Caller attempting the action.
     error UnauthorizedActor(address account, address actor);
 
     /// @notice Per-account treasury policy state enforced by the policy engine.
@@ -48,6 +94,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param approver Approver allowed to authorize larger or more sensitive actions.
     /// @param liquidityBuffer Minimum idle MUSD that must remain undeployed.
     /// @param approvalThreshold Maximum amount an operator may move without approver authority.
+    /// @param warningCollateralRatioBps Treasury-defined warning threshold for collateral health, in basis points.
+    /// @param criticalCollateralRatioBps Treasury-defined critical threshold for collateral health, in basis points.
     /// @param automationEnabled Whether low-risk automation is enabled.
     /// @param paused Whether treasury actions are currently paused.
     /// @param initialized Whether the account has been initialized in the policy engine.
@@ -57,6 +105,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         address approver;
         uint256 liquidityBuffer;
         uint256 approvalThreshold;
+        uint256 warningCollateralRatioBps;
+        uint256 criticalCollateralRatioBps;
         bool automationEnabled;
         bool paused;
         bool initialized;
@@ -90,6 +140,11 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(_config.approver != address(0), InvalidActor(_config.approver));
         require(_config.operator != _config.approver, InvalidRoleConfiguration());
         require(
+            _config.warningCollateralRatioBps > _config.criticalCollateralRatioBps
+                && _config.criticalCollateralRatioBps > 0,
+            InvalidRiskThresholds(_config.warningCollateralRatioBps, _config.criticalCollateralRatioBps)
+        );
+        require(
             _config.approvedDestinations.length == _config.destinationCaps.length,
             InvalidDestinationConfigLength(_config.approvedDestinations.length, _config.destinationCaps.length)
         );
@@ -102,6 +157,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         policy.approver = _config.approver;
         policy.liquidityBuffer = _config.liquidityBuffer;
         policy.approvalThreshold = _config.approvalThreshold;
+        policy.warningCollateralRatioBps = _config.warningCollateralRatioBps;
+        policy.criticalCollateralRatioBps = _config.criticalCollateralRatioBps;
         policy.automationEnabled = _config.automationEnabled;
         policy.paused = _config.startPaused;
         policy.initialized = true;
@@ -121,6 +178,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
             _config.approver,
             _config.liquidityBuffer,
             _config.approvalThreshold,
+            _config.warningCollateralRatioBps,
+            _config.criticalCollateralRatioBps,
             _config.automationEnabled,
             _config.startPaused
         );
@@ -334,6 +393,17 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
             policy.paused,
             policy.initialized
         );
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function getAccountRiskPolicy(address _account)
+        external
+        view
+        returns (uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps)
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        return (policy.warningCollateralRatioBps, policy.criticalCollateralRatioBps);
     }
 
     /// @notice Returns initialized policy state for an account or reverts if the account is unknown.

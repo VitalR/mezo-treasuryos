@@ -13,6 +13,8 @@ interface ITreasuryPolicyEngine {
     /// @param approver Address allowed to approve larger or more sensitive actions.
     /// @param liquidityBuffer Minimum idle MUSD that must remain undeployed.
     /// @param approvalThreshold Max amount the operator may move without approver authority.
+    /// @param warningCollateralRatioBps Treasury-defined warning threshold for collateral health, in basis points.
+    /// @param criticalCollateralRatioBps Treasury-defined critical threshold for collateral health, in basis points.
     /// @param automationEnabled Whether low-risk automation is enabled for the account.
     /// @param startPaused Whether the treasury should begin in a paused state.
     /// @param approvedDestinations Destinations that may receive treasury funds.
@@ -22,6 +24,8 @@ interface ITreasuryPolicyEngine {
         address approver;
         uint256 liquidityBuffer;
         uint256 approvalThreshold;
+        uint256 warningCollateralRatioBps;
+        uint256 criticalCollateralRatioBps;
         bool automationEnabled;
         bool startPaused;
         address[] approvedDestinations;
@@ -169,4 +173,13 @@ interface ITreasuryPolicyEngine {
             bool paused,
             bool initialized
         );
+
+    /// @notice Returns the configured treasury health thresholds for an account.
+    /// @param _account Treasury Account being queried.
+    /// @return warningCollateralRatioBps Treasury-defined warning threshold in basis points.
+    /// @return criticalCollateralRatioBps Treasury-defined critical threshold in basis points.
+    function getAccountRiskPolicy(address _account)
+        external
+        view
+        returns (uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps);
 }

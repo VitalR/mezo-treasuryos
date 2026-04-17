@@ -6,4 +6,7 @@ pragma solidity 0.8.34;
 interface IGovernableVariables {
     /// @notice Returns the active TroveManager contract address.
     function troveManager() external view returns (address);
+
+    /// @notice Returns the active protocol price feed address.
+    function priceFeed() external view returns (address);
 }

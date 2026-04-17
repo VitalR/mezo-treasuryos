@@ -21,6 +21,8 @@ import { ITreasuryPolicyEngine } from "../src/interfaces/ITreasuryPolicyEngine.s
 contract DeployTreasuryOS is Script {
     uint256 internal constant DEFAULT_LIQUIDITY_BUFFER = 500e18;
     uint256 internal constant DEFAULT_APPROVAL_THRESHOLD = 250e18;
+    uint256 internal constant DEFAULT_WARNING_COLLATERAL_RATIO_BPS = 18_000;
+    uint256 internal constant DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS = 15_000;
     uint256 internal constant DEFAULT_SAVINGS_CAP = 10_000e18;
     uint256 internal constant DEFAULT_TIGRIS_CAP = 5000e18;
     uint256 internal constant DEFAULT_TIGRIS_DEADLINE_WINDOW = 15 minutes;
@@ -44,6 +46,8 @@ contract DeployTreasuryOS is Script {
         uint256 tigrisDeadlineWindow;
         uint256 liquidityBuffer;
         uint256 approvalThreshold;
+        uint256 warningCollateralRatioBps;
+        uint256 criticalCollateralRatioBps;
         bool automationEnabled;
         bool startPaused;
         uint256 savingsCap;
@@ -103,6 +107,10 @@ contract DeployTreasuryOS is Script {
         config.tigrisDeadlineWindow = vm.envOr("TIGRIS_DEADLINE_WINDOW", DEFAULT_TIGRIS_DEADLINE_WINDOW);
         config.liquidityBuffer = vm.envOr("DEMO_TREASURY_LIQUIDITY_BUFFER", DEFAULT_LIQUIDITY_BUFFER);
         config.approvalThreshold = vm.envOr("DEMO_TREASURY_APPROVAL_THRESHOLD", DEFAULT_APPROVAL_THRESHOLD);
+        config.warningCollateralRatioBps =
+            vm.envOr("DEMO_TREASURY_WARNING_COLLATERAL_RATIO_BPS", DEFAULT_WARNING_COLLATERAL_RATIO_BPS);
+        config.criticalCollateralRatioBps =
+            vm.envOr("DEMO_TREASURY_CRITICAL_COLLATERAL_RATIO_BPS", DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS);
         config.automationEnabled = vm.envOr("DEMO_TREASURY_AUTOMATION_ENABLED", true);
         config.startPaused = vm.envOr("DEMO_TREASURY_START_PAUSED", false);
         config.savingsCap = vm.envOr("DEMO_SAVINGS_CAP", DEFAULT_SAVINGS_CAP);
@@ -190,6 +198,8 @@ contract DeployTreasuryOS is Script {
             approver: config.treasuryApprover,
             liquidityBuffer: config.liquidityBuffer,
             approvalThreshold: config.approvalThreshold,
+            warningCollateralRatioBps: config.warningCollateralRatioBps,
+            criticalCollateralRatioBps: config.criticalCollateralRatioBps,
             automationEnabled: config.automationEnabled,
             startPaused: config.startPaused,
             approvedDestinations: approvedDestinations,

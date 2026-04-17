@@ -52,6 +52,8 @@ contract TreasuryAccountTest is Test {
             bool _paused,
             bool _initialized
         ) = _policyEngine.getAccountPolicy(address(_account));
+        (uint256 _warningCollateralRatioBps, uint256 _criticalCollateralRatioBps) =
+            _policyEngine.getAccountRiskPolicy(address(_account));
 
         assertEq(_account.owner(), _TREASURY_ADMIN);
         assertEq(address(_account.policyEngine()), address(_policyEngine));
@@ -60,11 +62,104 @@ contract TreasuryAccountTest is Test {
         assertEq(_approver, _APPROVER);
         assertEq(_liquidityBuffer, 200 ether);
         assertEq(_approvalThreshold, 100 ether);
+        assertEq(_warningCollateralRatioBps, 18_000);
+        assertEq(_criticalCollateralRatioBps, 15_000);
         assertTrue(_automationEnabled);
         assertFalse(_paused);
         assertTrue(_initialized);
         assertTrue(_policyEngine.isDestinationApproved(address(_account), _SAVINGS_VAULT));
         assertEq(_policyEngine.allocationCap(address(_account), _SAVINGS_VAULT), 500 ether);
+    }
+
+    function test_GetTreasuryHealthState_ReturnsHealthyStateForConfiguredPrice() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        TreasuryAccount.TreasuryHealthState memory _state = _account.getTreasuryHealthState();
+
+        assertTrue(_state.positionActive);
+        assertEq(_state.priceFeed, address(_borrowerOperations.priceFeedContract()));
+        assertEq(_state.collateralPrice, 100 ether);
+        assertEq(_state.collateralValueMUSD, 200 ether);
+        assertEq(_state.positionCollateral, 2 ether);
+        assertEq(_state.positionTotalDebt, 80 ether);
+        assertEq(_state.positionCloseDebt, 80 ether);
+        assertEq(_state.positionGasCompensation, 0);
+        assertEq(_state.collateralRatioBps, 25_000);
+        assertEq(_state.warningCollateralRatioBps, 18_000);
+        assertEq(_state.criticalCollateralRatioBps, 15_000);
+        assertEq(_state.warningThresholdPrice, 72 ether);
+        assertEq(_state.criticalThresholdPrice, 60 ether);
+        assertFalse(_state.belowWarningRatio);
+        assertFalse(_state.belowCriticalRatio);
+        assertTrue(_state.riskDataAvailable);
+        assertTrue(_state.automationEnabled);
+        assertFalse(_state.paused);
+    }
+
+    function test_GetTreasuryHealthState_ReturnsWarningStateWhenPriceDropsBelowWarningThreshold() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        _borrowerOperations.setCollateralPrice(70 ether);
+
+        TreasuryAccount.TreasuryHealthState memory _state = _account.getTreasuryHealthState();
+
+        assertEq(_state.collateralRatioBps, 17_500);
+        assertTrue(_state.belowWarningRatio);
+        assertFalse(_state.belowCriticalRatio);
+    }
+
+    function test_GetTreasuryHealthState_ReturnsCriticalStateWhenPriceDropsBelowCriticalThreshold() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        _borrowerOperations.setCollateralPrice(55 ether);
+
+        TreasuryAccount.TreasuryHealthState memory _state = _account.getTreasuryHealthState();
+
+        assertEq(_state.collateralRatioBps, 13_750);
+        assertTrue(_state.belowWarningRatio);
+        assertTrue(_state.belowCriticalRatio);
+    }
+
+    function test_GetTreasuryHealthState_ReturnsUnavailableRiskStateWithoutPriceFeed() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        _borrowerOperations.setCollateralPrice(0);
+
+        TreasuryAccount.TreasuryHealthState memory _state = _account.getTreasuryHealthState();
+
+        assertEq(_state.collateralPrice, 0);
+        assertEq(_state.collateralValueMUSD, 0);
+        assertEq(_state.collateralRatioBps, 0);
+        assertFalse(_state.belowWarningRatio);
+        assertFalse(_state.belowCriticalRatio);
+        assertFalse(_state.riskDataAvailable);
+    }
+
+    function test_GetTreasuryHealthState_ReturnsPausedFlagFromPolicy() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _account.setPause(true);
+
+        TreasuryAccount.TreasuryHealthState memory _state = _account.getTreasuryHealthState();
+
+        assertTrue(_state.paused);
+        assertTrue(_state.automationEnabled);
     }
 
     function test_SetBorrowerOperations_TreasuryAdminCanSetBorrowerOperations() public {
@@ -482,6 +577,8 @@ contract TreasuryAccountTest is Test {
             approver: _APPROVER,
             liquidityBuffer: 200 ether,
             approvalThreshold: 100 ether,
+            warningCollateralRatioBps: 18_000,
+            criticalCollateralRatioBps: 15_000,
             automationEnabled: true,
             startPaused: false,
             approvedDestinations: _destinations,

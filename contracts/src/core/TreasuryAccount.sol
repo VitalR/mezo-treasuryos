@@ -11,6 +11,7 @@ import { IAllocationRouterView } from "../interfaces/IAllocationRouterView.sol";
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../interfaces/IGovernableVariables.sol";
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
+import { IPriceFeed } from "../interfaces/IPriceFeed.sol";
 import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 import { ITigrisStablePoolHandlerMetadata } from "../interfaces/ITigrisStablePoolHandlerMetadata.sol";
 import { ITroveManager } from "../interfaces/ITroveManager.sol";
@@ -80,22 +81,56 @@ contract TreasuryAccount is Ownable2Step {
         uint256 allocationAfter
     );
 
+    /// @notice Raised when the allocation router address is zero.
+    /// @param allocationRouter Invalid allocation router address.
     error InvalidAllocationRouter(address allocationRouter);
+    /// @notice Raised when a required amount is zero or otherwise invalid.
+    /// @param amount Invalid amount value.
     error InvalidAmount(uint256 amount);
+    /// @notice Raised when the borrower operations address is zero.
+    /// @param borrowerOperations Invalid borrower operations address.
     error InvalidBorrowerOperations(address borrowerOperations);
+    /// @notice Raised when the MUSD token address is zero.
+    /// @param musdToken Invalid MUSD token address.
     error InvalidMUSDToken(address musdToken);
+    /// @notice Raised when the policy engine address is zero.
+    /// @param policyEngine Invalid policy engine address.
     error InvalidPolicyEngine(address policyEngine);
+    /// @notice Raised when a generic trove adjustment request is internally inconsistent.
     error InvalidPositionAdjustment();
+    /// @notice Raised when a token address is zero.
+    /// @param token Invalid token address.
     error InvalidToken(address token);
+    /// @notice Raised when an external execution target is zero.
+    /// @param target Invalid execution target.
     error InvalidExecutionTarget(address target);
+    /// @notice Raised when an allowance spender address is zero.
+    /// @param spender Invalid spender address.
     error InvalidSpender(address spender);
+    /// @notice Raised when a trove-dependent action is attempted without an active position.
     error NoActivePosition();
+    /// @notice Raised when a caller other than the pending owner attempts ownership acceptance.
+    /// @param caller Caller attempting to accept ownership.
     error NotPendingOwner(address caller);
+    /// @notice Raised when a repayment request exceeds the current closeable debt.
+    /// @param amount Requested repayment amount.
+    /// @param currentCloseDebt Current closeable debt.
     error PositionCloseDebtExceeded(uint256 amount, uint256 currentCloseDebt);
+    /// @notice Raised when a collateral withdrawal exceeds the current position collateral.
+    /// @param amount Requested collateral withdrawal.
+    /// @param currentCollateral Current position collateral.
     error PositionCollateralExceeded(uint256 amount, uint256 currentCollateral);
+    /// @notice Raised when a new trove is opened while one is already active.
     error PositionAlreadyOpen();
+    /// @notice Raised when a treasury disbursement recipient is invalid.
+    /// @param recipient Invalid treasury recipient.
     error InvalidTreasuryRecipient(address recipient);
+    /// @notice Raised when a savings destination uses an unexpected yield token.
+    /// @param expected Expected MUSD token address.
+    /// @param actual Actual vault yield token address.
     error UnsupportedYieldToken(address expected, address actual);
+    /// @notice Raised when an account-level caller lacks the required authority.
+    /// @param caller Unauthorized caller.
     error UnauthorizedCaller(address caller);
 
     /// @notice Protocol-backed treasury position snapshot for service and dashboard consumption.
@@ -124,6 +159,46 @@ contract TreasuryAccount is Ownable2Step {
         uint256 positionCloseDebt;
         uint256 positionGasCompensation;
         bool positionActive;
+    }
+
+    /// @notice Treasury health snapshot used by automation services and dashboard risk views.
+    /// @param positionActive Whether the Treasury Account currently has an active Mezo position.
+    /// @param priceFeed Active protocol price feed used for treasury health reads.
+    /// @param collateralPrice Current BTC collateral price returned by the price feed, scaled by 1e18.
+    /// @param collateralValueMUSD Current collateral market value expressed in MUSD terms, scaled by 1e18.
+    /// @param positionCollateral BTC collateral currently locked in the Mezo position.
+    /// @param positionTotalDebt Full protocol debt for the active position.
+    /// @param positionCloseDebt Debt that must be repaid in MUSD to close the position.
+    /// @param positionGasCompensation Gas compensation component embedded in protocol debt.
+    /// @param collateralRatioBps Current collateral ratio expressed in basis points.
+    /// @param warningCollateralRatioBps Treasury-defined warning threshold expressed in basis points.
+    /// @param criticalCollateralRatioBps Treasury-defined critical threshold expressed in basis points.
+    /// @param warningThresholdPrice Price level at which the position would hit the warning threshold.
+    /// @param criticalThresholdPrice Price level at which the position would hit the critical threshold.
+    /// @param belowWarningRatio Whether the treasury is currently below the warning threshold.
+    /// @param belowCriticalRatio Whether the treasury is currently below the critical threshold.
+    /// @param riskDataAvailable Whether price-backed health data is currently available.
+    /// @param automationEnabled Whether automation is enabled in policy.
+    /// @param paused Whether treasury actions are currently paused.
+    struct TreasuryHealthState {
+        bool positionActive;
+        address priceFeed;
+        uint256 collateralPrice;
+        uint256 collateralValueMUSD;
+        uint256 positionCollateral;
+        uint256 positionTotalDebt;
+        uint256 positionCloseDebt;
+        uint256 positionGasCompensation;
+        uint256 collateralRatioBps;
+        uint256 warningCollateralRatioBps;
+        uint256 criticalCollateralRatioBps;
+        uint256 warningThresholdPrice;
+        uint256 criticalThresholdPrice;
+        bool belowWarningRatio;
+        bool belowCriticalRatio;
+        bool riskDataAvailable;
+        bool automationEnabled;
+        bool paused;
     }
 
     /// @notice Per-destination treasury exposure used in composition snapshots.
@@ -547,7 +622,8 @@ contract TreasuryAccount is Ownable2Step {
     }
 
     /// @notice Settles a handler-routed withdrawal where actual MUSD proceeds can differ from tracked allocation
-    /// reduction. @param _actor Treasury actor on whose behalf the settlement is being performed.
+    ///     reduction.
+    /// @param _actor Treasury actor on whose behalf the settlement is being performed.
     /// @param _destination Destination being reduced.
     /// @param _allocationAmount Amount of tracked allocation being reduced.
     /// @param _idleMUSDIncrease Actual MUSD proceeds restored to idle treasury balance.
@@ -631,6 +707,16 @@ contract TreasuryAccount is Ownable2Step {
         return ITroveManager(_governableVariables.troveManager());
     }
 
+    /// @notice Returns the active protocol price feed used for treasury health reads.
+    function priceFeed() public view returns (IPriceFeed) {
+        IGovernableVariables _governableVariables = governableVariables();
+        if (address(_governableVariables) == address(0)) {
+            return IPriceFeed(address(0));
+        }
+
+        return IPriceFeed(_governableVariables.priceFeed());
+    }
+
     /// @notice Returns the full protocol debt for the active position, including fee, gas compensation, and accrual.
     function positionTotalDebt() public view returns (uint256) {
         (uint256 _positionDebt,,) = _getPositionSnapshot();
@@ -671,6 +757,70 @@ contract TreasuryAccount is Ownable2Step {
         return _active;
     }
 
+    /// @notice Returns the current collateral price used for TreasuryOS health calculations.
+    /// @dev Returns zero when no price feed is configured.
+    function collateralPrice() public view returns (uint256) {
+        IPriceFeed _priceFeed = priceFeed();
+        if (address(_priceFeed) == address(0)) {
+            return 0;
+        }
+
+        return _priceFeed.fetchPrice();
+    }
+
+    /// @notice Returns the current collateral market value of the active position in MUSD terms.
+    /// @dev Uses the TreasuryOS collateral price read and returns zero when price data is unavailable.
+    function collateralValueMUSD() public view returns (uint256) {
+        return _collateralValueMUSD(positionCollateral(), collateralPrice());
+    }
+
+    /// @notice Returns the current collateral ratio for the active position in basis points.
+    /// @dev Returns zero when the position is inactive or price-backed health data is unavailable.
+    function collateralRatioBps() public view returns (uint256) {
+        return _collateralRatioBps(positionCollateral(), positionTotalDebt(), collateralPrice());
+    }
+
+    /// @notice Returns whether price-backed health data is available for the current treasury position.
+    function riskDataAvailable() public view returns (bool) {
+        return _riskDataAvailable(positionCollateral(), positionTotalDebt(), collateralPrice());
+    }
+
+    /// @notice Returns whether the current collateral ratio is below the configured warning threshold.
+    function isBelowWarningRatio() public view returns (bool) {
+        (uint256 _warningCollateralRatioBps,) = policyEngine.getAccountRiskPolicy(address(this));
+
+        if (!riskDataAvailable()) {
+            return false;
+        }
+
+        return collateralRatioBps() < _warningCollateralRatioBps;
+    }
+
+    /// @notice Returns whether the current collateral ratio is below the configured critical threshold.
+    function isBelowCriticalRatio() public view returns (bool) {
+        (, uint256 _criticalCollateralRatioBps) = policyEngine.getAccountRiskPolicy(address(this));
+
+        if (!riskDataAvailable()) {
+            return false;
+        }
+
+        return collateralRatioBps() < _criticalCollateralRatioBps;
+    }
+
+    /// @notice Returns the collateral price at which the current position would reach the warning threshold.
+    /// @dev Returns zero when the position is inactive or the threshold cannot be evaluated.
+    function warningThresholdPrice() public view returns (uint256) {
+        (uint256 _warningCollateralRatioBps,) = policyEngine.getAccountRiskPolicy(address(this));
+        return _thresholdPrice(positionCollateral(), positionTotalDebt(), _warningCollateralRatioBps);
+    }
+
+    /// @notice Returns the collateral price at which the current position would reach the critical threshold.
+    /// @dev Returns zero when the position is inactive or the threshold cannot be evaluated.
+    function criticalThresholdPrice() public view returns (uint256) {
+        (, uint256 _criticalCollateralRatioBps) = policyEngine.getAccountRiskPolicy(address(this));
+        return _thresholdPrice(positionCollateral(), positionTotalDebt(), _criticalCollateralRatioBps);
+    }
+
     /// @notice Returns a consolidated protocol-backed treasury position snapshot.
     function getTreasuryPositionState() external view returns (TreasuryPositionState memory state) {
         ITroveManager _troveManager = troveManager();
@@ -701,6 +851,44 @@ contract TreasuryAccount is Ownable2Step {
             positionGasCompensation: _positionGasCompensation,
             positionActive: _positionActive
         });
+    }
+
+    /// @notice Returns a consolidated treasury health snapshot for automation and dashboard risk monitoring.
+    function getTreasuryHealthState() external view returns (TreasuryHealthState memory state) {
+        (uint256 _warningCollateralRatioBps, uint256 _criticalCollateralRatioBps) =
+            policyEngine.getAccountRiskPolicy(address(this));
+        (,,,,, bool _automationEnabled, bool _paused,) = policyEngine.getAccountPolicy(address(this));
+
+        IPriceFeed _priceFeed = priceFeed();
+        uint256 _positionCollateral = positionCollateral();
+        uint256 _positionTotalDebt = positionTotalDebt();
+        uint256 _positionGasCompensation = positionGasCompensation();
+        uint256 _positionCloseDebt = positionCloseDebt();
+        uint256 _collateralPrice = collateralPrice();
+        uint256 _collateralValue = _collateralValueMUSD(_positionCollateral, _collateralPrice);
+        uint256 _collateralRatio = _collateralRatioBps(_positionCollateral, _positionTotalDebt, _collateralPrice);
+        bool _riskData = _riskDataAvailable(_positionCollateral, _positionTotalDebt, _collateralPrice);
+
+        state.positionActive = positionActive();
+        state.priceFeed = address(_priceFeed);
+        state.collateralPrice = _collateralPrice;
+        state.collateralValueMUSD = _collateralValue;
+        state.positionCollateral = _positionCollateral;
+        state.positionTotalDebt = _positionTotalDebt;
+        state.positionCloseDebt = _positionCloseDebt;
+        state.positionGasCompensation = _positionGasCompensation;
+        state.collateralRatioBps = _collateralRatio;
+        state.warningCollateralRatioBps = _warningCollateralRatioBps;
+        state.criticalCollateralRatioBps = _criticalCollateralRatioBps;
+        state.warningThresholdPrice =
+            _thresholdPrice(_positionCollateral, _positionTotalDebt, _warningCollateralRatioBps);
+        state.criticalThresholdPrice =
+            _thresholdPrice(_positionCollateral, _positionTotalDebt, _criticalCollateralRatioBps);
+        state.belowWarningRatio = _riskData && _collateralRatio < _warningCollateralRatioBps;
+        state.belowCriticalRatio = _riskData && _collateralRatio < _criticalCollateralRatioBps;
+        state.riskDataAvailable = _riskData;
+        state.automationEnabled = _automationEnabled;
+        state.paused = _paused;
     }
 
     /// @notice Returns treasury composition and destination exposures for the provided destination set.
@@ -741,6 +929,10 @@ contract TreasuryAccount is Ownable2Step {
         });
     }
 
+    /// @notice Applies local idle-balance accounting after a protocol-native trove adjustment.
+    /// @param _collateralWithdrawal BTC collateral withdrawn back into idle treasury custody.
+    /// @param _debtChange MUSD debt change applied by the protocol.
+    /// @param _isDebtIncrease Whether the protocol debt change increased or decreased debt.
     function _applyPositionAdjustment(uint256 _collateralWithdrawal, uint256 _debtChange, bool _isDebtIncrease)
         internal
     {
@@ -758,6 +950,10 @@ contract TreasuryAccount is Ownable2Step {
         idleMUSD -= _debtChange;
     }
 
+    /// @notice Returns the protocol-backed treasury position snapshot from Mezo state.
+    /// @return _positionDebt Full protocol debt for the treasury position.
+    /// @return _positionCollateral Current position collateral.
+    /// @return _active Whether the treasury currently has an active position.
     function _getPositionSnapshot()
         internal
         view
@@ -772,6 +968,10 @@ contract TreasuryAccount is Ownable2Step {
         _active = _positionDebt > 0 || _positionCollateral > 0;
     }
 
+    /// @notice Returns TreasuryOS exposure metadata for a destination.
+    /// @param _destination Destination being inspected.
+    /// @return exposure Structured exposure metadata for dashboard and service consumption.
+    /// @return allocatedMUSD Current tracked MUSD allocation for the destination.
     function _getDestinationExposure(address _destination)
         internal
         view
@@ -837,11 +1037,17 @@ contract TreasuryAccount is Ownable2Step {
         });
     }
 
+    /// @notice Reverts when a savings destination reports a non-MUSD yield token.
+    /// @param _savingsRate Savings destination being validated.
     function _requireSupportedYieldToken(IMUSDSavingsRate _savingsRate) internal view {
         address _yieldToken = _savingsRate.yieldToken();
         require(_yieldToken == address(musdToken), UnsupportedYieldToken(address(musdToken), _yieldToken));
     }
 
+    /// @notice Previews claimable savings-vault yield including any uncheckpointed yield index delta.
+    /// @param _savingsRate Savings destination being queried.
+    /// @param _receiptBalance Current savings receipt balance held by the treasury.
+    /// @return claimableYield Current claimable treasury yield.
     function _previewSavingsRateClaimableYield(IMUSDSavingsRate _savingsRate, uint256 _receiptBalance)
         internal
         view
@@ -861,6 +1067,7 @@ contract TreasuryAccount is Ownable2Step {
         }
     }
 
+    /// @notice Reverts when the caller is neither the configured allocation router nor a registered handler.
     function _requireAuthorizedAllocationCaller() internal view {
         if (msg.sender == allocationRouter) {
             return;
@@ -878,6 +1085,12 @@ contract TreasuryAccount is Ownable2Step {
         revert UnauthorizedCaller(msg.sender);
     }
 
+    /// @notice Validates a protocol-native trove adjustment before forwarding to Mezo.
+    /// @param _actor Treasury actor requesting the adjustment.
+    /// @param _collateralDeposit BTC collateral being added in the transaction.
+    /// @param _collateralWithdrawal BTC collateral being withdrawn from the trove.
+    /// @param _debtChange MUSD debt change requested.
+    /// @param _isDebtIncrease Whether the debt change increases or decreases debt.
     function _validatePositionAdjustment(
         address _actor,
         uint256 _collateralDeposit,
@@ -914,6 +1127,71 @@ contract TreasuryAccount is Ownable2Step {
         policyEngine.validateDebtRepayment(address(this), _actor, _debtChange, idleMUSD);
     }
 
+    /// @notice Returns whether risk data can be computed for the provided position and price inputs.
+    /// @param _positionCollateral Position collateral used in the health calculation.
+    /// @param _positionDebt Position debt used in the health calculation.
+    /// @param _collateralPrice Current collateral price used in the health calculation.
+    /// @return available Whether a price-backed risk computation is possible.
+    function _riskDataAvailable(uint256 _positionCollateral, uint256 _positionDebt, uint256 _collateralPrice)
+        internal
+        pure
+        returns (bool available)
+    {
+        return _positionCollateral > 0 && _positionDebt > 0 && _collateralPrice > 0;
+    }
+
+    /// @notice Returns the collateral market value for a position using a 1e18-scaled collateral price.
+    /// @param _positionCollateral Position collateral amount.
+    /// @param _collateralPrice Current collateral price scaled by 1e18.
+    /// @return valueMUSD Collateral market value in MUSD terms, scaled by 1e18.
+    function _collateralValueMUSD(uint256 _positionCollateral, uint256 _collateralPrice)
+        internal
+        pure
+        returns (uint256 valueMUSD)
+    {
+        if (_positionCollateral == 0 || _collateralPrice == 0) {
+            return 0;
+        }
+
+        return (_positionCollateral * _collateralPrice) / 1e18;
+    }
+
+    /// @notice Returns the collateral ratio for a position in basis points.
+    /// @param _positionCollateral Position collateral amount.
+    /// @param _positionDebt Position debt amount.
+    /// @param _collateralPrice Current collateral price scaled by 1e18.
+    /// @return ratioBps Collateral ratio in basis points.
+    function _collateralRatioBps(uint256 _positionCollateral, uint256 _positionDebt, uint256 _collateralPrice)
+        internal
+        pure
+        returns (uint256 ratioBps)
+    {
+        if (!_riskDataAvailable(_positionCollateral, _positionDebt, _collateralPrice)) {
+            return 0;
+        }
+
+        uint256 _collateralValue = _collateralValueMUSD(_positionCollateral, _collateralPrice);
+        return (_collateralValue * 10_000) / _positionDebt;
+    }
+
+    /// @notice Returns the collateral price at which the position would exactly equal a target ratio.
+    /// @param _positionCollateral Position collateral amount.
+    /// @param _positionDebt Position debt amount.
+    /// @param _targetRatioBps Target collateral ratio in basis points.
+    /// @return thresholdPrice Price scaled by 1e18 at which the position would meet the target ratio.
+    function _thresholdPrice(uint256 _positionCollateral, uint256 _positionDebt, uint256 _targetRatioBps)
+        internal
+        pure
+        returns (uint256 thresholdPrice)
+    {
+        if (_positionCollateral == 0 || _positionDebt == 0 || _targetRatioBps == 0) {
+            return 0;
+        }
+
+        return (_positionDebt * _targetRatioBps * 1e18) / (_positionCollateral * 10_000);
+    }
+
+    /// @notice Reverts when no active Mezo position exists for the treasury account.
     function _requireActivePosition() internal view {
         require(positionActive(), NoActivePosition());
     }
