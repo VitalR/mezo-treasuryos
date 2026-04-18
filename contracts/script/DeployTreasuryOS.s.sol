@@ -218,6 +218,7 @@ contract DeployTreasuryOS is Script {
             destinationCaps: destinationCaps
         });
 
+        treasuryAccountFactory.setTreasuryAdminApproval(config.treasuryOwner, true);
         artifacts.treasuryAccount = treasuryAccountFactory.deployTreasuryAccount(config.treasuryOwner, policyConfig);
 
         vm.stopBroadcast();

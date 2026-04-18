@@ -32,6 +32,7 @@ contract TreasuryWorkflowIntegrationTest is Test {
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _factory.setTreasuryAdminApproval(_TREASURY_ADMIN, true);
         _savingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _allocationRouter = new AllocationRouter(_TREASURY_ADMIN);
         _savingsVaultHandler = new MUSDSavingsRateHandler(_savingsVault, address(_allocationRouter));

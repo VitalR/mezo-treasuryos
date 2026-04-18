@@ -32,6 +32,7 @@ contract TreasuryAccountTest is Test {
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _factory.setTreasuryAdminApproval(_TREASURY_ADMIN, true);
         _mockSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
 
         vm.deal(_TREASURY_ADMIN, 50 ether);

@@ -36,6 +36,7 @@ contract TigrisStablePoolHandlerTest is Test {
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _factory.setTreasuryAdminApproval(_TREASURY_ADMIN, true);
         _pairedStable = new MockMUSDToken();
         _poolToken = new MockTigrisLPToken();
         _router = new MockTigrisBasicRouter(_borrowerOperations.musdTokenContract(), _pairedStable, _poolToken);
