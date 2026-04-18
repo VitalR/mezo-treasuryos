@@ -377,15 +377,21 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
-        _requireAutomationAuthority(policy, _account, _actor);
         require(_destination != address(0), InvalidDestination(_destination));
         require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
         require(_amount > 0, InvalidAmount(_amount));
-        require(policy.allowAutoSavingsWithdraw, AutoSavingsWithdrawDisabled(_account));
-        require(
-            _amount <= policy.maxAutoBufferRestore,
-            AutomationLimitExceeded(bytes32("BUFFER_RESTORE"), _amount, policy.maxAutoBufferRestore)
-        );
+
+        if (_actor == policy.automationExecutor) {
+            _requireAutomationAuthority(policy, _account, _actor);
+            require(policy.allowAutoSavingsWithdraw, AutoSavingsWithdrawDisabled(_account));
+            require(
+                _amount <= policy.maxAutoBufferRestore,
+                AutomationLimitExceeded(bytes32("BUFFER_RESTORE"), _amount, policy.maxAutoBufferRestore)
+            );
+            return;
+        }
+
+        _requireElevatedAuthority(policy, _account, _actor);
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
@@ -395,15 +401,21 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
-        _requireAutomationAuthority(policy, _account, _actor);
         require(_destination != address(0), InvalidDestination(_destination));
         require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
         require(_amount > 0, InvalidAmount(_amount));
-        require(policy.allowAutoDebtRepay, AutoDebtRepayDisabled(_account));
-        require(
-            _amount <= policy.maxAutoDebtRepay,
-            AutomationLimitExceeded(bytes32("DEBT_REPAY"), _amount, policy.maxAutoDebtRepay)
-        );
+
+        if (_actor == policy.automationExecutor) {
+            _requireAutomationAuthority(policy, _account, _actor);
+            require(policy.allowAutoDebtRepay, AutoDebtRepayDisabled(_account));
+            require(
+                _amount <= policy.maxAutoDebtRepay,
+                AutomationLimitExceeded(bytes32("DEBT_REPAY"), _amount, policy.maxAutoDebtRepay)
+            );
+            return;
+        }
+
+        _requireElevatedAuthority(policy, _account, _actor);
     }
 
     /// @inheritdoc ITreasuryPolicyEngine

@@ -35,6 +35,10 @@ contract AllocationRouter is Ownable2Step, IAllocationRouterAuthority {
     /// @param handler Handler being registered.
     /// @param reportedDestination Destination returned by `handler.destination()`.
     error HandlerDestinationMismatch(address destination, address handler, address reportedDestination);
+    /// @notice Reverts when a workflow-scoped forwarder call is not initiated by the Treasury Account itself.
+    /// @param caller Caller attempting to use an account-scoped forwarding path.
+    /// @param treasuryAccount Treasury Account that must originate the forwarded call.
+    error UnauthorizedForwarder(address caller, address treasuryAccount);
 
     /// @notice Maps a treasury destination to the handler that can operate it.
     mapping(address destination => address handler) public handlers;
@@ -109,6 +113,25 @@ contract AllocationRouter is Ownable2Step, IAllocationRouterAuthority {
         require(_handler != address(0), MissingHandler(_destination));
 
         result = IAllocationHandler(_handler).withdraw(_treasuryAccount, msg.sender, _amount);
+    }
+
+    /// @notice Dispatches a withdrawal request while preserving the explicit treasury actor.
+    /// @dev Only the Treasury Account itself may use this forwarding path.
+    /// @param _treasuryAccount Treasury Account receiving the withdrawal proceeds.
+    /// @param _actor Treasury actor on whose behalf the withdrawal is being executed.
+    /// @param _destination Destination being exited.
+    /// @param _amount Amount requested by the treasury actor.
+    /// @return result Destination-specific result such as shares or liquidity burned.
+    function withdrawFor(address _treasuryAccount, address _actor, address _destination, uint256 _amount)
+        external
+        returns (uint256 result)
+    {
+        require(msg.sender == _treasuryAccount, UnauthorizedForwarder(msg.sender, _treasuryAccount));
+
+        address _handler = handlers[_destination];
+        require(_handler != address(0), MissingHandler(_destination));
+
+        result = IAllocationHandler(_handler).withdrawForWorkflow(_treasuryAccount, _actor, _amount);
     }
 
     /// @notice Dispatches a yield-claim request to the handler registered for a destination.

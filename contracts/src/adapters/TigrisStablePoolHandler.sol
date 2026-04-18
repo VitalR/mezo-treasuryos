@@ -175,6 +175,58 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     }
 
     /// @inheritdoc IAllocationHandler
+    function withdrawForWorkflow(address _treasuryAccount, address _actor, uint256 _amount)
+        external
+        returns (uint256 result)
+    {
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        require(_treasuryAccount != address(0), InvalidTreasuryAccount(_treasuryAccount));
+        require(_amount > 0, InvalidAmount(_amount));
+
+        uint256 _lpBalance = IERC20(destination).balanceOf(_treasuryAccount);
+        require(_lpBalance > 0, ZeroLiquidity());
+
+        uint256 _currentAllocation = TreasuryAccount(payable(_treasuryAccount)).destinationAllocations(destination);
+        require(_currentAllocation >= _amount, InvalidAmount(_amount));
+
+        uint256 _liquidityToBurn = (_lpBalance * _amount) / _currentAllocation;
+        require(_liquidityToBurn > 0, ZeroLiquidity());
+
+        TreasuryAccount(payable(_treasuryAccount))
+            .forceApproveTokenFromHandler(destination, address(tigrisRouter), _liquidityToBurn);
+
+        bytes memory _removeLiquidityResult = _callTreasury(
+            _treasuryAccount,
+            address(tigrisRouter),
+            abi.encodeCall(
+                ITigrisBasicRouter.removeLiquidity,
+                (
+                    address(musdToken),
+                    address(pairedStableToken),
+                    _liquidityToBurn,
+                    0,
+                    0,
+                    _treasuryAccount,
+                    block.timestamp + deadlineWindow
+                )
+            )
+        );
+
+        (uint256 _musdReceived, uint256 _pairedReceived) = abi.decode(_removeLiquidityResult, (uint256, uint256));
+
+        if (_pairedReceived > 0) {
+            _musdReceived += _swapPairBackToMUSD(_treasuryAccount, _pairedReceived);
+        }
+
+        TreasuryAccount(payable(_treasuryAccount))
+            .settleWorkflowWithdrawalFromHandler(_actor, destination, _amount, _musdReceived);
+
+        result = _liquidityToBurn;
+
+        emit StablePoolWithdrawalRouted(_treasuryAccount, _actor, destination, _amount, _liquidityToBurn, _musdReceived);
+    }
+
+    /// @inheritdoc IAllocationHandler
     function claimYield(address, address) external pure returns (uint256 amount) {
         amount = 0;
     }

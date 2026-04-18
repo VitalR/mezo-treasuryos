@@ -83,6 +83,33 @@ contract TreasuryWorkflowIntegrationTest is Test {
         assertEq(_borrowerOperations.totalDebt(address(_treasuryAccount)), 0);
     }
 
+    function test_TreasuryWorkflow_RestoreBufferAndDeRiskThroughSavingsSleeve() public {
+        vm.prank(_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_savingsVault), 300 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.disburseMUSD(address(0xABCD), 150 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        uint256 _restoredAmount = _treasuryAccount.restoreLiquidityBuffer(address(_savingsVault), 60 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        (uint256 _actualWithdrawAmount, uint256 _actualRepaidAmount) = _treasuryAccount.withdrawFromDestinationAndRepay(
+            address(_savingsVault), 140 ether, 100 ether, _UPPER_HINT, _LOWER_HINT
+        );
+
+        assertEq(_restoredAmount, 50 ether);
+        assertEq(_actualWithdrawAmount, 140 ether);
+        assertEq(_actualRepaidAmount, 100 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 240 ether);
+        assertEq(_treasuryAccount.positionTotalDebt(), 500 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_savingsVault)), 110 ether);
+        assertEq(_savingsVault.balanceOf(address(_treasuryAccount)), 110 ether);
+    }
+
     function _defaultConfig() internal view returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {
         address[] memory _destinations = new address[](1);
         _destinations[0] = address(_savingsVault);

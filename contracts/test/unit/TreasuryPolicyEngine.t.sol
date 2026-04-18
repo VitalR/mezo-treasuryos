@@ -131,6 +131,11 @@ contract TreasuryPolicyEngineTest is Test {
         _policyEngine.validateBufferRestore(address(_account), _AUTOMATION_EXECUTOR, _SAVINGS_VAULT, 100 ether);
     }
 
+    function test_ValidateBufferRestore_TreasuryAdminPassesWithoutAutomationCapabilities() public {
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.validateBufferRestore(address(_account), _TREASURY_ADMIN, _SAVINGS_VAULT, 100 ether);
+    }
+
     function test_ValidateBufferRestore_DisabledCapabilityReverts() public {
         vm.prank(_TREASURY_ADMIN);
         _policyEngine.updateAutomationExecutor(address(_account), _AUTOMATION_EXECUTOR);
@@ -161,6 +166,11 @@ contract TreasuryPolicyEngineTest is Test {
 
         vm.prank(_AUTOMATION_EXECUTOR);
         _policyEngine.validateDeRiskRepayment(address(_account), _AUTOMATION_EXECUTOR, _SAVINGS_VAULT, 75 ether);
+    }
+
+    function test_ValidateDeRiskRepayment_TreasuryAdminPassesWithoutAutomationCapabilities() public {
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.validateDeRiskRepayment(address(_account), _TREASURY_ADMIN, _SAVINGS_VAULT, 75 ether);
     }
 
     function test_ValidateDeRiskRepayment_DisabledCapabilityReverts() public {

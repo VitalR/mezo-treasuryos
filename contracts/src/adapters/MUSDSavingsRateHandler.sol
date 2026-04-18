@@ -67,6 +67,21 @@ contract MUSDSavingsRateHandler is IAllocationHandler {
     }
 
     /// @inheritdoc IAllocationHandler
+    function withdrawForWorkflow(address _treasuryAccount, address _actor, uint256 _amount)
+        external
+        returns (uint256 shares)
+    {
+        require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
+        require(_treasuryAccount != address(0), InvalidTreasuryAccount(_treasuryAccount));
+        require(_amount > 0, InvalidAmount(_amount));
+
+        shares = TreasuryAccount(payable(_treasuryAccount))
+            .withdrawFromSavingsRateForWorkflowFromAdapter(_actor, address(savingsVault), _amount);
+
+        emit SavingsWithdrawalRouted(_treasuryAccount, _actor, _amount, shares);
+    }
+
+    /// @inheritdoc IAllocationHandler
     function claimYield(address _treasuryAccount, address _actor) external returns (uint256 amount) {
         require(msg.sender == allocationRouter, UnauthorizedCaller(msg.sender));
         require(_treasuryAccount != address(0), InvalidTreasuryAccount(_treasuryAccount));

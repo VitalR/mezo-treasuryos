@@ -5,6 +5,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Test } from "forge-std/Test.sol";
 
+import { AllocationRouter } from "../../src/adapters/AllocationRouter.sol";
+import { MUSDSavingsRateHandler } from "../../src/adapters/MUSDSavingsRateHandler.sol";
 import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
@@ -20,6 +22,7 @@ contract TreasuryAccountTest is Test {
     address internal constant _SECOND_DESTINATION = address(0xE11E);
     address internal constant _ALLOCATION_ADAPTER = address(0xF00D);
     address internal constant _OPERATING_RECIPIENT = address(0xABCD);
+    address internal constant _AUTOMATION_EXECUTOR = address(0xA700);
     address internal constant _UPPER_HINT = address(0xAAA1);
     address internal constant _LOWER_HINT = address(0xAAA2);
 
@@ -27,6 +30,8 @@ contract TreasuryAccountTest is Test {
     TreasuryAccountFactory internal _factory;
     MockBorrowerOperations internal _borrowerOperations;
     MockMUSDSavingsRate internal _mockSavingsVault;
+    AllocationRouter internal _allocationRouter;
+    MUSDSavingsRateHandler internal _savingsHandler;
 
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
@@ -34,10 +39,13 @@ contract TreasuryAccountTest is Test {
         _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
         _factory.setTreasuryAdminApproval(_TREASURY_ADMIN, true);
         _mockSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
+        _allocationRouter = new AllocationRouter(_TREASURY_ADMIN);
+        _savingsHandler = new MUSDSavingsRateHandler(_mockSavingsVault, address(_allocationRouter));
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
         vm.deal(_OPERATOR, 50 ether);
         vm.deal(_APPROVER, 50 ether);
+        vm.deal(_AUTOMATION_EXECUTOR, 50 ether);
     }
 
     function test_DeployTreasuryAccount_InitializesPolicyState() public {
@@ -534,6 +542,141 @@ contract TreasuryAccountTest is Test {
         assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 60 ether);
     }
 
+    function test_RestoreLiquidityBuffer_TreasuryAdminRestoresShortfallFromSavings() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_account), address(_mockSavingsVault), 350 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 100 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        uint256 _restoredAmount = _account.restoreLiquidityBuffer(address(_mockSavingsVault), 80 ether);
+
+        assertEq(_restoredAmount, 50 ether);
+        assertEq(_account.idleMUSD(), 200 ether);
+        assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 300 ether);
+    }
+
+    function test_RestoreLiquidityBuffer_AutomationExecutorRestoresWithinConfiguredLimit() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+        _configureAutomationForAccount(_account, 75 ether, 60 ether, true, true);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_account), address(_mockSavingsVault), 350 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 120 ether);
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        uint256 _restoredAmount = _account.restoreLiquidityBuffer(address(_mockSavingsVault), 60 ether);
+
+        assertEq(_restoredAmount, 60 ether);
+        assertEq(_account.idleMUSD(), 190 ether);
+        assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 290 ether);
+    }
+
+    function test_RestoreLiquidityBuffer_AutomationLimitExceededReverts() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+        _configureAutomationForAccount(_account, 40 ether, 60 ether, true, true);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_account), address(_mockSavingsVault), 350 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 100 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryPolicyEngine.AutomationLimitExceeded.selector, bytes32("BUFFER_RESTORE"), 50 ether, 40 ether
+            )
+        );
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        _account.restoreLiquidityBuffer(address(_mockSavingsVault), 80 ether);
+    }
+
+    function test_WithdrawFromDestinationAndRepay_TreasuryAdminUnwindsSavingsAndRepaysDebt() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_account), address(_mockSavingsVault), 250 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 230 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        (uint256 _actualWithdrawAmount, uint256 _actualRepaidAmount) = _account.withdrawFromDestinationAndRepay(
+            address(_mockSavingsVault), 120 ether, 100 ether, _UPPER_HINT, _LOWER_HINT
+        );
+
+        assertEq(_actualWithdrawAmount, 120 ether);
+        assertEq(_actualRepaidAmount, 100 ether);
+        assertEq(_account.idleMUSD(), 140 ether);
+        assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 130 ether);
+        assertEq(_account.positionTotalDebt(), 500 ether);
+    }
+
+    function test_WithdrawFromDestinationAndRepay_AutomationExecutorRepaysWithinConfiguredLimit() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+        _configureAutomationForAccount(_account, 75 ether, 90 ether, true, true);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_account), address(_mockSavingsVault), 220 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 250 ether);
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        (uint256 _actualWithdrawAmount, uint256 _actualRepaidAmount) = _account.withdrawFromDestinationAndRepay(
+            address(_mockSavingsVault), 120 ether, 90 ether, _UPPER_HINT, _LOWER_HINT
+        );
+
+        assertEq(_actualWithdrawAmount, 120 ether);
+        assertEq(_actualRepaidAmount, 90 ether);
+        assertEq(_account.idleMUSD(), 160 ether);
+        assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 100 ether);
+        assertEq(_account.positionTotalDebt(), 510 ether);
+    }
+
+    function test_WithdrawFromDestinationAndRepay_AutomationLimitExceededReverts() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+        _configureAutomationForAccount(_account, 75 ether, 80 ether, true, true);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_account), address(_mockSavingsVault), 220 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryPolicyEngine.AutomationLimitExceeded.selector, bytes32("DEBT_REPAY"), 90 ether, 80 ether
+            )
+        );
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        _account.withdrawFromDestinationAndRepay(
+            address(_mockSavingsVault), 120 ether, 90 ether, _UPPER_HINT, _LOWER_HINT
+        );
+    }
+
     function _deployConfiguredTreasuryAccount() internal returns (TreasuryAccount _account) {
         _account = _deployTreasuryAccount(_defaultConfig());
 
@@ -551,11 +694,36 @@ contract TreasuryAccountTest is Test {
         _account.setBorrowerOperations(address(_borrowerOperations));
     }
 
+    function _deployConfiguredSavingsRouterTreasuryAccount() internal returns (TreasuryAccount _account) {
+        _account = _deployConfiguredTreasuryAccount(address(_mockSavingsVault));
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.setAllocationRouter(address(_allocationRouter));
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.setHandler(address(_mockSavingsVault), _savingsHandler);
+    }
+
     function _deployTreasuryAccount(ITreasuryPolicyEngine.AccountPolicyConfig memory _config)
         internal
         returns (TreasuryAccount)
     {
         return TreasuryAccount(payable(_factory.deployTreasuryAccount(_TREASURY_ADMIN, _config)));
+    }
+
+    function _configureAutomationForAccount(
+        TreasuryAccount _account,
+        uint256 _maxAutoBufferRestore,
+        uint256 _maxAutoDebtRepay,
+        bool _allowAutoSavingsWithdraw,
+        bool _allowAutoDebtRepay
+    ) internal {
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateAutomationExecutor(address(_account), _AUTOMATION_EXECUTOR);
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateAutomationLimits(address(_account), _maxAutoBufferRestore, _maxAutoDebtRepay);
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateAutomationCapabilities(address(_account), _allowAutoSavingsWithdraw, _allowAutoDebtRepay);
     }
 
     function _defaultConfig() internal pure returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {

@@ -338,7 +338,7 @@ contract DeployTreasuryOS is Script {
         vm.writeJson(json, config.manifestPath);
     }
 
-    function _buildActorsJson(DeploymentConfig memory config) internal view returns (string memory) {
+    function _buildActorsJson(DeploymentConfig memory config) internal pure returns (string memory) {
         return string.concat(
             '{"deployer":"',
             vm.toString(config.deployer),
@@ -352,7 +352,7 @@ contract DeployTreasuryOS is Script {
         );
     }
 
-    function _buildContractsJson(DeploymentArtifacts memory artifacts) internal view returns (string memory) {
+    function _buildContractsJson(DeploymentArtifacts memory artifacts) internal pure returns (string memory) {
         return string.concat(
             '{"treasuryPolicyEngine":"',
             vm.toString(artifacts.treasuryPolicyEngine),
@@ -374,7 +374,7 @@ contract DeployTreasuryOS is Script {
 
     function _buildReferencesJson(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
         internal
-        view
+        pure
         returns (string memory)
     {
         return string.concat(
@@ -394,7 +394,7 @@ contract DeployTreasuryOS is Script {
         );
     }
 
-    function _buildTreasuryScenarioJson(DeploymentConfig memory config) internal view returns (string memory) {
+    function _buildTreasuryScenarioJson(DeploymentConfig memory config) internal pure returns (string memory) {
         return string.concat(
             '{"liquidityBuffer":"',
             vm.toString(config.liquidityBuffer),

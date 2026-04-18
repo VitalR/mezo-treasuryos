@@ -21,6 +21,16 @@ interface IAllocationHandler {
     /// @return result Destination-specific withdrawal result, such as shares burned.
     function withdraw(address _treasuryAccount, address _actor, uint256 _amount) external returns (uint256 result);
 
+    /// @notice Routes a treasury withdrawal as part of a pre-validated high-level treasury workflow.
+    /// @dev This path is intended for bounded workflows such as buffer restoration and de-risk repayment.
+    /// @param _treasuryAccount Treasury Account receiving restored idle balance.
+    /// @param _actor Treasury actor on whose behalf the workflow is being executed.
+    /// @param _amount Amount being withdrawn.
+    /// @return result Destination-specific withdrawal result, such as shares burned.
+    function withdrawForWorkflow(address _treasuryAccount, address _actor, uint256 _amount)
+        external
+        returns (uint256 result);
+
     /// @notice Routes a treasury yield claim from the handler's destination.
     /// @param _treasuryAccount Treasury Account receiving claimed yield.
     /// @param _actor Treasury actor initiating the routed action.

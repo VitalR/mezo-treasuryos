@@ -7,6 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IAllocationRouterAuthority } from "../interfaces/IAllocationRouterAuthority.sol";
+import { IAllocationRouter } from "../interfaces/IAllocationRouter.sol";
 import { IAllocationRouterView } from "../interfaces/IAllocationRouterView.sol";
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
 import { IGovernableVariables } from "../interfaces/IGovernableVariables.sol";
@@ -80,6 +81,26 @@ contract TreasuryAccount is Ownable2Step {
         uint256 idleBalanceAfter,
         uint256 allocationAfter
     );
+    /// @notice Emitted when a treasury workflow restores the idle liquidity buffer from a sleeve.
+    event LiquidityBufferRestored(
+        address indexed actor,
+        address indexed destination,
+        uint256 requestedMaxAmount,
+        uint256 shortfall,
+        uint256 restoredAmount,
+        uint256 idleBalanceAfter
+    );
+    /// @notice Emitted when a treasury workflow unwinds a sleeve and repays debt in one bounded operation.
+    event SleeveUnwoundAndDebtRepaid(
+        address indexed actor,
+        address indexed destination,
+        uint256 requestedWithdrawAmount,
+        uint256 actualWithdrawAmount,
+        uint256 requestedRepayAmount,
+        uint256 actualRepaidAmount,
+        uint256 idleBalanceAfter,
+        uint256 positionDebtAfter
+    );
 
     /// @notice Raised when the allocation router address is zero.
     /// @param allocationRouter Invalid allocation router address.
@@ -129,6 +150,13 @@ contract TreasuryAccount is Ownable2Step {
     /// @param expected Expected MUSD token address.
     /// @param actual Actual vault yield token address.
     error UnsupportedYieldToken(address expected, address actual);
+    /// @notice Raised when a workflow requires the allocation router but it is not configured.
+    error AllocationRouterNotConfigured();
+    /// @notice Raised when a workflow or handler settlement attempts to reduce a destination allocation below zero.
+    /// @param destination Destination whose tracked allocation would be overdrawn.
+    /// @param amount Requested allocation reduction.
+    /// @param currentAllocation Current tracked allocation before reduction.
+    error InsufficientDestinationAllocation(address destination, uint256 amount, uint256 currentAllocation);
     /// @notice Raised when an account-level caller lacks the required authority.
     /// @param caller Unauthorized caller.
     error UnauthorizedCaller(address caller);
@@ -452,6 +480,100 @@ contract TreasuryAccount is Ownable2Step {
         emit TreasuryDisbursed(msg.sender, _recipient, _amount, idleMUSD);
     }
 
+    /// @notice Restores the configured idle liquidity buffer by unwinding an approved sleeve.
+    /// @param _destination Destination being unwound for liquidity restoration.
+    /// @param _maxAmount Maximum sleeve allocation amount that may be withdrawn.
+    /// @return restoredAmount Actual MUSD restored to idle treasury balance.
+    function restoreLiquidityBuffer(address _destination, uint256 _maxAmount)
+        external
+        returns (uint256 restoredAmount)
+    {
+        require(_maxAmount > 0, InvalidAmount(_maxAmount));
+
+        (,,, uint256 _liquidityBuffer,,,,) = policyEngine.getAccountPolicy(address(this));
+        if (idleMUSD >= _liquidityBuffer) {
+            return 0;
+        }
+
+        uint256 _shortfall = _liquidityBuffer - idleMUSD;
+        uint256 _currentAllocation = destinationAllocations[_destination];
+        if (_currentAllocation == 0) {
+            return 0;
+        }
+
+        uint256 _withdrawAmount = _min(_shortfall, _maxAmount);
+        _withdrawAmount = _min(_withdrawAmount, _currentAllocation);
+        if (_withdrawAmount == 0) {
+            return 0;
+        }
+
+        policyEngine.validateBufferRestore(address(this), msg.sender, _destination, _withdrawAmount);
+
+        uint256 _idleMUSDBefore = idleMUSD;
+        _requireAllocationRouterConfigured();
+        IAllocationRouter(allocationRouter).withdrawFor(address(this), msg.sender, _destination, _withdrawAmount);
+        restoredAmount = idleMUSD - _idleMUSDBefore;
+
+        emit LiquidityBufferRestored(msg.sender, _destination, _maxAmount, _shortfall, restoredAmount, idleMUSD);
+    }
+
+    /// @notice Unwinds a sleeve and repays debt in one bounded treasury workflow.
+    /// @param _destination Destination being unwound.
+    /// @param _maxWithdrawAmount Maximum sleeve allocation amount that may be withdrawn.
+    /// @param _targetRepayAmount Target MUSD amount to repay after unwind.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    /// @return actualWithdrawAmount Actual MUSD restored to idle treasury balance from the unwind.
+    /// @return actualRepaidAmount Actual MUSD repaid against the Mezo position.
+    function withdrawFromDestinationAndRepay(
+        address _destination,
+        uint256 _maxWithdrawAmount,
+        uint256 _targetRepayAmount,
+        address _upperHint,
+        address _lowerHint
+    ) external returns (uint256 actualWithdrawAmount, uint256 actualRepaidAmount) {
+        _requireActivePosition();
+        require(_maxWithdrawAmount > 0, InvalidAmount(_maxWithdrawAmount));
+        require(_targetRepayAmount > 0, InvalidAmount(_targetRepayAmount));
+
+        uint256 _currentAllocation = destinationAllocations[_destination];
+        if (_currentAllocation == 0) {
+            return (0, 0);
+        }
+
+        uint256 _plannedWithdrawAmount = _min(_maxWithdrawAmount, _currentAllocation);
+        uint256 _plannedRepayAmount = _min(_targetRepayAmount, _plannedWithdrawAmount);
+        _plannedRepayAmount = _min(_plannedRepayAmount, positionCloseDebt());
+        if (_plannedRepayAmount == 0) {
+            return (0, 0);
+        }
+
+        policyEngine.validateDeRiskRepayment(address(this), msg.sender, _destination, _plannedRepayAmount);
+
+        uint256 _idleMUSDBefore = idleMUSD;
+        _requireAllocationRouterConfigured();
+        IAllocationRouter(allocationRouter).withdrawFor(address(this), msg.sender, _destination, _plannedWithdrawAmount);
+        actualWithdrawAmount = idleMUSD - _idleMUSDBefore;
+
+        actualRepaidAmount = _min(_plannedRepayAmount, actualWithdrawAmount);
+        actualRepaidAmount = _min(actualRepaidAmount, positionCloseDebt());
+
+        if (actualRepaidAmount > 0) {
+            _repayDebtUnchecked(actualRepaidAmount, _upperHint, _lowerHint);
+        }
+
+        emit SleeveUnwoundAndDebtRepaid(
+            msg.sender,
+            _destination,
+            _maxWithdrawAmount,
+            actualWithdrawAmount,
+            _targetRepayAmount,
+            actualRepaidAmount,
+            idleMUSD,
+            positionTotalDebt()
+        );
+    }
+
     /// @notice Sets token allowance from the Treasury Account for an authorized router handler.
     /// @param _token Token being approved.
     /// @param _spender Spender receiving the allowance.
@@ -536,6 +658,37 @@ contract TreasuryAccount is Ownable2Step {
         idleMUSD += _amount;
 
         emit WithdrawalExecuted(_savingsRate, _amount, idleMUSD, destinationAllocations[_savingsRate]);
+    }
+
+    /// @notice Withdraws principal from the configured MUSD Savings Rate vault as part of a pre-validated workflow.
+    /// @dev Used by high-level treasury workflows that already performed their own bounded policy validation.
+    /// @param _actor Treasury actor on whose behalf the workflow withdrawal is being performed.
+    /// @param _savingsRate Savings Rate destination being withdrawn from.
+    /// @param _amount Amount of MUSD principal being withdrawn.
+    /// @return burnedShares Amount of sMUSD burned from the Treasury Account.
+    function withdrawFromSavingsRateForWorkflowFromAdapter(address _actor, address _savingsRate, uint256 _amount)
+        external
+        returns (uint256 burnedShares)
+    {
+        _requireAuthorizedAllocationCaller();
+
+        IMUSDSavingsRate savingsRate = IMUSDSavingsRate(_savingsRate);
+        _requireSupportedYieldToken(savingsRate);
+
+        uint256 currentAllocation = destinationAllocations[_savingsRate];
+        require(
+            currentAllocation >= _amount, InsufficientDestinationAllocation(_savingsRate, _amount, currentAllocation)
+        );
+
+        uint256 previousShareBalance = savingsRate.balanceOf(address(this));
+        savingsRate.withdraw(_amount);
+        burnedShares = previousShareBalance - savingsRate.balanceOf(address(this));
+
+        destinationAllocations[_savingsRate] = currentAllocation - _amount;
+        idleMUSD += _amount;
+
+        emit WithdrawalExecuted(_savingsRate, _amount, idleMUSD, destinationAllocations[_savingsRate]);
+        _actor;
     }
 
     /// @notice Claims accrued yield from the configured MUSD Savings Rate vault through the trusted adapter flow.
@@ -647,6 +800,34 @@ contract TreasuryAccount is Ownable2Step {
         emit WithdrawalSettledFromDestination(
             _destination, _allocationAmount, _idleMUSDIncrease, idleMUSD, destinationAllocations[_destination]
         );
+    }
+
+    /// @notice Settles a handler-routed workflow withdrawal after the outer workflow already validated bounded policy.
+    /// @param _actor Treasury actor on whose behalf the workflow settlement is being performed.
+    /// @param _destination Destination being reduced.
+    /// @param _allocationAmount Amount of tracked allocation being reduced.
+    /// @param _idleMUSDIncrease Actual MUSD proceeds restored to idle treasury balance.
+    function settleWorkflowWithdrawalFromHandler(
+        address _actor,
+        address _destination,
+        uint256 _allocationAmount,
+        uint256 _idleMUSDIncrease
+    ) external {
+        _requireAuthorizedAllocationCaller();
+
+        uint256 currentAllocation = destinationAllocations[_destination];
+        require(
+            currentAllocation >= _allocationAmount,
+            InsufficientDestinationAllocation(_destination, _allocationAmount, currentAllocation)
+        );
+
+        destinationAllocations[_destination] = currentAllocation - _allocationAmount;
+        idleMUSD += _idleMUSDIncrease;
+
+        emit WithdrawalSettledFromDestination(
+            _destination, _allocationAmount, _idleMUSDIncrease, idleMUSD, destinationAllocations[_destination]
+        );
+        _actor;
     }
 
     /// @notice Updates the paused state of the Treasury Account.
@@ -950,6 +1131,23 @@ contract TreasuryAccount is Ownable2Step {
         idleMUSD -= _debtChange;
     }
 
+    /// @notice Repays protocol debt without re-running the generic public repayment policy checks.
+    /// @param _amount Amount of MUSD being repaid.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function _repayDebtUnchecked(uint256 _amount, address _upperHint, address _lowerHint) internal {
+        if (_amount == 0) {
+            return;
+        }
+
+        musdToken.forceApprove(address(borrowerOperations), _amount);
+        borrowerOperations.repayMUSD(_amount, _upperHint, _lowerHint);
+
+        idleMUSD -= _amount;
+
+        emit DebtRepaid(_amount, idleMUSD, positionTotalDebt());
+    }
+
     /// @notice Returns the protocol-backed treasury position snapshot from Mezo state.
     /// @return _positionDebt Full protocol debt for the treasury position.
     /// @return _positionCollateral Current position collateral.
@@ -1042,6 +1240,11 @@ contract TreasuryAccount is Ownable2Step {
     function _requireSupportedYieldToken(IMUSDSavingsRate _savingsRate) internal view {
         address _yieldToken = _savingsRate.yieldToken();
         require(_yieldToken == address(musdToken), UnsupportedYieldToken(address(musdToken), _yieldToken));
+    }
+
+    /// @notice Reverts when the allocation router is not configured for workflow-scoped sleeve actions.
+    function _requireAllocationRouterConfigured() internal view {
+        require(allocationRouter != address(0), AllocationRouterNotConfigured());
     }
 
     /// @notice Previews claimable savings-vault yield including any uncheckpointed yield index delta.
@@ -1189,6 +1392,14 @@ contract TreasuryAccount is Ownable2Step {
         }
 
         return (_positionDebt * _targetRatioBps * 1e18) / (_positionCollateral * 10_000);
+    }
+
+    /// @notice Returns the smaller of two unsigned integers.
+    /// @param _a First candidate value.
+    /// @param _b Second candidate value.
+    /// @return minimum Smaller of the two inputs.
+    function _min(uint256 _a, uint256 _b) internal pure returns (uint256 minimum) {
+        return _a < _b ? _a : _b;
     }
 
     /// @notice Reverts when no active Mezo position exists for the treasury account.
