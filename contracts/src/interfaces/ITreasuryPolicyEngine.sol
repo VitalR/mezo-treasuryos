@@ -43,6 +43,39 @@ interface ITreasuryPolicyEngine {
     /// @param _treasuryAdmin New treasury administrator for the account.
     function updateTreasuryAdmin(address _account, address _treasuryAdmin) external;
 
+    /// @notice Updates the dedicated automation executor for a Treasury Account.
+    /// @param _account Treasury Account being updated.
+    /// @param _executor Automation executor allowed to perform bounded operational reactions.
+    function updateAutomationExecutor(address _account, address _executor) external;
+
+    /// @notice Updates treasury health thresholds for a Treasury Account.
+    /// @param _account Treasury Account being updated.
+    /// @param _warningCollateralRatioBps Warning threshold for collateral health, in basis points.
+    /// @param _criticalCollateralRatioBps Critical threshold for collateral health, in basis points.
+    function updateAutomationThresholds(
+        address _account,
+        uint256 _warningCollateralRatioBps,
+        uint256 _criticalCollateralRatioBps
+    ) external;
+
+    /// @notice Updates the maximum automated action sizes for a Treasury Account.
+    /// @param _account Treasury Account being updated.
+    /// @param _maxAutoBufferRestore Maximum MUSD amount that automation may restore back to idle liquidity.
+    /// @param _maxAutoDebtRepay Maximum MUSD amount that automation may repay against debt.
+    function updateAutomationLimits(address _account, uint256 _maxAutoBufferRestore, uint256 _maxAutoDebtRepay) external;
+
+    /// @notice Updates which automated workflow categories are permitted for a Treasury Account.
+    /// @param _account Treasury Account being updated.
+    /// @param _allowAutoSavingsWithdraw Whether automation may unwind approved savings liquidity.
+    /// @param _allowAutoDebtRepay Whether automation may repay debt using bounded workflows.
+    function updateAutomationCapabilities(address _account, bool _allowAutoSavingsWithdraw, bool _allowAutoDebtRepay)
+        external;
+
+    /// @notice Enables or disables bounded automation for a Treasury Account.
+    /// @param _account Treasury Account being updated.
+    /// @param _automationEnabled New automation-enabled state.
+    function updateAutomationEnabled(address _account, bool _automationEnabled) external;
+
     /// @notice Validates a borrow or balance-increasing action for an account.
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.
@@ -84,6 +117,29 @@ interface ITreasuryPolicyEngine {
     /// @param _account Treasury Account being checked.
     /// @param _actor Caller attempting the action.
     function validateYieldClaim(address _account, address _actor) external view;
+
+    /// @notice Validates that an actor may execute bounded automated treasury operations.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the automation action.
+    function validateAutomationExecution(address _account, address _actor) external view;
+
+    /// @notice Validates an automated liquidity-buffer restoration workflow.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the automation action.
+    /// @param _destination Approved destination being unwound.
+    /// @param _amount Amount requested for restoration.
+    function validateBufferRestore(address _account, address _actor, address _destination, uint256 _amount)
+        external
+        view;
+
+    /// @notice Validates an automated de-risk repayment workflow.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the automation action.
+    /// @param _destination Approved destination being unwound.
+    /// @param _amount Amount requested for debt reduction.
+    function validateDeRiskRepayment(address _account, address _actor, address _destination, uint256 _amount)
+        external
+        view;
 
     /// @notice Validates a treasury disbursement from idle MUSD to an external recipient.
     /// @param _account Treasury Account being checked.
@@ -182,4 +238,22 @@ interface ITreasuryPolicyEngine {
         external
         view
         returns (uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps);
+
+    /// @notice Returns the configured automation policy for an account.
+    /// @param _account Treasury Account being queried.
+    /// @return automationExecutor Dedicated automation executor address.
+    /// @return maxAutoBufferRestore Maximum automated buffer-restore size.
+    /// @return maxAutoDebtRepay Maximum automated debt-repayment size.
+    /// @return allowAutoSavingsWithdraw Whether automation may unwind approved savings liquidity.
+    /// @return allowAutoDebtRepay Whether automation may repay debt using bounded workflows.
+    function getAccountAutomationPolicy(address _account)
+        external
+        view
+        returns (
+            address automationExecutor,
+            uint256 maxAutoBufferRestore,
+            uint256 maxAutoDebtRepay,
+            bool allowAutoSavingsWithdraw,
+            bool allowAutoDebtRepay
+        );
 }

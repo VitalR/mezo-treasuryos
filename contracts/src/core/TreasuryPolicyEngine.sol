@@ -20,6 +20,22 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         bool startPaused
     );
 
+    /// @notice Emitted when the dedicated automation executor changes for an account.
+    event AutomationExecutorUpdated(
+        address indexed account, address indexed previousExecutor, address indexed newExecutor
+    );
+    /// @notice Emitted when treasury health thresholds change for an account.
+    event AutomationThresholdsUpdated(
+        address indexed account, uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps
+    );
+    /// @notice Emitted when automation action-size limits change for an account.
+    event AutomationLimitsUpdated(address indexed account, uint256 maxAutoBufferRestore, uint256 maxAutoDebtRepay);
+    /// @notice Emitted when automation capabilities change for an account.
+    event AutomationCapabilitiesUpdated(
+        address indexed account, bool allowAutoSavingsWithdraw, bool allowAutoDebtRepay
+    );
+    /// @notice Emitted when the automation-enabled state changes for an account.
+    event AutomationEnabledUpdated(address indexed account, bool automationEnabled);
     /// @notice Emitted when the paused state changes for an account.
     event PauseUpdated(address indexed account, bool paused);
     /// @notice Emitted when the treasury administrator for an account is updated.
@@ -35,6 +51,15 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param amount Requested movement amount.
     /// @param threshold Configured operator approval threshold.
     error ApprovalRequired(address actor, uint256 amount, uint256 threshold);
+    /// @notice Raised when automation is disabled for an account.
+    /// @param account Treasury Account whose automation policy blocks the action.
+    error AutomationDisabled(address account);
+    /// @notice Raised when automated buffer restoration is disabled for an account.
+    /// @param account Treasury Account whose automation policy blocks the action.
+    error AutoSavingsWithdrawDisabled(address account);
+    /// @notice Raised when automated debt repayment is disabled for an account.
+    /// @param account Treasury Account whose automation policy blocks the action.
+    error AutoDebtRepayDisabled(address account);
     /// @notice Raised when a destination allocation exceeds the configured cap.
     /// @param nextAllocation Proposed post-action allocation.
     /// @param cap Configured destination cap.
@@ -71,6 +96,11 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param warningCollateralRatioBps Proposed warning threshold in basis points.
     /// @param criticalCollateralRatioBps Proposed critical threshold in basis points.
     error InvalidRiskThresholds(uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps);
+    /// @notice Raised when an automated action amount exceeds its configured bound.
+    /// @param actionType Encoded workflow category being checked.
+    /// @param amount Requested automation amount.
+    /// @param limit Configured automation limit.
+    error AutomationLimitExceeded(bytes32 actionType, uint256 amount, uint256 limit);
     /// @notice Raised when operator and approver roles are configured inconsistently.
     error InvalidRoleConfiguration();
     /// @notice Raised when an allocation would breach the minimum idle liquidity buffer.
@@ -107,6 +137,11 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         uint256 approvalThreshold;
         uint256 warningCollateralRatioBps;
         uint256 criticalCollateralRatioBps;
+        address automationExecutor;
+        uint256 maxAutoBufferRestore;
+        uint256 maxAutoDebtRepay;
+        bool allowAutoSavingsWithdraw;
+        bool allowAutoDebtRepay;
         bool automationEnabled;
         bool paused;
         bool initialized;
@@ -199,6 +234,77 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
+    function updateAutomationExecutor(address _account, address _executor) external {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+
+        address _previousExecutor = policy.automationExecutor;
+        policy.automationExecutor = _executor;
+
+        emit AutomationExecutorUpdated(_account, _previousExecutor, _executor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function updateAutomationThresholds(
+        address _account,
+        uint256 _warningCollateralRatioBps,
+        uint256 _criticalCollateralRatioBps
+    ) external {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+        require(
+            _warningCollateralRatioBps > _criticalCollateralRatioBps && _criticalCollateralRatioBps > 0,
+            InvalidRiskThresholds(_warningCollateralRatioBps, _criticalCollateralRatioBps)
+        );
+
+        policy.warningCollateralRatioBps = _warningCollateralRatioBps;
+        policy.criticalCollateralRatioBps = _criticalCollateralRatioBps;
+
+        emit AutomationThresholdsUpdated(_account, _warningCollateralRatioBps, _criticalCollateralRatioBps);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function updateAutomationLimits(address _account, uint256 _maxAutoBufferRestore, uint256 _maxAutoDebtRepay)
+        external
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+
+        policy.maxAutoBufferRestore = _maxAutoBufferRestore;
+        policy.maxAutoDebtRepay = _maxAutoDebtRepay;
+
+        emit AutomationLimitsUpdated(_account, _maxAutoBufferRestore, _maxAutoDebtRepay);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function updateAutomationCapabilities(address _account, bool _allowAutoSavingsWithdraw, bool _allowAutoDebtRepay)
+        external
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+
+        policy.allowAutoSavingsWithdraw = _allowAutoSavingsWithdraw;
+        policy.allowAutoDebtRepay = _allowAutoDebtRepay;
+
+        emit AutomationCapabilitiesUpdated(_account, _allowAutoSavingsWithdraw, _allowAutoDebtRepay);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function updateAutomationEnabled(address _account, bool _automationEnabled) external {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+
+        policy.automationEnabled = _automationEnabled;
+
+        emit AutomationEnabledUpdated(_account, _automationEnabled);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
     function validateBorrow(address _account, address _actor, uint256 _amount, uint256) external view {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
@@ -255,6 +361,49 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
         _requireRiskReducingAuthority(policy, _account, _actor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateAutomationExecution(address _account, address _actor) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAutomationAuthority(policy, _account, _actor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateBufferRestore(address _account, address _actor, address _destination, uint256 _amount)
+        external
+        view
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAutomationAuthority(policy, _account, _actor);
+        require(_destination != address(0), InvalidDestination(_destination));
+        require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(policy.allowAutoSavingsWithdraw, AutoSavingsWithdrawDisabled(_account));
+        require(
+            _amount <= policy.maxAutoBufferRestore,
+            AutomationLimitExceeded(bytes32("BUFFER_RESTORE"), _amount, policy.maxAutoBufferRestore)
+        );
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateDeRiskRepayment(address _account, address _actor, address _destination, uint256 _amount)
+        external
+        view
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAutomationAuthority(policy, _account, _actor);
+        require(_destination != address(0), InvalidDestination(_destination));
+        require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(policy.allowAutoDebtRepay, AutoDebtRepayDisabled(_account));
+        require(
+            _amount <= policy.maxAutoDebtRepay,
+            AutomationLimitExceeded(bytes32("DEBT_REPAY"), _amount, policy.maxAutoDebtRepay)
+        );
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
@@ -406,12 +555,43 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         return (policy.warningCollateralRatioBps, policy.criticalCollateralRatioBps);
     }
 
+    /// @inheritdoc ITreasuryPolicyEngine
+    function getAccountAutomationPolicy(address _account)
+        external
+        view
+        returns (
+            address automationExecutor,
+            uint256 maxAutoBufferRestore,
+            uint256 maxAutoDebtRepay,
+            bool allowAutoSavingsWithdraw,
+            bool allowAutoDebtRepay
+        )
+    {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        return (
+            policy.automationExecutor,
+            policy.maxAutoBufferRestore,
+            policy.maxAutoDebtRepay,
+            policy.allowAutoSavingsWithdraw,
+            policy.allowAutoDebtRepay
+        );
+    }
+
     /// @notice Returns initialized policy state for an account or reverts if the account is unknown.
     /// @param _account Treasury Account being checked.
     /// @return policy Storage pointer to the account policy state.
     function _requireInitializedAccount(address _account) private view returns (AccountPolicy storage policy) {
         policy = accountPolicies[_account];
         require(policy.initialized, InvalidAccount(_account));
+    }
+
+    /// @notice Validates that a caller may update critical treasury configuration for an account.
+    /// @param _policy Account policy state being enforced.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the configuration change.
+    function _requireAdminAuthority(AccountPolicy storage _policy, address _account, address _actor) private view {
+        require(_actor == _account || _actor == _policy.treasuryAdmin, UnauthorizedActor(_account, _actor));
     }
 
     /// @notice Validates whether an actor may originate or increase debt for the requested amount.
@@ -446,6 +626,21 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
 
         require(_actor == _policy.operator, UnauthorizedActor(_account, _actor));
         require(_amount <= _policy.approvalThreshold, ApprovalRequired(_actor, _amount, _policy.approvalThreshold));
+    }
+
+    /// @notice Validates whether an actor may execute bounded automated treasury workflows.
+    /// @param _policy Account policy state being enforced.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the automation action.
+    function _requireAutomationAuthority(AccountPolicy storage _policy, address _account, address _actor) private view {
+        require(_policy.automationEnabled, AutomationDisabled(_account));
+        require(!_policy.paused, PolicyPaused(_account));
+
+        if (_actor == _policy.treasuryAdmin) {
+            return;
+        }
+
+        require(_actor == _policy.automationExecutor, UnauthorizedActor(_account, _actor));
     }
 
     /// @notice Validates whether an actor may perform a risk-reducing action.

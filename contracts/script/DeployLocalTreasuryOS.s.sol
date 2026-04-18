@@ -24,6 +24,8 @@ contract DeployLocalTreasuryOS is Script {
     uint256 internal constant DEFAULT_APPROVAL_THRESHOLD = 250e18;
     uint256 internal constant DEFAULT_WARNING_COLLATERAL_RATIO_BPS = 18_000;
     uint256 internal constant DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS = 15_000;
+    uint256 internal constant DEFAULT_MAX_AUTO_BUFFER_RESTORE = 500e18;
+    uint256 internal constant DEFAULT_MAX_AUTO_DEBT_REPAY = 250e18;
     uint256 internal constant DEFAULT_SAVINGS_CAP = 10_000e18;
     uint256 internal constant DEFAULT_OWNER_MUSD_SEED = 50_000e18;
 
@@ -39,6 +41,11 @@ contract DeployLocalTreasuryOS is Script {
         uint256 warningCollateralRatioBps;
         uint256 criticalCollateralRatioBps;
         bool automationEnabled;
+        address automationExecutor;
+        uint256 maxAutoBufferRestore;
+        uint256 maxAutoDebtRepay;
+        bool allowAutoSavingsWithdraw;
+        bool allowAutoDebtRepay;
         bool startPaused;
         uint256 savingsCap;
         uint256 ownerMUSDSeed;
@@ -103,6 +110,12 @@ contract DeployLocalTreasuryOS is Script {
         config.criticalCollateralRatioBps =
             vm.envOr("ANVIL_TREASURY_CRITICAL_COLLATERAL_RATIO_BPS", DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS);
         config.automationEnabled = vm.envOr("ANVIL_TREASURY_AUTOMATION_ENABLED", true);
+        config.automationExecutor = vm.envOr("ANVIL_TREASURY_AUTOMATION_EXECUTOR", address(0));
+        config.maxAutoBufferRestore =
+            vm.envOr("ANVIL_TREASURY_MAX_AUTO_BUFFER_RESTORE", DEFAULT_MAX_AUTO_BUFFER_RESTORE);
+        config.maxAutoDebtRepay = vm.envOr("ANVIL_TREASURY_MAX_AUTO_DEBT_REPAY", DEFAULT_MAX_AUTO_DEBT_REPAY);
+        config.allowAutoSavingsWithdraw = vm.envOr("ANVIL_TREASURY_ALLOW_AUTO_SAVINGS_WITHDRAW", true);
+        config.allowAutoDebtRepay = vm.envOr("ANVIL_TREASURY_ALLOW_AUTO_DEBT_REPAY", true);
         config.startPaused = vm.envOr("ANVIL_TREASURY_START_PAUSED", false);
         config.savingsCap = vm.envOr("ANVIL_SAVINGS_CAP", DEFAULT_SAVINGS_CAP);
         config.ownerMUSDSeed = vm.envOr("ANVIL_OWNER_MUSD_SEED", DEFAULT_OWNER_MUSD_SEED);
@@ -170,6 +183,17 @@ contract DeployLocalTreasuryOS is Script {
             .setHandler(artifacts.savingsDestination, IAllocationHandler(artifacts.musdSavingsRateHandler));
         TreasuryAccount(payable(artifacts.treasuryAccount)).setBorrowerOperations(artifacts.mockBorrowerOperations);
         TreasuryAccount(payable(artifacts.treasuryAccount)).setAllocationRouter(artifacts.allocationRouter);
+        TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
+            .updateAutomationLimits(artifacts.treasuryAccount, config.maxAutoBufferRestore, config.maxAutoDebtRepay);
+        TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
+            .updateAutomationCapabilities(
+                artifacts.treasuryAccount, config.allowAutoSavingsWithdraw, config.allowAutoDebtRepay
+            );
+
+        if (config.automationExecutor != address(0)) {
+            TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
+                .updateAutomationExecutor(artifacts.treasuryAccount, config.automationExecutor);
+        }
 
         vm.stopBroadcast();
     }
