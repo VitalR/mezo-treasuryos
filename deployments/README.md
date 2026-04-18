@@ -32,6 +32,7 @@ Each manifest should include:
 - `deployer`
 - `treasuryPolicyEngine`
 - `treasuryAccountFactory`
+- `treasuryAutomationExecutor`
 - `allocationRouter`
 - `musdSavingsRateHandler`
 - `tigrisStablePoolHandler`
@@ -116,6 +117,7 @@ forge script script/DeployTreasuryOS.s.sol:DeployTreasuryOS --root contracts --r
 The script:
 
 - deploys the core TreasuryOS contracts
+- deploys a bounded `TreasuryAutomationExecutor`
 - optionally deploys `ExternalMUSDSavingsRateMock` when no official savings address is set
 - optionally deploys the Tigris handler when the paired stable token address is configured
 - deploys one demo Treasury Account through the factory

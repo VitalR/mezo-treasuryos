@@ -8,6 +8,7 @@ import { AllocationRouter } from "../src/adapters/AllocationRouter.sol";
 import { MUSDSavingsRateHandler } from "../src/adapters/MUSDSavingsRateHandler.sol";
 import { TigrisStablePoolHandler } from "../src/adapters/TigrisStablePoolHandler.sol";
 import { TreasuryAccount } from "../src/core/TreasuryAccount.sol";
+import { TreasuryAutomationExecutor } from "../src/core/TreasuryAutomationExecutor.sol";
 import { TreasuryAccountFactory } from "../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../src/core/TreasuryPolicyEngine.sol";
 import { ExternalMUSDSavingsRateMock } from "../src/external/ExternalMUSDSavingsRateMock.sol";
@@ -37,6 +38,7 @@ contract DeployTreasuryOS is Script {
         address treasuryOwner;
         address treasuryApprover;
         address treasuryOperator;
+        address automationOperator;
         address musdToken;
         address borrowerOperations;
         address savingsRate;
@@ -65,6 +67,7 @@ contract DeployTreasuryOS is Script {
     struct DeploymentArtifacts {
         address treasuryPolicyEngine;
         address treasuryAccountFactory;
+        address treasuryAutomationExecutor;
         address allocationRouter;
         address musdSavingsRateHandler;
         address tigrisStablePoolHandler;
@@ -91,6 +94,7 @@ contract DeployTreasuryOS is Script {
 
         console2.log("TreasuryPolicyEngine:", artifacts.treasuryPolicyEngine);
         console2.log("TreasuryAccountFactory:", artifacts.treasuryAccountFactory);
+        console2.log("TreasuryAutomationExecutor:", artifacts.treasuryAutomationExecutor);
         console2.log("AllocationRouter:", artifacts.allocationRouter);
         console2.log("TreasuryAccount:", artifacts.treasuryAccount);
         console2.log("Manifest:", config.manifestPath);
@@ -103,6 +107,7 @@ contract DeployTreasuryOS is Script {
         config.treasuryOwner = vm.envAddress("TREASURY_OWNER");
         config.treasuryApprover = vm.envAddress("TREASURY_APPROVER");
         config.treasuryOperator = vm.envAddress("TREASURY_OPERATOR");
+        config.automationOperator = vm.envOr("DEMO_TREASURY_AUTOMATION_OPERATOR", address(0));
         config.musdToken = vm.envAddress("MEZO_MUSD_TOKEN");
         config.borrowerOperations = vm.envAddress("MEZO_BORROWER_OPERATIONS");
         config.savingsRate = vm.envOr("MEZO_MUSD_SAVINGS_RATE", address(0));
@@ -156,10 +161,12 @@ contract DeployTreasuryOS is Script {
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
         TreasuryAccountFactory treasuryAccountFactory =
             new TreasuryAccountFactory(IERC20(config.musdToken), treasuryPolicyEngine);
+        TreasuryAutomationExecutor treasuryAutomationExecutor = new TreasuryAutomationExecutor(config.treasuryOwner);
         AllocationRouter allocationRouter = new AllocationRouter(config.treasuryOwner);
 
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
+        artifacts.treasuryAutomationExecutor = address(treasuryAutomationExecutor);
         artifacts.allocationRouter = address(allocationRouter);
 
         if (config.savingsRate != address(0)) {
@@ -248,9 +255,16 @@ contract DeployTreasuryOS is Script {
                 artifacts.treasuryAccount, config.allowAutoSavingsWithdraw, config.allowAutoDebtRepay
             );
 
-        if (config.automationExecutor != address(0)) {
-            TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
-                .updateAutomationExecutor(artifacts.treasuryAccount, config.automationExecutor);
+        address automationExecutor = config.automationExecutor;
+        if (automationExecutor == address(0)) {
+            automationExecutor = artifacts.treasuryAutomationExecutor;
+        }
+
+        TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
+            .updateAutomationExecutor(artifacts.treasuryAccount, automationExecutor);
+
+        if (config.automationOperator != address(0)) {
+            TreasuryAutomationExecutor(automationExecutor).setAutomationOperator(config.automationOperator, true);
         }
 
         vm.stopBroadcast();
@@ -348,6 +362,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(config.treasuryApprover),
             '","treasuryOperator":"',
             vm.toString(config.treasuryOperator),
+            '","automationOperator":"',
+            vm.toString(config.automationOperator),
             '"}'
         );
     }
@@ -358,6 +374,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(artifacts.treasuryPolicyEngine),
             '","treasuryAccountFactory":"',
             vm.toString(artifacts.treasuryAccountFactory),
+            '","treasuryAutomationExecutor":"',
+            vm.toString(artifacts.treasuryAutomationExecutor),
             '","allocationRouter":"',
             vm.toString(artifacts.allocationRouter),
             '","musdSavingsRateHandler":"',

@@ -20,7 +20,8 @@
   "actors": {
     "treasuryOwner": "",
     "treasuryApprover": "",
-    "treasuryOperator": ""
+    "treasuryOperator": "",
+    "automationOperator": ""
   },
   "contracts": {
     "treasuryPolicyEngine": {
@@ -28,6 +29,10 @@
       "deploymentTxHash": ""
     },
     "treasuryAccountFactory": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
+    "treasuryAutomationExecutor": {
       "address": "",
       "deploymentTxHash": ""
     },
