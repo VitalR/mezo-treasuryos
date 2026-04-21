@@ -174,7 +174,32 @@ Design note:
 - V1 can implement this as a dedicated module or tightly scoped policy layer
 - what matters is clear control logic, not maximum modularity
 
-### 4. AllocationRouter
+### 4. TreasuryMultisig
+
+Optional TreasuryOS-native multisig controller for client treasury administration.
+
+Responsibilities:
+
+- own a Treasury Account as the treasury admin authority when a user does not bring an external multisig
+- execute critical setup and policy-administration transactions through a signer threshold
+- execute business MUSD disbursements from the Treasury Account when they require elevated treasury approval
+- support batch setup transactions for onboarding and demo flows
+- enforce proposal expiry, rejection, signer management, and optional confirmation delay for sensitive selectors
+
+Design boundaries:
+
+- it does not hold treasury funds as the primary custody boundary
+- it does not duplicate `TreasuryPolicyEngine` rules
+- it does not execute arbitrary automated risk actions
+- it can be replaced by Safe, Den-backed Safe, Porto-style custody, or another contract wallet
+
+Why this matters:
+
+- the subtrack explicitly asks for multi-sig treasury management
+- client funds still live in the Treasury Account
+- the control plane becomes realistic without forcing every demo user to set up external Safe infrastructure
+
+### 5. AllocationRouter
 
 The governed routing layer for downstream treasury sleeves.
 
@@ -190,7 +215,7 @@ Why this matters:
 - sleeve-specific logic stays out of the account
 - the product can expand without rewriting the core treasury boundary
 
-### 5. MUSDSavingsRateHandler
+### 6. MUSDSavingsRateHandler
 
 Primary treasury savings sleeve handler.
 
@@ -201,7 +226,7 @@ Responsibilities:
 - claim yield back into Treasury Account idle MUSD
 - expose savings-specific reporting metadata
 
-### 6. TigrisStablePoolHandler
+### 7. TigrisStablePoolHandler
 
 Secondary treasury LP sleeve handler for Mezo testnet.
 
@@ -217,7 +242,7 @@ Current V1 testnet target:
 
 - Tigris `MUSD/mUSDC` stable pool on Mezo testnet
 
-### 7. ExternalMUSDSavingsRateMock
+### 8. ExternalMUSDSavingsRateMock
 
 Deployable external mock used for demo-grade savings interactions where controlled yield injection is needed.
 
@@ -302,7 +327,8 @@ V1 should present as one product, not disconnected apps.
 Shows:
 
 - treasury identity and account creation
-- signer or approver assignment
+- treasury owner selection: existing multisig/custody account, optional TreasuryOS multisig, or development EOA
+- signer, operator, and approver assignment
 - policy configuration
 - sleeve approval and cap setup
 
@@ -352,6 +378,7 @@ The asset flow should be explicit and easy to explain.
 ### Step 1 — Treasury setup
 
 - Treasury deploys an isolated Treasury Account through TreasuryOS
+- Treasury chooses the admin control path: bring-your-own multisig/custody account or optional `TreasuryMultisig`
 
 ### Step 2 — BTC-backed borrow origination
 
@@ -368,12 +395,12 @@ The asset flow should be explicit and easy to explain.
 
 ### Step 5 — Operating disbursement or approved allocation
 
-- Idle MUSD can be disbursed for operating use under policy
+- Idle MUSD can be disbursed for operating use under policy, with larger business withdrawals executed by the treasury admin path
 - Only approved surplus MUSD may be routed into approved sleeves
 
 ### Step 6 — Automated treasury response
 
-- TreasuryOS can restore the buffer, block non-compliant actions, or pause riskier flows under policy
+- TreasuryOS can restore the buffer, unwind a sleeve to repay debt, block non-compliant actions, or pause riskier flows under policy
 
 ### Step 7 — Reporting
 

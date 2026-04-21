@@ -61,11 +61,11 @@ The product should feel institutional in posture without pretending to replace M
 TreasuryOS is built around one end-to-end workflow:
 
 1. deploy a client-isolated **Treasury Account**
-2. configure treasury roles, approvals, and policy settings
+2. configure treasury owner, roles, approvals, and policy settings
 3. deposit BTC and open a Mezo-backed MUSD position through TreasuryOS
 4. receive borrowed MUSD into the Treasury Account
 5. preserve a required operating liquidity buffer
-6. disburse operating MUSD when needed for business use
+6. disburse operating MUSD through the approved treasury control path
 7. allocate only approved surplus MUSD into approved Mezo-native sleeves
 8. monitor treasury conditions and trigger bounded automated actions
 9. generate treasury-grade reporting and reviewer summaries
@@ -110,6 +110,12 @@ Per-client isolated treasury operating boundary and owner of the Mezo debt posit
 
 Internal treasury control, approval, and policy enforcement layer.
 
+### Treasury Multisig
+
+Optional TreasuryOS-native multisig controller for demos and self-serve onboarding.
+
+Production users can also bring an existing Safe, Den-backed Safe, Porto-style custody account, or any contract wallet as the Treasury Account owner. TreasuryOS only needs a contract or signer-controlled address that can execute critical treasury actions.
+
 ### Mezo Position Lifecycle
 
 `TreasuryAccount` owns the Mezo position lifecycle directly, including borrow, adjust, repay, collateral changes, and close.
@@ -148,10 +154,12 @@ Examples:
 
 - sweep excess idle MUSD into an approved sleeve
 - withdraw from a sleeve to restore operating buffer
-- disburse idle MUSD for treasury operating use
+- withdraw from a sleeve and repay debt during a bounded de-risk workflow
 - block actions that violate treasury policy
 - pause allocation when treasury conditions change
 - generate clear action summaries for operators and reviewers
+
+Business MUSD disbursements are critical treasury actions. In the intended control model, larger operating withdrawals are executed by the treasury admin path, usually a multisig or institutional custody account, not by the automation executor.
 
 AI, if used, should support explanation and summarization. It should not be the primary authority for treasury decisions in V1.
 
@@ -185,6 +193,14 @@ In the current implementation, the Treasury Account owns:
 - borrowed MUSD
 - `sMUSD` receipt tokens from the savings sleeve
 - LP receipt tokens from approved Tigris stable-pool sleeves
+
+The Treasury Account owner is the treasury admin authority. That owner can be:
+
+- an existing Safe, Den-backed Safe, Porto-style account, or other external multisig/custody account
+- the optional `TreasuryMultisig` shipped with TreasuryOS for onboarding and demo flows
+- an EOA only for local development or early testing
+
+Critical setup and business-cash withdrawals should flow through that owner. Automation is intentionally narrower: it can only run specific bounded workflows such as buffer restoration or sleeve-funded debt repayment after the policy engine has authorized the executor.
 
 ---
 

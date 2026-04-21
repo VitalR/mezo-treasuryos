@@ -56,11 +56,11 @@ Secondary V1 users:
 V1 should solve this exact workflow:
 
 1. treasury creates a client-isolated Treasury Account
-2. treasury configures signer, approval, and treasury policy settings
+2. treasury configures the treasury owner, signer, approval, and treasury policy settings
 3. treasury deposits BTC through TreasuryOS into Mezo's native borrow flow
 4. borrowed MUSD lands into the Treasury Account
 5. TreasuryOS enforces liquidity buffer, disbursement, and allocation rules
-6. treasury may disburse idle MUSD for approved operating use
+6. treasury may disburse idle MUSD for approved operating use through the required control path
 7. excess idle MUSD may be routed into approved Mezo-native sleeves
 8. TreasuryOS monitors treasury state and can trigger bounded automated actions
 9. TreasuryOS produces treasury-grade logs and reviewer-facing summaries
@@ -127,7 +127,35 @@ Important positioning:
 - it may support compliance-oriented workflows
 - it should not overclaim broad legal or regulatory compliance coverage
 
-### 3. Mezo Position Lifecycle
+### 3. Treasury Admin And Multisig Control
+
+The treasury admin is the control authority for critical treasury actions.
+
+Supported V1 control modes:
+
+- existing Safe, Den-backed Safe, Porto-style custody account, or other external contract wallet
+- optional TreasuryOS-native `TreasuryMultisig` for onboarding and demo flows
+- EOA only for development or early testnet use
+
+Responsibilities:
+
+- own the Treasury Account when multisig control is selected
+- execute critical setup actions such as borrow adapter, allocation router, and automation executor configuration
+- execute elevated business MUSD disbursements from the Treasury Account
+- approve or change policy settings that should not be controlled by a low-latency automation operator
+
+Boundary:
+
+- the multisig is an execution-control layer, not a second policy engine
+- the Treasury Account remains the asset and position boundary
+- the automation executor remains limited to bounded workflows approved by policy
+
+V1 expectation:
+
+- business withdrawals above the operator threshold should be shown as multisig-controlled
+- bounded automation should remain separate and should not be able to execute arbitrary treasury withdrawals
+
+### 4. Mezo Position Lifecycle
 
 TreasuryOS must wrap Mezo's native BTC-backed borrow flow.
 
@@ -145,7 +173,7 @@ V1 expectation:
 - users should not need to leave the product to open the core treasury position
 - the live testnet borrow flow should run through the primary Spectrum-backed RPC path
 
-### 4. Allocation Router And Sleeve Handlers
+### 5. Allocation Router And Sleeve Handlers
 
 The destination integration layer for deploying idle MUSD.
 
@@ -166,7 +194,7 @@ Current V1 sleeves:
 - **MUSD Savings Rate**
 - **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
 
-### 5. Treasury Operations Engine
+### 6. Treasury Operations Engine
 
 The bounded automation and monitoring layer.
 
@@ -185,7 +213,7 @@ V1 expectation:
 - this is a core product component, not a nice-to-have
 - it should rely on Spectrum-backed reads and transaction submission in the hackathon environment
 
-### 6. Treasury Reporting Layer
+### 7. Treasury Reporting Layer
 
 The reporting and reviewer-facing output layer.
 
@@ -215,6 +243,7 @@ V1 must be explicit about asset ownership and product boundaries.
 
 - treasury account deployment and configuration
 - treasury action permissions and approval flow
+- optional TreasuryOS-native multisig control for clients without an external signer stack
 - routing of approved treasury actions
 - allocation policy enforcement
 - automated treasury operations within policy limits
@@ -247,6 +276,10 @@ It should implement a small, defensible policy set:
 ### Role Policy
 
 Defines which actors may propose, approve, or execute actions.
+
+### Signer / Multisig Policy
+
+Defines whether the treasury admin is an external multisig/custody account, optional `TreasuryMultisig`, or development EOA.
 
 ### Approval Policy
 
@@ -281,6 +314,8 @@ Optional V1 extension:
 The user must be able to:
 
 - deploy a Treasury Account
+- select the treasury admin control path
+- configure or attach a multisig/custody account for critical actions where applicable
 - assign operator and approver roles
 - configure policy defaults
 - set liquidity buffer target
@@ -311,6 +346,7 @@ The user must be able to:
 
 - disburse idle MUSD from the Treasury Account to an approved external recipient
 - enforce approval thresholds on operating disbursement
+- require the treasury admin path, usually a multisig/custody account, for elevated business withdrawals
 - preserve the configured liquid buffer unless a higher-authority actor approves the action
 
 ### 5. Treasury Operations
@@ -352,6 +388,7 @@ It should prove the following, clearly:
 - client-isolated Treasury Account deployment
 - TreasuryOS-driven BTC-backed borrow origination
 - policy-checked treasury operations
+- multisig-managed critical setup and business MUSD disbursement
 - multi-sleeve governed allocation
 - one bounded automated treasury response
 - reviewer-facing treasury reporting

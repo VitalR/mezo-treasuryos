@@ -20,11 +20,11 @@ This roadmap intentionally avoids expanding into a broad future-platform program
 By the end of the build, TreasuryOS should demonstrate one full treasury workflow:
 
 1. create a Treasury Account
-2. configure treasury roles and policy settings
+2. configure treasury owner, roles, and policy settings
 3. deposit BTC and borrow MUSD through TreasuryOS
 4. receive MUSD into the Treasury Account
 5. preserve a configured operating buffer
-6. disburse operating MUSD where needed
+6. disburse operating MUSD through the required treasury control path
 7. allocate approved surplus MUSD into approved Mezo-native sleeves
 8. trigger a stress or liquidity condition
 9. show a bounded automated treasury response
@@ -45,6 +45,7 @@ The product spine is:
 - Treasury Account
 - Treasury Account-owned Mezo position lifecycle
 - Treasury Policy Engine
+- optional TreasuryMultisig or external multisig/custody owner
 - one allocation router
 - two sleeve handlers
 - one automation loop
@@ -93,6 +94,7 @@ Anything that does not strengthen that spine should be deferred.
 - implement client-isolated Treasury Account deployment
 - implement the initial Treasury Policy Engine
 - define roles, approvals, and treasury action boundaries
+- add multisig-compatible Treasury Account ownership for critical treasury actions
 - establish event model for state and reporting
 - prepare the event and read model for Spectrum-backed treasury state services
 
@@ -101,7 +103,9 @@ Anything that does not strengthen that spine should be deferred.
 - `TreasuryAccountFactory`
 - `TreasuryAccount`
 - initial `TreasuryPolicyEngine`
+- `TreasuryMultisig` for optional onboarding/demo treasury control
 - unit tests for account isolation and policy enforcement
+- unit tests proving multisig-controlled setup and business MUSD disbursement
 - treasury event schema
 - RPC and event-read assumptions documented for Spectrum-backed state consumption
 
@@ -109,6 +113,8 @@ Anything that does not strengthen that spine should be deferred.
 
 - a new treasury can deploy an isolated Treasury Account
 - basic treasury roles and permissions are enforceable
+- critical setup and elevated operating withdrawals can be executed by a multisig/custody owner
+- bounded automation remains separate from multisig-controlled business withdrawals
 - at least the core policies are working:
   - role policy
   - approval policy
@@ -176,7 +182,7 @@ If borrow origination or position ownership is weak or fake, the whole product b
 - only permitted surplus MUSD can be allocated
 - allocation cap rules are enforced
 - the product can withdraw from sleeves to restore treasury liquidity
-- the Treasury Account can disburse idle MUSD for operations under policy
+- the Treasury Account can disburse idle MUSD for operations under policy, with elevated withdrawals controlled by the treasury admin path
 
 ### Notes
 
@@ -207,6 +213,8 @@ Do not expand beyond the current sleeve set unless both sleeves are fully convin
 
 - detect idle MUSD above threshold
 - detect operating buffer shortfall
+- restore buffer from an approved sleeve within configured automation limits
+- withdraw from an approved sleeve and repay debt within configured automation limits
 - block non-compliant allocation attempts
 - block non-compliant operating disbursements
 - propose or perform approved low-risk actions

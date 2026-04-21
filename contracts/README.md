@@ -1,66 +1,41 @@
-## Foundry
+# Mezo TreasuryOS Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Foundry workspace for the TreasuryOS onchain layer.
 
-Foundry consists of:
+## Contract Map
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- `core/TreasuryAccountFactory.sol`: deploys and registers isolated Treasury Accounts.
+- `core/TreasuryAccount.sol`: client treasury boundary that owns the Mezo position lifecycle, idle MUSD, and sleeve receipt assets.
+- `core/TreasuryPolicyEngine.sol`: treasury roles, approvals, buffer, sleeve, cap, pause, and automation policy checks.
+- `core/TreasuryAutomationExecutor.sol`: bounded automation executor for approved low-latency workflows.
+- `multisig/TreasuryMultisig.sol`: optional TreasuryOS-native multisig controller for critical setup and elevated treasury actions.
+- `adapters/AllocationRouter.sol`: maps approved destinations to sleeve handlers.
+- `adapters/MUSDSavingsRateHandler.sol`: routes idle MUSD into a MUSD Savings Rate-compatible sleeve.
+- `adapters/TigrisStablePoolHandler.sol`: routes approved MUSD into a Tigris stable-pool sleeve.
+- `external/ExternalMUSDSavingsRateMock.sol`: demo/test external savings surface with controlled yield funding.
 
-## Documentation
+## Control Model
 
-https://book.getfoundry.sh/
+Funds and Mezo position ownership stay in `TreasuryAccount`.
 
-## Usage
+The Treasury Account owner is the treasury admin authority. It can be an external Safe/Den/Porto-style account, another contract wallet, or the optional `TreasuryMultisig`. Critical setup and elevated business MUSD disbursements should execute through that owner.
 
-### Build
+`TreasuryAutomationExecutor` is intentionally narrower. It can only trigger bounded workflows such as buffer restoration or sleeve-funded debt repayment after `TreasuryPolicyEngine` authorizes the executor and action limits.
 
-```shell
-$ forge build
+## Commands
+
+Run from the repository root:
+
+```sh
+make build
+make test
+make fmt
 ```
 
-### Test
+Or directly from this directory:
 
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+```sh
+forge build
+forge test --offline
+forge fmt
 ```

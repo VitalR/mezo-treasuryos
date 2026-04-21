@@ -155,7 +155,7 @@ This includes:
 TreasuryOS should own one full treasury workflow from start to finish:
 
 1. Treasury creates a client-isolated **Treasury Account**
-2. Treasury connects signer or multisig approval configuration
+2. Treasury connects the treasury admin control path: external multisig/custody account, optional `TreasuryMultisig`, or development signer
 3. Treasury deposits BTC into Mezo through the TreasuryOS-controlled workflow
 4. Treasury Account opens or manages the BTC-backed MUSD position against Mezo's native mechanism
 5. Minted MUSD lands into the Treasury Account
@@ -166,7 +166,7 @@ TreasuryOS should own one full treasury workflow from start to finish:
    - how much idle liquidity must remain liquid
    - which sleeves are approved
    - how much can be allocated per sleeve
-7. Treasury may disburse idle MUSD for approved operating use
+7. Treasury may disburse idle MUSD for approved operating use through the required control path
 8. Excess idle MUSD may be routed into approved Mezo-native sleeves
 9. TreasuryOS monitors collateral state, liquidity buffer, allocation exposure, and policy conditions
 10. TreasuryOS proposes or executes bounded automated actions
@@ -194,6 +194,7 @@ The product must be explicit about what it owns and what it does not own.
 - approval and signer workflow integration
 - allocation routing into approved sleeves
 - monitoring and automated treasury actions
+- optional TreasuryOS-native multisig for users without an external control stack
 - reporting and treasury state visibility
 
 ### What the Treasury Account actually is
@@ -215,6 +216,21 @@ It should not be presented as:
 - a TreasuryOS-owned omnibus vault
 - a proprietary strategy vault
 
+### What the treasury admin controls
+
+The treasury admin is the authority for critical actions.
+
+In production this can be an existing Safe, Den-backed Safe, Porto-style custody account, or another contract wallet. For onboarding and hackathon demo flows, TreasuryOS can provide an optional `TreasuryMultisig`.
+
+The treasury admin should control:
+
+- critical setup and dependency changes
+- elevated business MUSD disbursements
+- policy and automation executor configuration
+- signer or owner rotation
+
+The automation executor should not control arbitrary business withdrawals. It should only execute bounded, policy-authorized workflows such as restoring the liquid buffer or unwinding a sleeve to repay debt.
+
 ---
 
 ## Product Pillars
@@ -235,7 +251,21 @@ This should be described as:
 
 This is better than overclaiming legal or regulatory compliance.
 
-### 3. Mezo Position Lifecycle
+### 3. Treasury Multisig / External Custody Control
+
+TreasuryOS should support a bring-your-own control model first, while also shipping a native multisig for onboarding.
+
+This pillar matters because the subtrack explicitly includes multi-sig treasury management, but the product should not force all users into a custom wallet.
+
+The intended control options are:
+
+- external Safe, Den-backed Safe, Porto-style account, or other contract wallet
+- optional `TreasuryMultisig`
+- EOA only for development or early testnet usage
+
+This layer is execution authority, not policy logic. `TreasuryPolicyEngine` still decides whether actions comply with treasury rules.
+
+### 4. Mezo Position Lifecycle
 
 TreasuryOS should let the Treasury Account own the Mezo position lifecycle directly.
 
@@ -249,7 +279,7 @@ That means TreasuryOS should support:
 
 This is stronger than a thin post-draw wrapper because the debt position itself sits inside the treasury operating boundary.
 
-### 4. Allocation Router And Sleeve Handlers
+### 5. Allocation Router And Sleeve Handlers
 
 The product should use one allocation router with multiple approved sleeve handlers.
 
@@ -264,7 +294,7 @@ Current V1 sleeves:
 - **MUSD Savings Rate**
 - **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
 
-### 5. Treasury Operations Engine
+### 6. Treasury Operations Engine
 
 This is a core part of the product, not an optional add-on.
 
@@ -274,11 +304,12 @@ It should provide:
 - policy-aware action checks
 - idle cash sweep logic
 - operating buffer restoration
-- approved operating disbursement controls
+- sleeve-funded debt repayment
+- blocking or escalating operating disbursements that need treasury admin approval
 - collateral and allocation stress detection
 - bounded automated execution where allowed
 
-### 6. Treasury Reporting Layer
+### 7. Treasury Reporting Layer
 
 Reporting should make TreasuryOS feel like real treasury software.
 
