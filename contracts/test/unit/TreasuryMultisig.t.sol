@@ -36,6 +36,7 @@ contract TreasuryMultisigTest is Test {
     AllocationRouter internal _allocationRouter;
     MUSDSavingsRateHandler internal _savingsHandler;
     TreasuryAccount internal _treasuryAccount;
+    MultisigCallTarget internal _callTarget;
 
     function setUp() public {
         _ownerOne = makeAddr("ownerOne");
@@ -56,6 +57,7 @@ contract TreasuryMultisigTest is Test {
         _savingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _allocationRouter = new AllocationRouter(address(_multisig));
         _savingsHandler = new MUSDSavingsRateHandler(_savingsVault, address(_allocationRouter));
+        _callTarget = new MultisigCallTarget();
 
         _factory.setTreasuryAdminApproval(address(_multisig), true);
         _treasuryAccount =
@@ -80,6 +82,176 @@ contract TreasuryMultisigTest is Test {
         _multisig.confirmTransaction(_txId);
 
         assertEq(_operatingRecipient.balance, _transferAmount);
+    }
+
+    function test_Constructor_InvalidOwnerConfigurationReverts() public {
+        address[] memory _owners = new address[](0);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidThreshold.selector, 1, 0));
+        new TreasuryMultisig(_owners, 1, 0, 0);
+
+        _owners = _defaultOwners();
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidThreshold.selector, 0, 3));
+        new TreasuryMultisig(_owners, 0, 0, 0);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidThreshold.selector, 4, 3));
+        new TreasuryMultisig(_owners, 4, 0, 0);
+
+        _owners[2] = _owners[1];
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.DuplicateOwner.selector, _ownerTwo));
+        new TreasuryMultisig(_owners, 2, 0, 0);
+    }
+
+    function test_Constructor_InvalidTimingConfigurationReverts() public {
+        vm.expectRevert(TreasuryMultisig.InvalidTimingParams.selector);
+        new TreasuryMultisig(_defaultOwners(), 3, 1 days, 2 days);
+    }
+
+    function test_ProposeTransaction_InvalidCallerAndTargetRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NotOwner.selector, _operator));
+        vm.prank(_operator);
+        _multisig.proposeTransaction(_operatingRecipient, 0, "", bytes32(0));
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidTarget.selector, address(0)));
+        vm.prank(_ownerOne);
+        _multisig.proposeTransaction(address(0), 0, "", bytes32(0));
+    }
+
+    function test_ExecuteTransaction_NotEnoughConfirmationsReverts() public {
+        uint256 _txId = _proposeMultisigCall(_operatingRecipient, 1 ether, "");
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NotEnoughConfirmations.selector, 1, 2));
+        vm.prank(_ownerOne);
+        _multisig.executeTransaction(_txId);
+    }
+
+    function test_ConfirmTransaction_DuplicateAndConsecutiveConfirmationReverts() public {
+        TreasuryMultisig _wideMultisig = new TreasuryMultisig(_defaultOwners(), 3, 0, 7 days);
+        vm.deal(address(_wideMultisig), 10 ether);
+
+        uint256 _txId = _proposeMultisigCall(_wideMultisig, _operatingRecipient, 1 ether, "");
+
+        vm.expectRevert(TreasuryMultisig.AlreadyConfirmed.selector);
+        vm.prank(_ownerOne);
+        _wideMultisig.confirmTransaction(_txId);
+
+        vm.prank(_ownerTwo);
+        _wideMultisig.confirmTransaction(_txId);
+
+        vm.prank(_ownerTwo);
+        _wideMultisig.revokeConfirmation(_txId);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.ConsecutiveConfirmation.selector, _ownerTwo));
+        vm.prank(_ownerTwo);
+        _wideMultisig.confirmTransaction(_txId);
+    }
+
+    function test_CancelTransaction_ProposerCancelsAndBlocksExecution() public {
+        uint256 _txId = _proposeMultisigCall(_operatingRecipient, 1 ether, "");
+
+        vm.prank(_ownerOne);
+        _multisig.cancelTransaction(_txId);
+
+        (,,,, bool _executed, bool _cancelled,,,) = _multisig.getTransaction(_txId);
+
+        assertFalse(_executed);
+        assertTrue(_cancelled);
+
+        vm.expectRevert(TreasuryMultisig.AlreadyCancelled.selector);
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
+    }
+
+    function test_CancelTransaction_NonProposerReverts() public {
+        uint256 _txId = _proposeMultisigCall(_operatingRecipient, 1 ether, "");
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NotOwner.selector, _ownerTwo));
+        vm.prank(_ownerTwo);
+        _multisig.cancelTransaction(_txId);
+    }
+
+    function test_RevokeConfirmation_RemovesValidConfirmation() public {
+        uint256 _txId = _proposeMultisigCall(_operatingRecipient, 1 ether, "");
+
+        assertTrue(_multisig.hasConfirmed(_txId, _ownerOne));
+
+        vm.prank(_ownerOne);
+        _multisig.revokeConfirmation(_txId);
+
+        assertFalse(_multisig.hasConfirmed(_txId, _ownerOne));
+        assertEq(_multisig.getConfirmationCount(_txId), 0);
+
+        vm.expectRevert(TreasuryMultisig.NotConfirmed.selector);
+        vm.prank(_ownerOne);
+        _multisig.revokeConfirmation(_txId);
+    }
+
+    function test_RejectTransaction_RejectionLifecycleAndCancellation() public {
+        uint256 _txId = _proposeMultisigCall(_operatingRecipient, 1 ether, "");
+
+        vm.expectRevert(TreasuryMultisig.AlreadyConfirmed.selector);
+        vm.prank(_ownerOne);
+        _multisig.rejectTransaction(_txId);
+
+        vm.prank(_ownerTwo);
+        _multisig.rejectTransaction(_txId);
+
+        vm.expectRevert(TreasuryMultisig.AlreadyRejected.selector);
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
+
+        vm.prank(_ownerTwo);
+        _multisig.revokeRejection(_txId);
+
+        vm.expectRevert(TreasuryMultisig.NotRejected.selector);
+        vm.prank(_ownerTwo);
+        _multisig.revokeRejection(_txId);
+
+        vm.prank(_ownerTwo);
+        _multisig.rejectTransaction(_txId);
+
+        vm.prank(_ownerThree);
+        _multisig.rejectTransaction(_txId);
+
+        (,,,,, bool _cancelled,,,) = _multisig.getTransaction(_txId);
+        assertTrue(_cancelled);
+    }
+
+    function test_ExpiredTransaction_BlocksConfirmationAndExecution() public {
+        TreasuryMultisig _expiringMultisig = new TreasuryMultisig(_defaultOwners(), 2, 0, 1 days);
+        vm.deal(address(_expiringMultisig), 10 ether);
+
+        uint256 _txId = _proposeMultisigCall(_expiringMultisig, _operatingRecipient, 1 ether, "");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.ProposalExpired.selector, block.timestamp - 1));
+        vm.prank(_ownerTwo);
+        _expiringMultisig.confirmTransaction(_txId);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.ProposalExpired.selector, block.timestamp - 1));
+        vm.prank(_ownerOne);
+        _expiringMultisig.executeTransaction(_txId);
+    }
+
+    function test_ExecuteTransaction_BubblesTargetRevertData() public {
+        uint256 _txId =
+            _proposeMultisigCall(address(_callTarget), 0, abi.encodeCall(MultisigCallTarget.revertWithData, ()));
+
+        vm.expectRevert(MultisigCallTarget.TargetReverted.selector);
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
+    }
+
+    function test_ExecuteTransaction_GenericFailureWithoutRevertData() public {
+        uint256 _txId =
+            _proposeMultisigCall(address(_callTarget), 0, abi.encodeCall(MultisigCallTarget.revertWithoutData, ()));
+
+        vm.expectRevert(TreasuryMultisig.ExecutionFailed.selector);
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
     }
 
     function test_SetSensitiveSelector_EnforcesConfirmationDelay() public {
@@ -111,6 +283,17 @@ contract TreasuryMultisigTest is Test {
         assertEq(_operatingRecipient.balance, 1 ether);
     }
 
+    function test_UpdateTiming_SelfManagedTimingChangeAndInvalidDirectCall() public {
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NotSelf.selector, _ownerOne));
+        vm.prank(_ownerOne);
+        _multisig.updateTiming(1 hours, 1 days);
+
+        _executeMultisigCall(address(_multisig), 0, abi.encodeCall(TreasuryMultisig.updateTiming, (1 hours, 3 days)));
+
+        assertEq(_multisig.sigDelay(), 1 hours);
+        assertEq(_multisig.maxPending(), 3 days);
+    }
+
     function test_AddOwnerWithThreshold_SelfManagedOwnerChangeExecutesThroughMultisig() public {
         address _newOwner = makeAddr("newOwner");
 
@@ -123,6 +306,200 @@ contract TreasuryMultisigTest is Test {
         assertEq(_multisig.threshold(), 3);
         assertTrue(_multisig.isOwner(_newOwner));
         assertEq(_owners.length, 4);
+    }
+
+    function test_RemoveOwnerAndSwapOwner_SelfManagedSignerChangesExecuteThroughMultisig() public {
+        _executeMultisigCall(address(_multisig), 0, abi.encodeCall(TreasuryMultisig.removeOwner, (_ownerThree, 2)));
+
+        address _newOwner = makeAddr("newOwner");
+
+        _executeMultisigCall(address(_multisig), 0, abi.encodeCall(TreasuryMultisig.swapOwner, (_ownerTwo, _newOwner)));
+
+        address[] memory _owners = _multisig.getOwners();
+
+        assertFalse(_multisig.isOwner(_ownerTwo));
+        assertFalse(_multisig.isOwner(_ownerThree));
+        assertTrue(_multisig.isOwner(_newOwner));
+        assertEq(_multisig.threshold(), 2);
+        assertEq(_owners.length, 2);
+    }
+
+    function test_SelfManagedSignerChanges_InvalidInputsRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NotSelf.selector, _ownerOne));
+        vm.prank(_ownerOne);
+        _multisig.changeThreshold(1);
+
+        uint256 _txId =
+            _proposeMultisigCall(address(_multisig), 0, abi.encodeCall(TreasuryMultisig.removeOwner, (_operator, 2)));
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidOwner.selector, _operator));
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
+
+        _txId = _proposeMultisigCall(
+            address(_multisig), 0, abi.encodeCall(TreasuryMultisig.swapOwner, (_ownerTwo, address(0)))
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidOwner.selector, address(0)));
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
+
+        _txId = _proposeMultisigCall(
+            address(_multisig), 0, abi.encodeCall(TreasuryMultisig.swapOwner, (_ownerTwo, _ownerOne))
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.DuplicateOwner.selector, _ownerOne));
+        vm.prank(_ownerTwo);
+        _multisig.confirmTransaction(_txId);
+    }
+
+    function test_BatchTransaction_InvalidInputsRevert() public {
+        address[] memory _targets = new address[](1);
+        uint256[] memory _values = new uint256[](2);
+        bytes[] memory _payloads = new bytes[](1);
+
+        vm.expectRevert(TreasuryMultisig.LengthMismatch.selector);
+        vm.prank(_ownerOne);
+        _multisig.proposeBatchTransaction(_targets, _values, _payloads, bytes32(0));
+
+        _targets = new address[](0);
+        _values = new uint256[](0);
+        _payloads = new bytes[](0);
+
+        vm.expectRevert(TreasuryMultisig.EmptyBatch.selector);
+        vm.prank(_ownerOne);
+        _multisig.proposeBatchTransaction(_targets, _values, _payloads, bytes32(0));
+
+        _targets = new address[](1);
+        _values = new uint256[](1);
+        _payloads = new bytes[](1);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidTarget.selector, address(0)));
+        vm.prank(_ownerOne);
+        _multisig.proposeBatchTransaction(_targets, _values, _payloads, bytes32(0));
+    }
+
+    function test_BatchTransaction_RevokeRejectCancelAndInvalidStatePaths() public {
+        address[] memory _targets = new address[](1);
+        uint256[] memory _values = new uint256[](1);
+        bytes[] memory _payloads = new bytes[](1);
+        _targets[0] = address(_callTarget);
+        _payloads[0] = abi.encodeCall(MultisigCallTarget.setValue, (11));
+
+        uint256 _batchId = _proposeMultisigBatch(_targets, _values, _payloads);
+
+        assertTrue(_multisig.hasConfirmedBatch(_batchId, _ownerOne));
+
+        vm.prank(_ownerOne);
+        _multisig.revokeBatchConfirmation(_batchId);
+
+        assertFalse(_multisig.hasConfirmedBatch(_batchId, _ownerOne));
+        assertEq(_multisig.getBatchConfirmationCount(_batchId), 0);
+
+        vm.expectRevert(TreasuryMultisig.NotConfirmed.selector);
+        vm.prank(_ownerOne);
+        _multisig.revokeBatchConfirmation(_batchId);
+
+        vm.prank(_ownerTwo);
+        _multisig.rejectBatchTransaction(_batchId);
+
+        vm.expectRevert(TreasuryMultisig.AlreadyRejected.selector);
+        vm.prank(_ownerTwo);
+        _multisig.confirmBatchTransaction(_batchId);
+
+        vm.prank(_ownerTwo);
+        _multisig.revokeBatchRejection(_batchId);
+
+        vm.expectRevert(TreasuryMultisig.NotRejected.selector);
+        vm.prank(_ownerTwo);
+        _multisig.revokeBatchRejection(_batchId);
+
+        vm.prank(_ownerOne);
+        _multisig.cancelBatchTransaction(_batchId);
+
+        vm.expectRevert(TreasuryMultisig.AlreadyCancelled.selector);
+        vm.prank(_ownerThree);
+        _multisig.confirmBatchTransaction(_batchId);
+    }
+
+    function test_BatchTransaction_RejectionsCancelWhenThresholdImpossible() public {
+        address[] memory _targets = new address[](1);
+        uint256[] memory _values = new uint256[](1);
+        bytes[] memory _payloads = new bytes[](1);
+        _targets[0] = address(_callTarget);
+        _payloads[0] = abi.encodeCall(MultisigCallTarget.setValue, (11));
+
+        uint256 _batchId = _proposeMultisigBatch(_targets, _values, _payloads);
+
+        vm.expectRevert(TreasuryMultisig.AlreadyConfirmed.selector);
+        vm.prank(_ownerOne);
+        _multisig.rejectBatchTransaction(_batchId);
+
+        vm.prank(_ownerTwo);
+        _multisig.rejectBatchTransaction(_batchId);
+
+        vm.prank(_ownerThree);
+        _multisig.rejectBatchTransaction(_batchId);
+
+        vm.expectRevert(TreasuryMultisig.AlreadyCancelled.selector);
+        vm.prank(_ownerTwo);
+        _multisig.revokeBatchRejection(_batchId);
+    }
+
+    function test_BatchTransaction_SensitiveSelectorDelayApplies() public {
+        TreasuryMultisig _delayedMultisig = new TreasuryMultisig(_defaultOwners(), 2, 1 hours, 1 days);
+
+        uint256 _selectorTxId = _proposeMultisigCall(
+            _delayedMultisig,
+            address(_delayedMultisig),
+            0,
+            abi.encodeCall(
+                TreasuryMultisig.setSensitiveSelector,
+                (address(_callTarget), MultisigCallTarget.setValue.selector, true)
+            )
+        );
+
+        vm.prank(_ownerTwo);
+        _delayedMultisig.confirmTransaction(_selectorTxId);
+
+        address[] memory _targets = new address[](1);
+        uint256[] memory _values = new uint256[](1);
+        bytes[] memory _payloads = new bytes[](1);
+        _targets[0] = address(_callTarget);
+        _payloads[0] = abi.encodeCall(MultisigCallTarget.setValue, (22));
+
+        vm.prank(_ownerOne);
+        uint256 _batchId = _delayedMultisig.proposeBatchTransaction(_targets, _values, _payloads, bytes32(0));
+
+        uint256 _earliestConfirmation = block.timestamp + 1 hours;
+
+        vm.prank(_ownerTwo);
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.ConfirmationTooSoon.selector, _earliestConfirmation));
+        _delayedMultisig.confirmBatchTransaction(_batchId);
+
+        vm.warp(_earliestConfirmation);
+
+        vm.prank(_ownerTwo);
+        _delayedMultisig.confirmBatchTransaction(_batchId);
+
+        assertEq(_callTarget.value(), 22);
+    }
+
+    function test_InvalidViewIdsRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidTransaction.selector, 999));
+        _multisig.getTransaction(999);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidTransaction.selector, 999));
+        _multisig.hasConfirmed(999, _ownerOne);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidTransaction.selector, 999));
+        _multisig.getConfirmationCount(999);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidBatch.selector, 999));
+        _multisig.hasConfirmedBatch(999, _ownerOne);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.InvalidBatch.selector, 999));
+        _multisig.getBatchConfirmationCount(999);
     }
 
     function test_DisburseMUSD_MultisigControlsCriticalOperatingWithdrawal() public {
@@ -283,5 +660,28 @@ contract TreasuryMultisigTest is Test {
             approvedDestinations: _destinations,
             destinationCaps: _caps
         });
+    }
+}
+
+contract MultisigCallTarget {
+    error TargetReverted();
+
+    uint256 public value;
+
+    receive() external payable { }
+
+    function setValue(uint256 _value) external payable returns (uint256) {
+        value = _value;
+        return _value;
+    }
+
+    function revertWithData() external pure {
+        revert TargetReverted();
+    }
+
+    function revertWithoutData() external pure {
+        assembly {
+            revert(0, 0)
+        }
     }
 }
