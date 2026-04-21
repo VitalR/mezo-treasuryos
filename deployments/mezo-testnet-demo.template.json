@@ -19,6 +19,8 @@
   },
   "actors": {
     "treasuryOwner": "",
+    "treasuryControlMode": "externalOrEoa",
+    "treasuryMultisigOwners": [],
     "treasuryApprover": "",
     "treasuryOperator": "",
     "automationOperator": ""
@@ -35,6 +37,11 @@
     "treasuryAutomationExecutor": {
       "address": "",
       "deploymentTxHash": ""
+    },
+    "treasuryMultisig": {
+      "address": "",
+      "deploymentTxHash": "",
+      "enabled": false
     },
     "allocationRouter": {
       "address": "",
@@ -106,8 +113,20 @@
       }
     ]
   },
+  "ownerSetup": {
+    "executeOwnerControlledSetup": true,
+    "proposeTreasuryMultisigSetup": false,
+    "ownerSetupBatchProposed": false,
+    "ownerSetupBatchId": "",
+    "treasuryMultisigThreshold": "",
+    "treasuryMultisigSigDelay": "",
+    "treasuryMultisigMaxPending": "",
+    "calls": []
+  },
   "notes": [
     "If using ExternalMUSDSavingsRateMock, record its address under contracts.externalMusdSavingsRateMock.address and keep references.musd.savingsRate.address empty.",
-    "If using an official Mezo testnet MUSDSavingsRate deployment, fill references.musd.savingsRate.address and set the savings router destination to that address."
+    "If using an official Mezo testnet MUSDSavingsRate deployment, fill references.musd.savingsRate.address and set the savings router destination to that address.",
+    "If using an external multisig or custody account as treasuryOwner, execute owner setup calls manually or through that wallet.",
+    "If DEPLOY_TREASURY_MULTISIG=true, ownerSetup.ownerSetupBatchId records the proposed setup batch when PROPOSE_TREASURY_MULTISIG_SETUP=true."
   ]
 }

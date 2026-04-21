@@ -61,9 +61,20 @@ TreasuryOS-specific deployment and scenario variables are also defined there for
 
 - deployer
 - treasury owner
+- optional TreasuryOS-native multisig owner
 - treasury approver
 - treasury operator
 - automation service settings
+
+### Treasury Owner Configuration
+
+There are three supported deployment owner modes:
+
+- Existing EOA owner: set `TREASURY_OWNER`, `TREASURY_OWNER_PRIVATE_KEY`, and keep `EXECUTE_OWNER_CONTROLLED_SETUP=true`.
+- Existing external multisig/custody owner: set `TREASURY_OWNER`, set `EXECUTE_OWNER_CONTROLLED_SETUP=false`, then execute setup through the external wallet.
+- Deployed TreasuryOS multisig owner: set `DEPLOY_TREASURY_MULTISIG=true`, configure `TREASURY_MULTISIG_OWNER_1..5`, set `TREASURY_MULTISIG_THRESHOLD`, and provide `TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY` when proposing the setup batch during deployment.
+
+For the deployed multisig mode, the deployment script records `ownerSetup.ownerSetupBatchId` in the manifest when a setup batch is proposed.
 
 ---
 

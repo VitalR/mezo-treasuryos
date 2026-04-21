@@ -118,7 +118,57 @@ The script:
 
 - deploys the core TreasuryOS contracts
 - deploys a bounded `TreasuryAutomationExecutor`
+- optionally deploys `TreasuryMultisig` as the Treasury Account owner
 - optionally deploys `ExternalMUSDSavingsRateMock` when no official savings address is set
 - optionally deploys the Tigris handler when the paired stable token address is configured
 - deploys one demo Treasury Account through the factory
+- executes owner-controlled setup directly when the owner is an EOA with `TREASURY_OWNER_PRIVATE_KEY`
+- proposes a `TreasuryMultisig` setup batch when `DEPLOY_TREASURY_MULTISIG=true`
 - writes a deployment manifest to `DEPLOYMENT_MANIFEST_PATH`
+
+## Treasury Owner Modes
+
+The deployment script supports three control modes.
+
+### Existing EOA Owner
+
+Set:
+
+```bash
+DEPLOY_TREASURY_MULTISIG=false
+TREASURY_OWNER=<owner address>
+TREASURY_OWNER_PRIVATE_KEY=<owner private key>
+EXECUTE_OWNER_CONTROLLED_SETUP=true
+```
+
+The script deploys the stack and executes the owner-controlled setup calls directly.
+
+### Existing External Multisig / Custody Owner
+
+Set:
+
+```bash
+DEPLOY_TREASURY_MULTISIG=false
+TREASURY_OWNER=<external multisig or custody address>
+EXECUTE_OWNER_CONTROLLED_SETUP=false
+```
+
+The script deploys the stack with the external account as owner, but does not execute owner-only setup calls. Those calls must be executed through the external multisig/custody workflow.
+
+### Deployed TreasuryMultisig Owner
+
+Set:
+
+```bash
+DEPLOY_TREASURY_MULTISIG=true
+TREASURY_MULTISIG_OWNER_1=<signer 1>
+TREASURY_MULTISIG_OWNER_2=<signer 2>
+TREASURY_MULTISIG_OWNER_3=<signer 3>
+TREASURY_MULTISIG_THRESHOLD=2
+TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY=<one signer private key>
+PROPOSE_TREASURY_MULTISIG_SETUP=true
+```
+
+The script deploys `TreasuryMultisig`, uses it as the Treasury Account owner, and proposes a setup batch containing the required router, borrower operations, policy, and automation configuration calls. If the threshold is `1`, the batch executes immediately. If the threshold is greater than `1`, the remaining signer confirmations must be submitted after deployment.
+
+The deployment manifest includes `ownerSetup.calls` with target/value/calldata for the owner-controlled setup sequence. This is useful when the owner is an external multisig/custody account or when a proposed `TreasuryMultisig` batch still needs additional confirmations.

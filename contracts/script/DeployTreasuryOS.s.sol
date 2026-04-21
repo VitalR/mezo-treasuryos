@@ -16,6 +16,7 @@ import { IAllocationHandler } from "../src/interfaces/IAllocationHandler.sol";
 import { IMUSDSavingsRate } from "../src/interfaces/IMUSDSavingsRate.sol";
 import { ITigrisBasicRouter } from "../src/interfaces/ITigrisBasicRouter.sol";
 import { ITreasuryPolicyEngine } from "../src/interfaces/ITreasuryPolicyEngine.sol";
+import { TreasuryMultisig } from "../src/multisig/TreasuryMultisig.sol";
 
 /// @title DeployTreasuryOS
 /// @notice Deploys a TreasuryOS demo stack on Mezo testnet and writes a deployment manifest.
@@ -29,16 +30,27 @@ contract DeployTreasuryOS is Script {
     uint256 internal constant DEFAULT_SAVINGS_CAP = 10_000e18;
     uint256 internal constant DEFAULT_TIGRIS_CAP = 5000e18;
     uint256 internal constant DEFAULT_TIGRIS_DEADLINE_WINDOW = 15 minutes;
+    uint256 internal constant DEFAULT_TREASURY_MULTISIG_THRESHOLD = 2;
+    uint64 internal constant DEFAULT_TREASURY_MULTISIG_SIG_DELAY = 0;
+    uint64 internal constant DEFAULT_TREASURY_MULTISIG_MAX_PENDING = 7 days;
 
     struct DeploymentConfig {
         uint256 chainId;
         uint256 deployerPrivateKey;
         uint256 treasuryOwnerPrivateKey;
+        uint256 treasuryMultisigProposerPrivateKey;
         address deployer;
         address treasuryOwner;
         address treasuryApprover;
         address treasuryOperator;
         address automationOperator;
+        address[] treasuryMultisigOwners;
+        uint256 treasuryMultisigThreshold;
+        uint64 treasuryMultisigSigDelay;
+        uint64 treasuryMultisigMaxPending;
+        bool deployTreasuryMultisig;
+        bool executeOwnerControlledSetup;
+        bool proposeTreasuryMultisigSetup;
         address musdToken;
         address borrowerOperations;
         address savingsRate;
@@ -68,17 +80,24 @@ contract DeployTreasuryOS is Script {
         address treasuryPolicyEngine;
         address treasuryAccountFactory;
         address treasuryAutomationExecutor;
+        address treasuryMultisig;
         address allocationRouter;
         address musdSavingsRateHandler;
         address tigrisStablePoolHandler;
         address externalMusdSavingsRateMock;
         address treasuryAccount;
         address savingsDestination;
+        uint256 ownerSetupBatchId;
+        bool ownerSetupBatchProposed;
     }
 
     error InvalidAddress(string key);
     error InvalidOwnerConfiguration(address treasuryOwner, address derivedOwner);
+    error InvalidTreasuryMultisigProposer(address proposer);
     error MissingOwnerPrivateKey(address treasuryOwner);
+    error MissingTreasuryMultisigOwner();
+    error MissingTreasuryMultisigProposerPrivateKey();
+    error Uint64Overflow(string key, uint256 value);
 
     /// @notice Deploys the TreasuryOS demo stack and writes a deployment manifest.
     function run() external returns (DeploymentArtifacts memory artifacts) {
@@ -86,17 +105,26 @@ contract DeployTreasuryOS is Script {
 
         console2.log("Deploying TreasuryOS to chain ID:", block.chainid);
         console2.log("Deployer:", config.deployer);
-        console2.log("Treasury owner:", config.treasuryOwner);
 
         artifacts = _deployCore(config);
+        if (config.deployTreasuryMultisig) {
+            config.treasuryOwner = artifacts.treasuryMultisig;
+        }
+
+        console2.log("Treasury owner:", config.treasuryOwner);
+
         _configureOwnerControlledState(config, artifacts);
         _writeManifest(config, artifacts);
 
         console2.log("TreasuryPolicyEngine:", artifacts.treasuryPolicyEngine);
         console2.log("TreasuryAccountFactory:", artifacts.treasuryAccountFactory);
         console2.log("TreasuryAutomationExecutor:", artifacts.treasuryAutomationExecutor);
+        console2.log("TreasuryMultisig:", artifacts.treasuryMultisig);
         console2.log("AllocationRouter:", artifacts.allocationRouter);
         console2.log("TreasuryAccount:", artifacts.treasuryAccount);
+        if (artifacts.ownerSetupBatchProposed) {
+            console2.log("Owner setup batch ID:", artifacts.ownerSetupBatchId);
+        }
         console2.log("Manifest:", config.manifestPath);
     }
 
@@ -104,10 +132,24 @@ contract DeployTreasuryOS is Script {
         config.chainId = vm.envOr("MEZO_CHAIN_ID", block.chainid);
         config.deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         config.deployer = vm.addr(config.deployerPrivateKey);
-        config.treasuryOwner = vm.envAddress("TREASURY_OWNER");
+        config.deployTreasuryMultisig = vm.envOr("DEPLOY_TREASURY_MULTISIG", false);
+        config.treasuryOwner = vm.envOr("TREASURY_OWNER", address(0));
         config.treasuryApprover = vm.envAddress("TREASURY_APPROVER");
         config.treasuryOperator = vm.envAddress("TREASURY_OPERATOR");
         config.automationOperator = vm.envOr("DEMO_TREASURY_AUTOMATION_OPERATOR", address(0));
+        if (config.deployTreasuryMultisig) {
+            config.treasuryMultisigOwners = _loadTreasuryMultisigOwners();
+            config.treasuryMultisigThreshold =
+                vm.envOr("TREASURY_MULTISIG_THRESHOLD", DEFAULT_TREASURY_MULTISIG_THRESHOLD);
+            config.treasuryMultisigSigDelay =
+                _envUint64("TREASURY_MULTISIG_SIG_DELAY", DEFAULT_TREASURY_MULTISIG_SIG_DELAY);
+            config.treasuryMultisigMaxPending =
+                _envUint64("TREASURY_MULTISIG_MAX_PENDING", DEFAULT_TREASURY_MULTISIG_MAX_PENDING);
+            config.proposeTreasuryMultisigSetup = vm.envOr("PROPOSE_TREASURY_MULTISIG_SETUP", true);
+            config.treasuryMultisigProposerPrivateKey =
+                vm.envOr("TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY", config.deployerPrivateKey);
+        }
+        config.executeOwnerControlledSetup = vm.envOr("EXECUTE_OWNER_CONTROLLED_SETUP", !config.deployTreasuryMultisig);
         config.musdToken = vm.envAddress("MEZO_MUSD_TOKEN");
         config.borrowerOperations = vm.envAddress("MEZO_BORROWER_OPERATIONS");
         config.savingsRate = vm.envOr("MEZO_MUSD_SAVINGS_RATE", address(0));
@@ -134,35 +176,107 @@ contract DeployTreasuryOS is Script {
         config.tigrisCap = vm.envOr("DEMO_TIGRIS_CAP", DEFAULT_TIGRIS_CAP);
         config.manifestPath = vm.envOr("DEPLOYMENT_MANIFEST_PATH", string("../deployments/mezo-testnet-demo.json"));
 
-        config.treasuryOwnerPrivateKey = vm.envOr("TREASURY_OWNER_PRIVATE_KEY", uint256(0));
-        if (config.treasuryOwnerPrivateKey == 0) {
-            if (config.treasuryOwner == config.deployer) {
-                config.treasuryOwnerPrivateKey = config.deployerPrivateKey;
-            } else {
-                revert MissingOwnerPrivateKey(config.treasuryOwner);
+        if (config.deployTreasuryMultisig) {
+            if (config.proposeTreasuryMultisigSetup) {
+                if (config.treasuryMultisigProposerPrivateKey == 0) {
+                    revert MissingTreasuryMultisigProposerPrivateKey();
+                }
+
+                address proposer = vm.addr(config.treasuryMultisigProposerPrivateKey);
+                if (!_isTreasuryMultisigOwner(proposer, config.treasuryMultisigOwners)) {
+                    revert InvalidTreasuryMultisigProposer(proposer);
+                }
+            }
+        } else {
+            config.treasuryOwnerPrivateKey = vm.envOr("TREASURY_OWNER_PRIVATE_KEY", uint256(0));
+            if (config.executeOwnerControlledSetup && config.treasuryOwnerPrivateKey == 0) {
+                if (config.treasuryOwner == config.deployer) {
+                    config.treasuryOwnerPrivateKey = config.deployerPrivateKey;
+                } else {
+                    revert MissingOwnerPrivateKey(config.treasuryOwner);
+                }
+            }
+
+            if (config.treasuryOwnerPrivateKey != 0) {
+                address derivedOwner = vm.addr(config.treasuryOwnerPrivateKey);
+                if (derivedOwner != config.treasuryOwner) {
+                    revert InvalidOwnerConfiguration(config.treasuryOwner, derivedOwner);
+                }
             }
         }
 
-        address derivedOwner = vm.addr(config.treasuryOwnerPrivateKey);
-        if (derivedOwner != config.treasuryOwner) {
-            revert InvalidOwnerConfiguration(config.treasuryOwner, derivedOwner);
+        if (!config.deployTreasuryMultisig && config.treasuryOwner == address(0)) {
+            revert InvalidAddress("TREASURY_OWNER");
         }
-
-        if (config.treasuryOwner == address(0)) revert InvalidAddress("TREASURY_OWNER");
         if (config.treasuryApprover == address(0)) revert InvalidAddress("TREASURY_APPROVER");
         if (config.treasuryOperator == address(0)) revert InvalidAddress("TREASURY_OPERATOR");
         if (config.musdToken == address(0)) revert InvalidAddress("MEZO_MUSD_TOKEN");
         if (config.borrowerOperations == address(0)) revert InvalidAddress("MEZO_BORROWER_OPERATIONS");
     }
 
+    function _loadTreasuryMultisigOwners() internal view returns (address[] memory owners) {
+        address[5] memory candidates = [
+            vm.envOr("TREASURY_MULTISIG_OWNER_1", address(0)),
+            vm.envOr("TREASURY_MULTISIG_OWNER_2", address(0)),
+            vm.envOr("TREASURY_MULTISIG_OWNER_3", address(0)),
+            vm.envOr("TREASURY_MULTISIG_OWNER_4", address(0)),
+            vm.envOr("TREASURY_MULTISIG_OWNER_5", address(0))
+        ];
+
+        uint256 count;
+        for (uint256 i = 0; i < candidates.length; i++) {
+            if (candidates[i] != address(0)) count++;
+        }
+
+        if (count == 0) revert MissingTreasuryMultisigOwner();
+
+        owners = new address[](count);
+        uint256 index;
+        for (uint256 i = 0; i < candidates.length; i++) {
+            if (candidates[i] != address(0)) {
+                owners[index++] = candidates[i];
+            }
+        }
+    }
+
+    function _envUint64(string memory _key, uint64 _defaultValue) internal view returns (uint64 value) {
+        uint256 rawValue = vm.envOr(_key, uint256(_defaultValue));
+        if (rawValue > type(uint64).max) revert Uint64Overflow(_key, rawValue);
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        value = uint64(rawValue);
+    }
+
+    function _isTreasuryMultisigOwner(address _owner, address[] memory _owners) internal pure returns (bool) {
+        for (uint256 i = 0; i < _owners.length; i++) {
+            if (_owners[i] == _owner) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function _deployCore(DeploymentConfig memory config) internal returns (DeploymentArtifacts memory artifacts) {
         vm.startBroadcast(config.deployerPrivateKey);
+
+        address treasuryOwner = config.treasuryOwner;
+        if (config.deployTreasuryMultisig) {
+            TreasuryMultisig treasuryMultisig = new TreasuryMultisig(
+                config.treasuryMultisigOwners,
+                config.treasuryMultisigThreshold,
+                config.treasuryMultisigSigDelay,
+                config.treasuryMultisigMaxPending
+            );
+            artifacts.treasuryMultisig = address(treasuryMultisig);
+            treasuryOwner = address(treasuryMultisig);
+        }
 
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
         TreasuryAccountFactory treasuryAccountFactory =
             new TreasuryAccountFactory(IERC20(config.musdToken), treasuryPolicyEngine);
-        TreasuryAutomationExecutor treasuryAutomationExecutor = new TreasuryAutomationExecutor(config.treasuryOwner);
-        AllocationRouter allocationRouter = new AllocationRouter(config.treasuryOwner);
+        TreasuryAutomationExecutor treasuryAutomationExecutor = new TreasuryAutomationExecutor(treasuryOwner);
+        AllocationRouter allocationRouter = new AllocationRouter(treasuryOwner);
 
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
@@ -174,7 +288,7 @@ contract DeployTreasuryOS is Script {
         } else if (config.deployExternalSavingsMock) {
             if (config.externalSavingsRateMock == address(0)) {
                 ExternalMUSDSavingsRateMock externalSavingsRateMock =
-                    new ExternalMUSDSavingsRateMock(config.treasuryOwner, IERC20(config.musdToken));
+                    new ExternalMUSDSavingsRateMock(treasuryOwner, IERC20(config.musdToken));
                 artifacts.externalMusdSavingsRateMock = address(externalSavingsRateMock);
                 artifacts.savingsDestination = address(externalSavingsRateMock);
             } else {
@@ -225,8 +339,8 @@ contract DeployTreasuryOS is Script {
             destinationCaps: destinationCaps
         });
 
-        treasuryAccountFactory.setTreasuryAdminApproval(config.treasuryOwner, true);
-        artifacts.treasuryAccount = treasuryAccountFactory.deployTreasuryAccount(config.treasuryOwner, policyConfig);
+        treasuryAccountFactory.setTreasuryAdminApproval(treasuryOwner, true);
+        artifacts.treasuryAccount = treasuryAccountFactory.deployTreasuryAccount(treasuryOwner, policyConfig);
 
         vm.stopBroadcast();
     }
@@ -234,40 +348,112 @@ contract DeployTreasuryOS is Script {
     function _configureOwnerControlledState(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
         internal
     {
+        (address[] memory targets, uint256[] memory values, bytes[] memory payloads) =
+            _buildOwnerSetupBatch(config, artifacts);
+
+        if (config.deployTreasuryMultisig) {
+            if (!config.proposeTreasuryMultisigSetup) {
+                console2.log("Skipping multisig owner-controlled setup proposal");
+                return;
+            }
+
+            vm.startBroadcast(config.treasuryMultisigProposerPrivateKey);
+            artifacts.ownerSetupBatchId = TreasuryMultisig(payable(artifacts.treasuryMultisig))
+                .proposeBatchTransaction(targets, values, payloads, keccak256("TREASURYOS_SETUP"));
+            artifacts.ownerSetupBatchProposed = true;
+            vm.stopBroadcast();
+
+            return;
+        }
+
+        if (!config.executeOwnerControlledSetup) {
+            console2.log("Skipping owner-controlled setup execution");
+            return;
+        }
+
         vm.startBroadcast(config.treasuryOwnerPrivateKey);
 
-        if (artifacts.musdSavingsRateHandler != address(0) && artifacts.savingsDestination != address(0)) {
-            AllocationRouter(artifacts.allocationRouter)
-                .setHandler(artifacts.savingsDestination, IAllocationHandler(artifacts.musdSavingsRateHandler));
-        }
-
-        if (artifacts.tigrisStablePoolHandler != address(0) && config.tigrisMusdMusdcPool != address(0)) {
-            AllocationRouter(artifacts.allocationRouter)
-                .setHandler(config.tigrisMusdMusdcPool, IAllocationHandler(artifacts.tigrisStablePoolHandler));
-        }
-
-        TreasuryAccount(payable(artifacts.treasuryAccount)).setBorrowerOperations(config.borrowerOperations);
-        TreasuryAccount(payable(artifacts.treasuryAccount)).setAllocationRouter(artifacts.allocationRouter);
-        TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
-            .updateAutomationLimits(artifacts.treasuryAccount, config.maxAutoBufferRestore, config.maxAutoDebtRepay);
-        TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
-            .updateAutomationCapabilities(
-                artifacts.treasuryAccount, config.allowAutoSavingsWithdraw, config.allowAutoDebtRepay
-            );
-
-        address automationExecutor = config.automationExecutor;
-        if (automationExecutor == address(0)) {
-            automationExecutor = artifacts.treasuryAutomationExecutor;
-        }
-
-        TreasuryPolicyEngine(artifacts.treasuryPolicyEngine)
-            .updateAutomationExecutor(artifacts.treasuryAccount, automationExecutor);
-
-        if (config.automationOperator != address(0)) {
-            TreasuryAutomationExecutor(automationExecutor).setAutomationOperator(config.automationOperator, true);
+        for (uint256 i = 0; i < targets.length; i++) {
+            (bool success, bytes memory returndata) = targets[i].call{ value: values[i] }(payloads[i]);
+            _revertIfCallFailed(success, returndata);
         }
 
         vm.stopBroadcast();
+    }
+
+    function _buildOwnerSetupBatch(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
+        internal
+        pure
+        returns (address[] memory targets, uint256[] memory values, bytes[] memory payloads)
+    {
+        uint256 count = 5;
+        if (artifacts.musdSavingsRateHandler != address(0) && artifacts.savingsDestination != address(0)) count++;
+        if (artifacts.tigrisStablePoolHandler != address(0) && config.tigrisMusdMusdcPool != address(0)) count++;
+        if (config.automationOperator != address(0)) count++;
+
+        targets = new address[](count);
+        values = new uint256[](count);
+        payloads = new bytes[](count);
+
+        uint256 index;
+
+        if (artifacts.musdSavingsRateHandler != address(0) && artifacts.savingsDestination != address(0)) {
+            targets[index] = artifacts.allocationRouter;
+            payloads[index++] = abi.encodeCall(
+                AllocationRouter.setHandler,
+                (artifacts.savingsDestination, IAllocationHandler(artifacts.musdSavingsRateHandler))
+            );
+        }
+
+        if (artifacts.tigrisStablePoolHandler != address(0) && config.tigrisMusdMusdcPool != address(0)) {
+            targets[index] = artifacts.allocationRouter;
+            payloads[index++] = abi.encodeCall(
+                AllocationRouter.setHandler,
+                (config.tigrisMusdMusdcPool, IAllocationHandler(artifacts.tigrisStablePoolHandler))
+            );
+        }
+
+        targets[index] = artifacts.treasuryAccount;
+        payloads[index++] = abi.encodeCall(TreasuryAccount.setBorrowerOperations, (config.borrowerOperations));
+
+        targets[index] = artifacts.treasuryAccount;
+        payloads[index++] = abi.encodeCall(TreasuryAccount.setAllocationRouter, (artifacts.allocationRouter));
+
+        targets[index] = artifacts.treasuryPolicyEngine;
+        payloads[index++] = abi.encodeCall(
+            TreasuryPolicyEngine.updateAutomationLimits,
+            (artifacts.treasuryAccount, config.maxAutoBufferRestore, config.maxAutoDebtRepay)
+        );
+
+        targets[index] = artifacts.treasuryPolicyEngine;
+        payloads[index++] = abi.encodeCall(
+            TreasuryPolicyEngine.updateAutomationCapabilities,
+            (artifacts.treasuryAccount, config.allowAutoSavingsWithdraw, config.allowAutoDebtRepay)
+        );
+
+        address automationExecutor = _effectiveAutomationExecutor(config, artifacts);
+        targets[index] = artifacts.treasuryPolicyEngine;
+        payloads[index++] = abi.encodeCall(
+            TreasuryPolicyEngine.updateAutomationExecutor, (artifacts.treasuryAccount, automationExecutor)
+        );
+
+        if (config.automationOperator != address(0)) {
+            targets[index] = automationExecutor;
+            payloads[index] =
+                abi.encodeCall(TreasuryAutomationExecutor.setAutomationOperator, (config.automationOperator, true));
+        }
+    }
+
+    function _effectiveAutomationExecutor(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
+        internal
+        pure
+        returns (address)
+    {
+        if (config.automationExecutor != address(0)) {
+            return config.automationExecutor;
+        }
+
+        return artifacts.treasuryAutomationExecutor;
     }
 
     function _buildApprovedDestinations(
@@ -324,6 +510,7 @@ contract DeployTreasuryOS is Script {
         string memory contractsJson = _buildContractsJson(artifacts);
         string memory referencesJson = _buildReferencesJson(config, artifacts);
         string memory treasuryScenarioJson = _buildTreasuryScenarioJson(config);
+        string memory ownerSetupJson = _buildOwnerSetupJson(config, artifacts);
 
         string memory json = string.concat(
             "{",
@@ -346,6 +533,9 @@ contract DeployTreasuryOS is Script {
             ",",
             '"treasuryScenario":',
             treasuryScenarioJson,
+            ",",
+            '"ownerSetup":',
+            ownerSetupJson,
             "}"
         );
 
@@ -358,13 +548,17 @@ contract DeployTreasuryOS is Script {
             vm.toString(config.deployer),
             '","treasuryOwner":"',
             vm.toString(config.treasuryOwner),
+            '","treasuryControlMode":"',
+            config.deployTreasuryMultisig ? "treasuryMultisig" : "externalOrEoa",
             '","treasuryApprover":"',
             vm.toString(config.treasuryApprover),
             '","treasuryOperator":"',
             vm.toString(config.treasuryOperator),
             '","automationOperator":"',
             vm.toString(config.automationOperator),
-            '"}'
+            '","treasuryMultisigOwners":',
+            _buildAddressArrayJson(config.treasuryMultisigOwners),
+            "}"
         );
     }
 
@@ -376,6 +570,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(artifacts.treasuryAccountFactory),
             '","treasuryAutomationExecutor":"',
             vm.toString(artifacts.treasuryAutomationExecutor),
+            '","treasuryMultisig":"',
+            vm.toString(artifacts.treasuryMultisig),
             '","allocationRouter":"',
             vm.toString(artifacts.allocationRouter),
             '","musdSavingsRateHandler":"',
@@ -428,6 +624,90 @@ contract DeployTreasuryOS is Script {
             _jsonBool(config.startPaused),
             "}"
         );
+    }
+
+    function _buildOwnerSetupJson(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
+        internal
+        pure
+        returns (string memory)
+    {
+        (address[] memory targets, uint256[] memory values, bytes[] memory payloads) =
+            _buildOwnerSetupBatch(config, artifacts);
+
+        return string.concat(
+            '{"executeOwnerControlledSetup":',
+            _jsonBool(config.executeOwnerControlledSetup),
+            ',"proposeTreasuryMultisigSetup":',
+            _jsonBool(config.proposeTreasuryMultisigSetup),
+            ',"ownerSetupBatchProposed":',
+            _jsonBool(artifacts.ownerSetupBatchProposed),
+            ',"ownerSetupBatchId":"',
+            vm.toString(artifacts.ownerSetupBatchId),
+            '","treasuryMultisigThreshold":"',
+            vm.toString(config.treasuryMultisigThreshold),
+            '","treasuryMultisigSigDelay":"',
+            vm.toString(config.treasuryMultisigSigDelay),
+            '","treasuryMultisigMaxPending":"',
+            vm.toString(config.treasuryMultisigMaxPending),
+            '","calls":',
+            _buildOwnerSetupCallsJson(targets, values, payloads),
+            "}"
+        );
+    }
+
+    function _buildOwnerSetupCallsJson(address[] memory _targets, uint256[] memory _values, bytes[] memory _payloads)
+        internal
+        pure
+        returns (string memory json)
+    {
+        json = "[";
+
+        for (uint256 i = 0; i < _targets.length; i++) {
+            if (i > 0) {
+                json = string.concat(json, ",");
+            }
+
+            json = string.concat(
+                json,
+                '{"target":"',
+                vm.toString(_targets[i]),
+                '","value":"',
+                vm.toString(_values[i]),
+                '","data":"',
+                vm.toString(_payloads[i]),
+                '"}'
+            );
+        }
+
+        json = string.concat(json, "]");
+    }
+
+    function _buildAddressArrayJson(address[] memory _addresses) internal pure returns (string memory json) {
+        json = "[";
+
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            if (i > 0) {
+                json = string.concat(json, ",");
+            }
+
+            json = string.concat(json, '"', vm.toString(_addresses[i]), '"');
+        }
+
+        json = string.concat(json, "]");
+    }
+
+    function _revertIfCallFailed(bool _success, bytes memory _returndata) internal pure {
+        if (_success) {
+            return;
+        }
+
+        if (_returndata.length == 0) {
+            revert("OWNER_SETUP_CALL_FAILED");
+        }
+
+        assembly {
+            revert(add(_returndata, 32), mload(_returndata))
+        }
     }
 
     function _jsonBool(bool _value) internal pure returns (string memory) {

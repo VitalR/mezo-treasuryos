@@ -74,8 +74,17 @@ endef
 define require_testnet_env
 	[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
 	[ -n "$$DEPLOYER_PRIVATE_KEY" ] || { echo "Missing DEPLOYER_PRIVATE_KEY"; exit 1; }; \
-	[ -n "$$TREASURY_OWNER" ] || { echo "Missing TREASURY_OWNER"; exit 1; }; \
-	[ -n "$$TREASURY_OWNER_PRIVATE_KEY" ] || { echo "Missing TREASURY_OWNER_PRIVATE_KEY"; exit 1; }; \
+	if [ "$${DEPLOY_TREASURY_MULTISIG:-false}" = "true" ]; then \
+		[ -n "$$TREASURY_MULTISIG_OWNER_1" ] || { echo "Missing TREASURY_MULTISIG_OWNER_1"; exit 1; }; \
+		if [ "$${PROPOSE_TREASURY_MULTISIG_SETUP:-true}" != "false" ]; then \
+			[ -n "$${TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY:-$$DEPLOYER_PRIVATE_KEY}" ] || { echo "Missing TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY or DEPLOYER_PRIVATE_KEY"; exit 1; }; \
+		fi; \
+	else \
+		[ -n "$$TREASURY_OWNER" ] || { echo "Missing TREASURY_OWNER"; exit 1; }; \
+		if [ "$${EXECUTE_OWNER_CONTROLLED_SETUP:-true}" != "false" ]; then \
+			if [ -z "$$TREASURY_OWNER_PRIVATE_KEY" ]; then echo "TREASURY_OWNER_PRIVATE_KEY not set; deploy script can only continue if TREASURY_OWNER is the deployer."; fi; \
+		fi; \
+	fi; \
 	[ -n "$$TREASURY_APPROVER" ] || { echo "Missing TREASURY_APPROVER"; exit 1; }; \
 	[ -n "$$TREASURY_OPERATOR" ] || { echo "Missing TREASURY_OPERATOR"; exit 1; }; \
 	[ -n "$$MEZO_MUSD_TOKEN" ] || { echo "Missing MEZO_MUSD_TOKEN"; exit 1; }; \
