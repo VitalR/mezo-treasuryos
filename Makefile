@@ -13,8 +13,9 @@ help:
 	@echo "Mezo TreasuryOS commands:"
 	@echo "  make build                        - compile contracts"
 	@echo "  make test                         - run contract tests"
-	@echo "  make coverage                     - run contract coverage"
-	@echo "  make coverage-report              - run contract coverage with lcov output"
+	@echo "  make coverage                     - run production contract coverage"
+	@echo "  make coverage-all                 - run raw coverage including scripts and test helpers"
+	@echo "  make coverage-report              - run production contract coverage with lcov output"
 	@echo "  make fmt                          - format contracts"
 	@echo "  make clean                        - clean Foundry artifacts"
 	@echo "  make anvil                        - start local Anvil node"
@@ -39,11 +40,15 @@ test:
 
 .PHONY: coverage
 coverage:
+	forge coverage --root $(CONTRACTS_ROOT) --offline --no-match-coverage "(script|test)"
+
+.PHONY: coverage-all
+coverage-all:
 	forge coverage --root $(CONTRACTS_ROOT) --offline
 
 .PHONY: coverage-report
 coverage-report:
-	forge coverage --root $(CONTRACTS_ROOT) --offline --report lcov
+	forge coverage --root $(CONTRACTS_ROOT) --offline --no-match-coverage "(script|test)" --report lcov
 
 .PHONY: fmt
 fmt:
