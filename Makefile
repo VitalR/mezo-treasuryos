@@ -22,6 +22,11 @@ help:
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
 	@echo "  make deploy-mezo-testnet          - deploy TreasuryOS stack to Mezo testnet"
 	@echo "  make deploy-mezo-testnet-verify   - deploy and verify on Mezo testnet Blockscout"
+	@echo "  make deploy-mezo-testnet-eoa      - deploy verified stack with EOA Treasury Account owner"
+	@echo "  make deploy-mezo-testnet-multisig - deploy verified stack with 1-of-1 TreasuryMultisig owner"
+	@echo "  make deploy-mezo-testnet-2of3     - deploy verified stack with 2-of-3 TreasuryMultisig owner"
+	@echo "  make deploy-mezo-testnet-external - deploy verified stack for external multisig/custody owner"
+	@echo "  make multisig-confirm-batch-mezo  - confirm a pending TreasuryMultisig setup batch"
 	@echo "  make verify-mezo-testnet-resume   - resume verification for the latest deployment"
 
 .PHONY: build
@@ -91,6 +96,17 @@ define require_testnet_env
 	[ -n "$$MEZO_BORROWER_OPERATIONS" ] || { echo "Missing MEZO_BORROWER_OPERATIONS"; exit 1; };
 endef
 
+define forge_deploy_testnet_verified
+	forge script $(DEPLOY_SCRIPT) \
+		--root $(CONTRACTS_ROOT) \
+		--rpc-url "$$MEZO_RPC_URL" \
+		--broadcast \
+		--verify \
+		--verifier blockscout \
+		--verifier-url "$(BLOCKSCOUT_API)" \
+		-vvvv
+endef
+
 .PHONY: check-env
 check-env:
 	$(call require_env_file)
@@ -118,14 +134,78 @@ deploy-mezo-testnet-verify:
 	$(call require_env_file)
 	@bash -lc '$(call load_env) \
 		$(call require_testnet_env) \
-		forge script $(DEPLOY_SCRIPT) \
-			--root $(CONTRACTS_ROOT) \
+		$(call forge_deploy_testnet_verified) \
+	'
+
+.PHONY: deploy-mezo-testnet-eoa deploy-mezo-testnet-eos
+deploy-mezo-testnet-eoa:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		export DEPLOY_TREASURY_MULTISIG=false; \
+		export EXECUTE_OWNER_CONTROLLED_SETUP=true; \
+		$(call require_testnet_env) \
+		[ -n "$$TREASURY_OWNER_PRIVATE_KEY" ] || { echo "Missing TREASURY_OWNER_PRIVATE_KEY for EOA setup execution"; exit 1; }; \
+		$(call forge_deploy_testnet_verified) \
+	'
+
+deploy-mezo-testnet-eos: deploy-mezo-testnet-eoa
+
+.PHONY: deploy-mezo-testnet-multisig
+deploy-mezo-testnet-multisig:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		if [ -z "$$TREASURY_MULTISIG_OWNER_1" ] && [ -n "$$TREASURY_OWNER" ]; then export TREASURY_MULTISIG_OWNER_1="$$TREASURY_OWNER"; fi; \
+		if [ -z "$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] && [ -n "$$TREASURY_OWNER_PRIVATE_KEY" ]; then export TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY="$$TREASURY_OWNER_PRIVATE_KEY"; fi; \
+		export DEPLOY_TREASURY_MULTISIG=true; \
+		export TREASURY_MULTISIG_THRESHOLD=1; \
+		unset TREASURY_MULTISIG_OWNER_2 TREASURY_MULTISIG_OWNER_3 TREASURY_MULTISIG_OWNER_4 TREASURY_MULTISIG_OWNER_5; \
+		export PROPOSE_TREASURY_MULTISIG_SETUP=true; \
+		[ -n "$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] || { echo "Missing TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY or TREASURY_OWNER_PRIVATE_KEY"; exit 1; }; \
+		$(call require_testnet_env) \
+		$(call forge_deploy_testnet_verified) \
+	'
+
+.PHONY: deploy-mezo-testnet-2of3
+deploy-mezo-testnet-2of3:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		if [ -z "$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] && [ -n "$$TREASURY_OWNER_PRIVATE_KEY" ]; then export TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY="$$TREASURY_OWNER_PRIVATE_KEY"; fi; \
+		export DEPLOY_TREASURY_MULTISIG=true; \
+		export TREASURY_MULTISIG_THRESHOLD=2; \
+		unset TREASURY_MULTISIG_OWNER_4 TREASURY_MULTISIG_OWNER_5; \
+		export PROPOSE_TREASURY_MULTISIG_SETUP=true; \
+		[ -n "$$TREASURY_MULTISIG_OWNER_1" ] || { echo "Missing TREASURY_MULTISIG_OWNER_1"; exit 1; }; \
+		[ -n "$$TREASURY_MULTISIG_OWNER_2" ] || { echo "Missing TREASURY_MULTISIG_OWNER_2"; exit 1; }; \
+		[ -n "$$TREASURY_MULTISIG_OWNER_3" ] || { echo "Missing TREASURY_MULTISIG_OWNER_3"; exit 1; }; \
+		[ -n "$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] || { echo "Missing TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY or TREASURY_OWNER_PRIVATE_KEY"; exit 1; }; \
+		$(call require_testnet_env) \
+		$(call forge_deploy_testnet_verified) \
+	'
+
+.PHONY: deploy-mezo-testnet-external
+deploy-mezo-testnet-external:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		export DEPLOY_TREASURY_MULTISIG=false; \
+		export EXECUTE_OWNER_CONTROLLED_SETUP=false; \
+		$(call require_testnet_env) \
+		$(call forge_deploy_testnet_verified) \
+	'
+
+.PHONY: multisig-confirm-batch-mezo
+multisig-confirm-batch-mezo:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		MULTISIG_ADDRESS="$${TREASURY_MULTISIG_ADDRESS:-$(MULTISIG_ADDRESS)}"; \
+		BATCH_ID_VALUE="$${BATCH_ID:-$(BATCH_ID)}"; \
+		SIGNER_KEY="$${SIGNER_PRIVATE_KEY:-$(SIGNER_PRIVATE_KEY)}"; \
+		[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+		[ -n "$$MULTISIG_ADDRESS" ] || { echo "Missing TREASURY_MULTISIG_ADDRESS or MULTISIG_ADDRESS=<address>"; exit 1; }; \
+		[ -n "$$BATCH_ID_VALUE" ] || { echo "Missing BATCH_ID=<id>"; exit 1; }; \
+		[ -n "$$SIGNER_KEY" ] || { echo "Missing SIGNER_PRIVATE_KEY=<private key>"; exit 1; }; \
+		cast send "$$MULTISIG_ADDRESS" "confirmBatchTransaction(uint256)" "$$BATCH_ID_VALUE" \
+			--private-key "$$SIGNER_KEY" \
 			--rpc-url "$$MEZO_RPC_URL" \
-			--broadcast \
-			--verify \
-			--verifier blockscout \
-			--verifier-url "$(BLOCKSCOUT_API)" \
-			-vvvv \
 	'
 
 .PHONY: verify-mezo-testnet-resume
