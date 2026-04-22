@@ -80,6 +80,29 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
     }
 
+    function test_Deposit_RefundsUnusedMUSDWhenPoolUsesPartialLiquidity() public {
+        _router.setAddLiquidityUsageBps(5000);
+
+        vm.prank(_OPERATOR);
+        uint256 _liquidity = _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+
+        assertEq(_liquidity, 50 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 550 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 50 ether);
+        assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 50 ether);
+        assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
+    }
+
+    function test_Deposit_UnexpectedSwapPathLengthReverts() public {
+        _router.setAddLiquidityUsageBps(5000);
+        _router.setSwapReturnPathLength(1);
+
+        vm.expectRevert(abi.encodeWithSelector(TigrisStablePoolHandler.UnexpectedSwapPathLength.selector, 1));
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+    }
+
     function test_Withdraw_OperatorUnwindsStablePoolBackToIdleMUSD() public {
         vm.prank(_OPERATOR);
         _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
@@ -92,6 +115,69 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 60 ether);
         assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 60 ether);
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
+    }
+
+    function test_Withdraw_NoLiquidityReverts() public {
+        vm.expectRevert(TigrisStablePoolHandler.ZeroLiquidity.selector);
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.withdraw(address(_treasuryAccount), address(_poolToken), 40 ether);
+    }
+
+    function test_RestoreLiquidityBuffer_UsesWorkflowWithdrawalPath() public {
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 350 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.disburseMUSD(address(0xABCD), 120 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        uint256 _restoredAmount = _treasuryAccount.restoreLiquidityBuffer(address(_poolToken), 80 ether);
+
+        assertEq(_restoredAmount, 70 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 200 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 280 ether);
+        assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 280 ether);
+    }
+
+    function test_WithdrawFromDestinationAndRepay_UsesWorkflowWithdrawalPath() public {
+        vm.prank(_APPROVER);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 220 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.disburseMUSD(address(0xABCD), 250 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        (uint256 _actualWithdrawAmount, uint256 _actualRepaidAmount) = _treasuryAccount.withdrawFromDestinationAndRepay(
+            address(_poolToken), 120 ether, 90 ether, _UPPER_HINT, _LOWER_HINT
+        );
+
+        assertEq(_actualWithdrawAmount, 120 ether);
+        assertEq(_actualRepaidAmount, 90 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 160 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 100 ether);
+        assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 100 ether);
+        assertEq(_treasuryAccount.positionTotalDebt(), 510 ether);
+    }
+
+    function test_ClaimYield_ReturnsZeroForStablePoolSleeve() public {
+        vm.prank(_OPERATOR);
+        uint256 _claimedYield = _allocationRouter.claimYield(address(_treasuryAccount), address(_poolToken));
+
+        assertEq(_claimedYield, 0);
+    }
+
+    function test_Metadata_ReturnsRouterAndPairedToken() public view {
+        assertEq(_handler.router(), address(_router));
+        assertEq(_handler.pairedToken(), address(_pairedStable));
+        assertEq(_handler.destination(), address(_poolToken));
+    }
+
+    function test_Handler_UnauthorizedDirectCallerReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(TigrisStablePoolHandler.UnauthorizedCaller.selector, _OPERATOR));
+
+        vm.prank(_OPERATOR);
+        _handler.deposit(address(_treasuryAccount), _OPERATOR, 50 ether);
     }
 
     function test_GetTreasuryComposition_ReturnsTigrisStablePoolMetadata() public {

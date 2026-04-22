@@ -66,6 +66,63 @@ contract MUSDSavingsRateHandlerTest is Test {
         assertEq(_account.allocationRouter(), address(_allocationRouter));
     }
 
+    function test_SetHandler_ReplacesPreviousHandlerAndUpdatesAuthorization() public {
+        MUSDSavingsRateHandler _replacementHandler =
+            new MUSDSavingsRateHandler(_mockSavingsVault, address(_allocationRouter));
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.setHandler(address(_mockSavingsVault), _replacementHandler);
+
+        assertFalse(_allocationRouter.isAuthorizedHandler(address(_savingsVaultHandler)));
+        assertTrue(_allocationRouter.isAuthorizedHandler(address(_replacementHandler)));
+        assertEq(_allocationRouter.handlers(address(_mockSavingsVault)), address(_replacementHandler));
+    }
+
+    function test_SetHandler_InvalidDestinationReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(AllocationRouter.InvalidDestination.selector, address(0)));
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.setHandler(address(0), _savingsVaultHandler);
+    }
+
+    function test_SetHandler_DestinationMismatchReverts() public {
+        address _wrongDestination = address(0xBEEF);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AllocationRouter.HandlerDestinationMismatch.selector,
+                _wrongDestination,
+                address(_savingsVaultHandler),
+                address(_mockSavingsVault)
+            )
+        );
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.setHandler(_wrongDestination, _savingsVaultHandler);
+    }
+
+    function test_RemoveHandler_RemovesDestinationAndBlocksRouting() public {
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.removeHandler(address(_mockSavingsVault));
+
+        assertEq(_allocationRouter.handlers(address(_mockSavingsVault)), address(0));
+        assertFalse(_allocationRouter.isAuthorizedHandler(address(_savingsVaultHandler)));
+
+        vm.expectRevert(abi.encodeWithSelector(AllocationRouter.MissingHandler.selector, address(_mockSavingsVault)));
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_mockSavingsVault), 100 ether);
+    }
+
+    function test_RemoveHandler_MissingDestinationReverts() public {
+        address _missingDestination = address(0xBEEF);
+
+        vm.expectRevert(abi.encodeWithSelector(AllocationRouter.MissingHandler.selector, _missingDestination));
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.removeHandler(_missingDestination);
+    }
+
     function test_Deposit_OperatorCanDepositIntoSavingsVaultWithinPolicy() public {
         vm.expectEmit(true, true, false, true);
         emit MUSDSavingsRateHandler.SavingsDepositRouted(address(_treasuryAccount), _OPERATOR, 100 ether, 100 ether);

@@ -81,6 +81,114 @@ contract ExternalMUSDSavingsRateMockTest is Test {
         assertEq(_savingsRate.claimableYield(_alice), 0);
     }
 
+    function test_Withdraw_ClaimsYieldAndReturnsPrincipal() public {
+        vm.startPrank(_alice);
+        _musdToken.approve(address(_savingsRate), 200 ether);
+        _savingsRate.deposit(200 ether);
+        vm.stopPrank();
+
+        vm.prank(_owner);
+        _musdToken.approve(address(_savingsRate), 20 ether);
+
+        vm.prank(_owner);
+        _savingsRate.fundYield(20 ether);
+
+        vm.prank(_alice);
+        _savingsRate.withdraw(200 ether);
+
+        assertEq(_musdToken.balanceOf(_alice), 520 ether);
+        assertEq(_savingsRate.balanceOf(_alice), 0);
+        assertEq(_savingsRate.claimableYield(_alice), 0);
+    }
+
+    function test_FundYield_BuffersWhenNoSharesAndDistributesAfterDeposit() public {
+        vm.prank(_owner);
+        _musdToken.approve(address(_savingsRate), 10 ether);
+
+        vm.prank(_owner);
+        _savingsRate.fundYield(10 ether);
+
+        assertEq(_savingsRate.pendingYield(), 10 ether);
+        assertEq(_savingsRate.yieldIndex(), 0);
+
+        vm.startPrank(_alice);
+        _musdToken.approve(address(_savingsRate), 100 ether);
+        _savingsRate.deposit(100 ether);
+        vm.stopPrank();
+
+        vm.prank(_owner);
+        _musdToken.approve(address(_savingsRate), 10 ether);
+
+        vm.prank(_owner);
+        _savingsRate.fundYield(10 ether);
+
+        vm.prank(_alice);
+        uint256 _claimed = _savingsRate.claimYield();
+
+        assertEq(_claimed, 20 ether);
+        assertEq(_savingsRate.pendingYield(), 0);
+    }
+
+    function test_FundYieldForAnnualRateBps_ReturnsZeroWhenNoShares() public {
+        vm.prank(_owner);
+        uint256 _funded = _savingsRate.fundYieldForAnnualRateBps(500, 7 days);
+
+        assertEq(_funded, 0);
+        assertEq(_savingsRate.lastYieldFundedAmount(), 0);
+        assertEq(_savingsRate.lastYieldFundedAt(), 0);
+    }
+
+    function test_Transfer_CheckpointsYieldBeforeMovingShares() public {
+        vm.startPrank(_alice);
+        _musdToken.approve(address(_savingsRate), 100 ether);
+        _savingsRate.deposit(100 ether);
+        vm.stopPrank();
+
+        vm.prank(_owner);
+        _musdToken.approve(address(_savingsRate), 20 ether);
+
+        vm.prank(_owner);
+        _savingsRate.fundYield(20 ether);
+
+        vm.prank(_alice);
+        _savingsRate.transfer(_bob, 50 ether);
+
+        vm.prank(_owner);
+        _musdToken.approve(address(_savingsRate), 20 ether);
+
+        vm.prank(_owner);
+        _savingsRate.fundYield(20 ether);
+
+        vm.prank(_alice);
+        uint256 _aliceClaimed = _savingsRate.claimYield();
+
+        vm.prank(_bob);
+        uint256 _bobClaimed = _savingsRate.claimYield();
+
+        assertEq(_aliceClaimed, 30 ether);
+        assertEq(_bobClaimed, 10 ether);
+    }
+
+    function test_RevertsForInvalidAmountsAndNoShares() public {
+        vm.expectRevert(ExternalMUSDSavingsRateMock.ZeroAmount.selector);
+        _savingsRate.deposit(0);
+
+        vm.expectRevert(ExternalMUSDSavingsRateMock.ZeroAmount.selector);
+        _savingsRate.withdraw(0);
+
+        vm.expectRevert(ExternalMUSDSavingsRateMock.InsufficientBalance.selector);
+        _savingsRate.withdraw(1);
+
+        vm.expectRevert(ExternalMUSDSavingsRateMock.ZeroAmount.selector);
+        _savingsRate.quoteYieldForAnnualRateBps(0, 7 days);
+
+        vm.expectRevert(ExternalMUSDSavingsRateMock.ZeroAmount.selector);
+        _savingsRate.quoteYieldForAnnualRateBps(500, 0);
+
+        vm.expectRevert(ExternalMUSDSavingsRateMock.NoShares.selector);
+        _savingsRate.claimYield();
+    }
+
     function test_QuoteYieldForAnnualRateBps_ReturnsWeeklyAmountForFivePercentAnnualRate() public {
         vm.startPrank(_alice);
         _musdToken.approve(address(_savingsRate), 400 ether);

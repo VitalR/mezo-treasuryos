@@ -15,10 +15,22 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     MockMUSDToken public immutable pairedToken;
     MockTigrisLPToken public immutable lpToken;
 
+    uint256 public addLiquidityUsageBps = 10_000;
+    uint256 public swapReturnPathLength = 2;
+
     constructor(MockMUSDToken _musdToken, MockMUSDToken _pairedToken, MockTigrisLPToken _lpToken) {
         musdToken = _musdToken;
         pairedToken = _pairedToken;
         lpToken = _lpToken;
+    }
+
+    function setAddLiquidityUsageBps(uint256 _addLiquidityUsageBps) external {
+        require(_addLiquidityUsageBps <= 10_000, "invalid usage");
+        addLiquidityUsageBps = _addLiquidityUsageBps;
+    }
+
+    function setSwapReturnPathLength(uint256 _swapReturnPathLength) external {
+        swapReturnPathLength = _swapReturnPathLength;
     }
 
     function swapExactTokensForTokens(uint256 _amountIn, uint256, address[] calldata _path, address _to, uint256)
@@ -30,9 +42,13 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
         IERC20(_path[0]).safeTransferFrom(msg.sender, address(this), _amountIn);
         MockMUSDToken(_path[1]).mint(_to, _amountIn);
 
-        amounts = new uint256[](2);
-        amounts[0] = _amountIn;
-        amounts[1] = _amountIn;
+        amounts = new uint256[](swapReturnPathLength);
+        if (swapReturnPathLength > 0) {
+            amounts[0] = _amountIn;
+        }
+        if (swapReturnPathLength > 1) {
+            amounts[1] = _amountIn;
+        }
     }
 
     function addLiquidity(
@@ -45,11 +61,11 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
         address _to,
         uint256
     ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
-        IERC20(_tokenA).safeTransferFrom(msg.sender, address(this), _amountADesired);
-        IERC20(_tokenB).safeTransferFrom(msg.sender, address(this), _amountBDesired);
+        amountA = (_amountADesired * addLiquidityUsageBps) / 10_000;
+        amountB = (_amountBDesired * addLiquidityUsageBps) / 10_000;
 
-        amountA = _amountADesired;
-        amountB = _amountBDesired;
+        IERC20(_tokenA).safeTransferFrom(msg.sender, address(this), amountA);
+        IERC20(_tokenB).safeTransferFrom(msg.sender, address(this), amountB);
         liquidity = amountA + amountB;
 
         lpToken.mint(_to, liquidity);

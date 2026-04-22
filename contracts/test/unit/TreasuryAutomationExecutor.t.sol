@@ -123,6 +123,30 @@ contract TreasuryAutomationExecutorTest is Test {
         );
     }
 
+    function test_Unpause_RestoresWorkflowExecution() public {
+        vm.prank(_TREASURY_ADMIN);
+        _automationExecutor.pause();
+
+        vm.prank(_TREASURY_ADMIN);
+        _automationExecutor.unpause();
+
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_APPROVER);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_savingsVault), 250 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.disburseMUSD(address(0xABCD), 200 ether);
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        uint256 _restoredAmount =
+            _automationExecutor.restoreBufferFromSavings(_treasuryAccount, address(_savingsVault), 50 ether);
+
+        assertEq(_restoredAmount, 50 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 200 ether);
+    }
+
     function test_SetAutomationOperator_OwnerUpdatesAuthorization() public {
         vm.prank(_TREASURY_ADMIN);
         _automationExecutor.setAutomationOperator(_STRANGER, true);

@@ -180,6 +180,27 @@ contract TreasuryAccountTest is Test {
         assertEq(address(_account.borrowerOperations()), address(_borrowerOperations));
     }
 
+    function test_UnconfiguredProtocolViews_ReturnZeroState() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
+
+        assertEq(address(_account.governableVariables()), address(0));
+        assertEq(address(_account.troveManager()), address(0));
+        assertEq(address(_account.priceFeed()), address(0));
+        assertEq(_account.positionTotalDebt(), 0);
+        assertEq(_account.positionCollateral(), 0);
+        assertEq(_account.positionGasCompensation(), 0);
+        assertEq(_account.positionCloseDebt(), 0);
+        assertFalse(_account.positionActive());
+        assertEq(_account.collateralPrice(), 0);
+        assertEq(_account.collateralValueMUSD(), 0);
+        assertEq(_account.collateralRatioBps(), 0);
+        assertFalse(_account.riskDataAvailable());
+        assertFalse(_account.isBelowWarningRatio());
+        assertFalse(_account.isBelowCriticalRatio());
+        assertEq(_account.warningThresholdPrice(), 0);
+        assertEq(_account.criticalThresholdPrice(), 0);
+    }
+
     function test_AcceptOwnership_PendingOwnerSyncsPolicyTreasuryAdmin() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
         address _nextTreasuryAdmin = address(0xDD01);
@@ -194,6 +215,19 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_account.owner(), _nextTreasuryAdmin);
         assertEq(_treasuryAdmin, _nextTreasuryAdmin);
+    }
+
+    function test_AcceptOwnership_NonPendingOwnerReverts() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+        address _nextTreasuryAdmin = address(0xDD01);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.transferOwnership(_nextTreasuryAdmin);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryAccount.NotPendingOwner.selector, _OPERATOR));
+
+        vm.prank(_OPERATOR);
+        _account.acceptOwnership();
     }
 
     function test_OpenTrove_OperatorCanOpenWithinApprovalThreshold() public {
@@ -526,6 +560,20 @@ contract TreasuryAccountTest is Test {
         _account.setBorrowerOperations(address(_borrowerOperations));
     }
 
+    function test_SetConfig_ZeroAddressesRevert() public {
+        TreasuryAccount _account = _deployTreasuryAccount(_defaultConfig());
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryAccount.InvalidBorrowerOperations.selector, address(0)));
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.setBorrowerOperations(address(0));
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryAccount.InvalidAllocationRouter.selector, address(0)));
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.setAllocationRouter(address(0));
+    }
+
     function test_WithdrawFromDestination_RestoresIdleBalance() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 
@@ -560,6 +608,28 @@ contract TreasuryAccountTest is Test {
         assertEq(_restoredAmount, 50 ether);
         assertEq(_account.idleMUSD(), 200 ether);
         assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 300 ether);
+    }
+
+    function test_RestoreLiquidityBuffer_ReturnsZeroWithoutShortfallOrAllocation() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        uint256 _restoredWithoutShortfall = _account.restoreLiquidityBuffer(address(_mockSavingsVault), 80 ether);
+
+        assertEq(_restoredWithoutShortfall, 0);
+        assertEq(_account.idleMUSD(), 600 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.disburseMUSD(_OPERATING_RECIPIENT, 450 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        uint256 _restoredWithoutAllocation = _account.restoreLiquidityBuffer(address(_mockSavingsVault), 80 ether);
+
+        assertEq(_restoredWithoutAllocation, 0);
+        assertEq(_account.idleMUSD(), 150 ether);
     }
 
     function test_RestoreLiquidityBuffer_AutomationExecutorRestoresWithinConfiguredLimit() public {
@@ -628,6 +698,22 @@ contract TreasuryAccountTest is Test {
         assertEq(_account.idleMUSD(), 140 ether);
         assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 130 ether);
         assertEq(_account.positionTotalDebt(), 500 ether);
+    }
+
+    function test_WithdrawFromDestinationAndRepay_ReturnsZeroWithoutAllocation() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        (uint256 _actualWithdrawAmount, uint256 _actualRepaidAmount) = _account.withdrawFromDestinationAndRepay(
+            address(_mockSavingsVault), 120 ether, 90 ether, _UPPER_HINT, _LOWER_HINT
+        );
+
+        assertEq(_actualWithdrawAmount, 0);
+        assertEq(_actualRepaidAmount, 0);
+        assertEq(_account.positionTotalDebt(), 600 ether);
     }
 
     function test_WithdrawFromDestinationAndRepay_AutomationExecutorRepaysWithinConfiguredLimit() public {
