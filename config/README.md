@@ -68,13 +68,16 @@ TreasuryOS-specific deployment and scenario variables are also defined there for
 
 ### Treasury Owner Configuration
 
-There are three supported deployment owner modes:
+There are four supported deployment owner paths:
 
-- Existing EOA owner: set `TREASURY_OWNER`, `TREASURY_OWNER_PRIVATE_KEY`, and keep `EXECUTE_OWNER_CONTROLLED_SETUP=true`.
-- Existing external multisig/custody owner: set `TREASURY_OWNER`, set `EXECUTE_OWNER_CONTROLLED_SETUP=false`, then execute setup through the external wallet.
-- Deployed TreasuryOS multisig owner: set `DEPLOY_TREASURY_MULTISIG=true`, configure `TREASURY_MULTISIG_OWNER_1..5`, set `TREASURY_MULTISIG_THRESHOLD`, and provide `TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY` when proposing the setup batch during deployment.
+- Development EOA owner: use `make deploy-mezo-testnet-eoa`.
+- Default product onboarding with single-signer `TreasuryMultisig`: use `make deploy-mezo-testnet-multisig`.
+- Two-of-three `TreasuryMultisig`: use `make deploy-mezo-testnet-2of3`, then confirm the setup batch with a second signer.
+- Existing external multisig/custody owner: use `make deploy-mezo-testnet-external`, then execute `ownerSetup.calls` through the external wallet.
 
 For the deployed multisig mode, the deployment script records `ownerSetup.ownerSetupBatchId` in the manifest when a setup batch is proposed.
+
+See `docs/DEPLOYMENT.md` for the exact environment variables and deployment sequence for each mode.
 
 ---
 

@@ -128,7 +128,11 @@ The script:
 
 ## Treasury Owner Modes
 
-The deployment script supports three control modes.
+The deployment script supports four practical ownership paths. The full operational guide lives in:
+
+- `docs/DEPLOYMENT.md`
+
+Use `make deploy-mezo-testnet-eoa` for fast development. Use `make deploy-mezo-testnet-multisig` as the default product onboarding path once deployment friction is acceptable.
 
 ### Existing EOA Owner
 
@@ -141,34 +145,71 @@ TREASURY_OWNER_PRIVATE_KEY=<owner private key>
 EXECUTE_OWNER_CONTROLLED_SETUP=true
 ```
 
-The script deploys the stack and executes the owner-controlled setup calls directly.
+Run:
+
+```bash
+make deploy-mezo-testnet-eoa
+```
+
+The script deploys and verifies the stack and executes the owner-controlled setup calls directly.
+
+### Single-Signer TreasuryMultisig Owner
+
+Set:
+
+```bash
+TREASURY_MULTISIG_OWNER_1=<initial signer>
+TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY=<initial signer private key>
+```
+
+Run:
+
+```bash
+make deploy-mezo-testnet-multisig
+```
+
+This deploys and verifies `TreasuryMultisig`, uses it as the Treasury Account owner, sets threshold `1`, proposes the owner setup batch, and executes it immediately.
+
+### Two-Of-Three TreasuryMultisig Owner
+
+Set:
+
+```bash
+TREASURY_MULTISIG_OWNER_1=<signer 1>
+TREASURY_MULTISIG_OWNER_2=<signer 2>
+TREASURY_MULTISIG_OWNER_3=<signer 3>
+TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY=<signer 1 private key>
+```
+
+Run:
+
+```bash
+make deploy-mezo-testnet-2of3
+```
+
+The deployment proposer creates and confirms the setup batch. A second signer must confirm it:
+
+```bash
+make multisig-confirm-batch-mezo \
+  MULTISIG_ADDRESS=<treasury multisig address> \
+  BATCH_ID=<owner setup batch id> \
+  SIGNER_PRIVATE_KEY=<second signer private key>
+```
 
 ### Existing External Multisig / Custody Owner
 
 Set:
 
 ```bash
-DEPLOY_TREASURY_MULTISIG=false
 TREASURY_OWNER=<external multisig or custody address>
-EXECUTE_OWNER_CONTROLLED_SETUP=false
 ```
 
-The script deploys the stack with the external account as owner, but does not execute owner-only setup calls. Those calls must be executed through the external multisig/custody workflow.
-
-### Deployed TreasuryMultisig Owner
-
-Set:
+Run:
 
 ```bash
-DEPLOY_TREASURY_MULTISIG=true
-TREASURY_MULTISIG_OWNER_1=<signer 1>
-TREASURY_MULTISIG_OWNER_2=<signer 2>
-TREASURY_MULTISIG_OWNER_3=<signer 3>
-TREASURY_MULTISIG_THRESHOLD=2
-TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY=<one signer private key>
-PROPOSE_TREASURY_MULTISIG_SETUP=true
+make deploy-mezo-testnet-external
 ```
 
-The script deploys `TreasuryMultisig`, uses it as the Treasury Account owner, and proposes a setup batch containing the required router, borrower operations, policy, and automation configuration calls. If the threshold is `1`, the batch executes immediately. If the threshold is greater than `1`, the remaining signer confirmations must be submitted after deployment.
+The script deploys and verifies the stack with the external account as owner, but does not execute owner-only setup calls. Those calls must be executed through the external multisig/custody workflow.
 
 The deployment manifest includes `ownerSetup.calls` with target/value/calldata for the owner-controlled setup sequence. This is useful when the owner is an external multisig/custody account or when a proposed `TreasuryMultisig` batch still needs additional confirmations.

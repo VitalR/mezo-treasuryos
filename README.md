@@ -100,6 +100,19 @@ The product now proves one allocation routing model with two concrete Mezo-nativ
 
 ---
 
+## Deployment Modes
+
+TreasuryOS supports four Treasury Account ownership paths:
+
+- development EOA owner: `make deploy-mezo-testnet-eoa`
+- default product onboarding with single-signer `TreasuryMultisig`: `make deploy-mezo-testnet-multisig`
+- two-of-three `TreasuryMultisig`: `make deploy-mezo-testnet-2of3`
+- external multisig or custody owner: `make deploy-mezo-testnet-external`
+
+The recommended path is EOA for fast development and single-signer `TreasuryMultisig` for final demo/product onboarding. See `docs/DEPLOYMENT.md` for exact environment variables and setup steps.
+
+---
+
 ## Product Components
 
 ### Treasury Account

@@ -19,6 +19,7 @@ These documents reflect the current product direction:
 - `PRODUCT_VISION.md` — product thesis, positioning, customer, and product boundaries
 - `PROJECT_SPEC.md` — V1 scope, required workflows, policies, and product requirements
 - `ARCHITECTURE.md` — V1 system shape, control boundaries, and core components
+- `DEPLOYMENT.md` — testnet deployment modes, ownership paths, and Makefile commands
 - `ROADMAP.md` — build sequence and scope discipline for a 6-week implementation
 - `JUDGE_PITCH.md` — compressed hackathon-facing narrative
 
