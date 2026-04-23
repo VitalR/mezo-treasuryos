@@ -188,6 +188,13 @@ If borrow origination or position ownership is weak or fake, the whole product b
 
 Do not expand beyond the current sleeve set unless both sleeves are fully convincing.
 
+Before Tigris is used in the final demo allocation path, add slippage/min-out controls to `TigrisStablePoolHandler`.
+The required protection is standard Uniswap-style execution hygiene:
+
+- minimum paired token output when swapping MUSD into the paired stable
+- minimum liquidity minted when adding stable-pool liquidity
+- minimum MUSD returned when removing liquidity and swapping paired tokens back
+
 ---
 
 ## Phase 4 — Treasury Operations And Automation
