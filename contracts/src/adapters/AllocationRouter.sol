@@ -12,6 +12,10 @@ import { IAllocationRouterAuthority } from "../interfaces/IAllocationRouterAutho
 /// @dev The Treasury Account trusts one router address. The router, in turn, maps many destinations to
 ///      many handler contracts so TreasuryOS can support multiple sleeves without changing Treasury Account custody.
 contract AllocationRouter is Ownable2Step, IAllocationRouterAuthority {
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when a destination is assigned to a handler.
     /// @param destination Destination governed by the handler.
     /// @param handler Handler registered for the destination.
@@ -20,6 +24,10 @@ contract AllocationRouter is Ownable2Step, IAllocationRouterAuthority {
     /// @param destination Destination that no longer has a registered handler.
     /// @param handler Handler that was removed.
     event HandlerRemoved(address indexed destination, address indexed handler);
+
+    // =============================================================
+    // Errors
+    // =============================================================
 
     /// @notice Reverts when the destination is zero.
     /// @param destination Invalid destination address.
@@ -40,14 +48,26 @@ contract AllocationRouter is Ownable2Step, IAllocationRouterAuthority {
     /// @param treasuryAccount Treasury Account that must originate the forwarded call.
     error UnauthorizedForwarder(address caller, address treasuryAccount);
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     /// @notice Maps a treasury destination to the handler that can operate it.
     mapping(address destination => address handler) public handlers;
     /// @notice Tracks how many destinations reference a given handler so Treasury Accounts can authorize handlers
     /// safely.
     mapping(address handler => uint256 count) private handlerReferenceCounts;
 
+    // =============================================================
+    // Constructor
+    // =============================================================
+
     /// @param _owner Initial owner responsible for router administration.
     constructor(address _owner) Ownable(_owner) { }
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @notice Registers or replaces the handler for a destination.
     /// @param _destination Destination whose handler is being configured.

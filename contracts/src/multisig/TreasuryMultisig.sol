@@ -6,6 +6,10 @@ pragma solidity 0.8.34;
 /// @dev This contract controls execution approvals only. It intentionally does not encode treasury policy,
 /// liquidity buffers, allocation caps, or automation thresholds; those remain in TreasuryPolicyEngine.
 contract TreasuryMultisig {
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when the multisig is initialized.
     /// @param owners Initial signer set.
     /// @param threshold Required confirmation threshold.
@@ -124,6 +128,10 @@ contract TreasuryMultisig {
     /// @param value Amount received.
     event NativeValueReceived(address indexed sender, uint256 value);
 
+    // =============================================================
+    // Errors
+    // =============================================================
+
     /// @notice Raised when a caller is not a current signer.
     /// @param caller Unauthorized caller.
     error NotOwner(address caller);
@@ -183,6 +191,10 @@ contract TreasuryMultisig {
     /// @notice Raised when timing parameters would make threshold confirmations impractical.
     error InvalidTimingParams();
 
+    // =============================================================
+    // Types
+    // =============================================================
+
     /// @notice Single transaction proposal.
     struct Transaction {
         address proposer;
@@ -219,6 +231,10 @@ contract TreasuryMultisig {
         mapping(address owner => uint64 generation) rejectedAtGeneration;
     }
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     /// @notice Current signer set.
     address[] private owners;
     /// @notice Current signer status.
@@ -237,6 +253,10 @@ contract TreasuryMultisig {
     Transaction[] private transactions;
     BatchTransaction[] private batchTransactions;
 
+    // =============================================================
+    // Modifiers
+    // =============================================================
+
     /// @notice Restricts execution to current signers.
     modifier onlyOwner() {
         _requireOwner(msg.sender);
@@ -248,6 +268,10 @@ contract TreasuryMultisig {
         _requireSelf();
         _;
     }
+
+    // =============================================================
+    // Constructor
+    // =============================================================
 
     /// @param _owners Initial signer set.
     /// @param _threshold Required confirmation threshold.
@@ -262,10 +286,18 @@ contract TreasuryMultisig {
         emit TreasuryMultisigInitialized(_owners, _threshold, _sigDelay, _maxPending);
     }
 
+    // =============================================================
+    // Receive
+    // =============================================================
+
     /// @notice Accepts native value accidentally or intentionally sent to the multisig.
     receive() external payable {
         emit NativeValueReceived(msg.sender, msg.value);
     }
+
+    // =============================================================
+    // Transaction Flow
+    // =============================================================
 
     /// @notice Proposes a single transaction and auto-confirms it by the proposer.
     /// @param _target Target contract to call.
@@ -509,6 +541,10 @@ contract TreasuryMultisig {
         emit BatchRejectionRevoked(_batchId, msg.sender);
     }
 
+    // =============================================================
+    // Signer Administration
+    // =============================================================
+
     /// @notice Adds a new signer. Must be executed by the multisig itself.
     /// @param _owner Signer to add.
     /// @param _threshold New threshold after the signer is added.
@@ -583,6 +619,10 @@ contract TreasuryMultisig {
         sensitiveSelectors[_target][_functionSelector] = _sensitive;
         emit SensitiveSelectorUpdated(_target, _functionSelector, _sensitive);
     }
+
+    // =============================================================
+    // View Functions
+    // =============================================================
 
     /// @notice Returns current signer addresses.
     /// @return Current signer set.
@@ -676,6 +716,10 @@ contract TreasuryMultisig {
         require(_batchId < batchTransactions.length, InvalidBatch(_batchId));
         return _countBatchConfirmations(batchTransactions[_batchId]);
     }
+
+    // =============================================================
+    // Internal Functions
+    // =============================================================
 
     /// @notice Initializes signer storage.
     /// @param _owners Initial signer set.

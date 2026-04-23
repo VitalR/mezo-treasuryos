@@ -12,6 +12,10 @@ import { TreasuryAccount } from "./TreasuryAccount.sol";
 /// @dev This executor never custody assets and intentionally avoids arbitrary multicall. Each method maps to a
 /// specific treasury workflow that is independently enforced by Treasury Account policy.
 contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when an automation operator authorization changes.
     /// @param operator Automation operator whose access changed.
     /// @param authorized New authorization state.
@@ -47,6 +51,10 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
         uint256 actualRepaidAmount
     );
 
+    // =============================================================
+    // Errors
+    // =============================================================
+
     /// @notice Raised when an automation operator address is zero.
     /// @param operator Invalid operator address.
     error InvalidAutomationOperator(address operator);
@@ -63,11 +71,23 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
     /// @param caller Unauthorized caller.
     error UnauthorizedAutomationCaller(address caller);
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     /// @notice Tracks which callers may trigger automation workflows through this executor.
     mapping(address operator => bool authorized) public automationOperators;
 
+    // =============================================================
+    // Constructor
+    // =============================================================
+
     /// @param _owner Initial owner responsible for operator administration and pause control.
     constructor(address _owner) Ownable(_owner) { }
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @notice Authorizes or revokes an automation operator.
     /// @param _operator Automation caller whose access is being updated.
@@ -147,6 +167,10 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
             actualRepaidAmount
         );
     }
+
+    // =============================================================
+    // Internal Functions
+    // =============================================================
 
     /// @notice Reverts unless the caller is the owner or an authorized automation operator.
     function _requireAuthorizedAutomationCaller() internal view {

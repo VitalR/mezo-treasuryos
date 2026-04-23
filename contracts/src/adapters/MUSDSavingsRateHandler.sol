@@ -8,6 +8,10 @@ import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 /// @title MUSDSavingsRateHandler
 /// @notice Single-sleeve allocation handler that routes governed MUSD into the configured MUSDSavingsRate destination.
 contract MUSDSavingsRateHandler is IAllocationHandler {
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when TreasuryOS routes idle MUSD into MUSDSavingsRate.
     event SavingsDepositRouted(address indexed treasuryAccount, address indexed actor, uint256 amount, uint256 shares);
 
@@ -18,14 +22,26 @@ contract MUSDSavingsRateHandler is IAllocationHandler {
     /// @notice Emitted when TreasuryOS claims yield from MUSDSavingsRate back into idle treasury balance.
     event SavingsYieldClaimed(address indexed treasuryAccount, address indexed actor, uint256 amount);
 
+    // =============================================================
+    // Errors
+    // =============================================================
+
     error InvalidSavingsVault(address savingsVault);
     error InvalidAllocationRouter(address allocationRouter);
     error InvalidTreasuryAccount(address treasuryAccount);
     error InvalidAmount(uint256 amount);
     error UnauthorizedCaller(address caller);
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     IMUSDSavingsRate public immutable savingsVault;
     address public immutable allocationRouter;
+
+    // =============================================================
+    // Constructor
+    // =============================================================
 
     /// @param _savingsVault Savings destination used for governed allocation.
     /// @param _allocationRouter Router allowed to dispatch calls to this handler.
@@ -36,6 +52,10 @@ contract MUSDSavingsRateHandler is IAllocationHandler {
         savingsVault = _savingsVault;
         allocationRouter = _allocationRouter;
     }
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @inheritdoc IAllocationHandler
     function destination() external view returns (address) {

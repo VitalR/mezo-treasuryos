@@ -13,11 +13,19 @@ import { ITigrisStablePoolHandlerMetadata } from "../interfaces/ITigrisStablePoo
 /// token, then adding liquidity through the Tigris router. LP tokens remain owned by the Treasury Account.
 /// @dev Router function signatures follow Mezo developer documentation examples for swap and add-liquidity flows.
 contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandlerMetadata {
+    // =============================================================
+    // Types
+    // =============================================================
+
     struct DepositOutcome {
         uint256 pairedReceived;
         uint256 liquidityMinted;
         uint256 refundMUSD;
     }
+
+    // =============================================================
+    // Events
+    // =============================================================
 
     event StablePoolDepositRouted(
         address indexed treasuryAccount,
@@ -37,6 +45,10 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         uint256 musdReturned
     );
 
+    // =============================================================
+    // Errors
+    // =============================================================
+
     error InvalidAllocationRouter(address allocationRouter);
     error InvalidDestination(address destination);
     error InvalidRouter(address router);
@@ -47,12 +59,20 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     error UnauthorizedCaller(address caller);
     error UnexpectedSwapPathLength(uint256 pathLength);
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     address public immutable allocationRouter;
     ITigrisBasicRouter internal immutable tigrisRouter;
     address public immutable override destination;
     IERC20 public immutable musdToken;
     IERC20 internal immutable pairedStableToken;
     uint256 public immutable deadlineWindow;
+
+    // =============================================================
+    // Constructor
+    // =============================================================
 
     /// @param _allocationRouter Router allowed to dispatch calls to this handler.
     /// @param _router Tigris router used for swap and liquidity actions.
@@ -81,6 +101,10 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         pairedStableToken = _pairedToken;
         deadlineWindow = _deadlineWindow;
     }
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @inheritdoc ITigrisStablePoolHandlerMetadata
     function pairedToken() external view returns (address) {
@@ -230,6 +254,10 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     function claimYield(address, address) external pure returns (uint256 amount) {
         amount = 0;
     }
+
+    // =============================================================
+    // Internal Functions
+    // =============================================================
 
     function _depositIntoStablePool(address _treasuryAccount, uint256 _musdToSwap, uint256 _musdToPair)
         internal

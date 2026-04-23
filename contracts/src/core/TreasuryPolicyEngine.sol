@@ -6,6 +6,10 @@ import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 /// @title TreasuryPolicyEngine
 /// @notice Enforces TreasuryOS internal controls for Treasury Account actions.
 contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when a Treasury Account is initialized in the policy engine.
     event AccountPolicyInitialized(
         address indexed account,
@@ -42,6 +46,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     event TreasuryAdminUpdated(
         address indexed account, address indexed previousTreasuryAdmin, address indexed newTreasuryAdmin
     );
+
+    // =============================================================
+    // Errors
+    // =============================================================
 
     /// @notice Raised when policy initialization is attempted more than once for the same account.
     /// @param account Treasury Account already initialized in the policy engine.
@@ -118,6 +126,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param actor Caller attempting the action.
     error UnauthorizedActor(address account, address actor);
 
+    // =============================================================
+    // Types
+    // =============================================================
+
     /// @notice Per-account treasury policy state enforced by the policy engine.
     /// @param treasuryAdmin Treasury administrator for the account.
     /// @param operator Operator allowed to execute lower-risk treasury actions.
@@ -147,6 +159,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         bool initialized;
     }
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     /// @notice Policy configuration stored per Treasury Account.
     mapping(address account => AccountPolicy policy) private accountPolicies;
     /// @notice Destination approval state stored per Treasury Account.
@@ -155,6 +171,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     mapping(address account => mapping(address destination => uint256 cap)) private destinationCaps;
     /// @notice Treasury Account factory allowed to initialize new accounts.
     address public factory;
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @inheritdoc ITreasuryPolicyEngine
     function setFactory(address _factory) external {
@@ -517,6 +537,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         emit PauseUpdated(_account, _paused);
     }
 
+    // =============================================================
+    // View Functions
+    // =============================================================
+
     /// @inheritdoc ITreasuryPolicyEngine
     function isDestinationApproved(address _account, address _destination) external view returns (bool) {
         return approvedDestinations[_account][_destination];
@@ -589,6 +613,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
             policy.allowAutoDebtRepay
         );
     }
+
+    // =============================================================
+    // Private Functions
+    // =============================================================
 
     /// @notice Returns initialized policy state for an account or reverts if the account is unknown.
     /// @param _account Treasury Account being checked.

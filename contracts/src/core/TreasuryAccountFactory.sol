@@ -12,6 +12,10 @@ import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 /// @title TreasuryAccountFactory
 /// @notice Deploys and initializes client-isolated Treasury Accounts recognized by TreasuryOS.
 contract TreasuryAccountFactory is Ownable2Step, Pausable {
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when a treasury administrator is approved or revoked for official TreasuryOS onboarding.
     event TreasuryAdminApprovalUpdated(address indexed treasuryAdmin, bool approved);
     /// @notice Emitted when a new Treasury Account is deployed.
@@ -22,6 +26,10 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
         address operator,
         address approver
     );
+
+    // =============================================================
+    // Errors
+    // =============================================================
 
     /// @notice Raised when the caller is not permitted to deploy an official Treasury Account for the admin.
     /// @param caller Caller attempting the deployment.
@@ -40,6 +48,10 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
     /// @param treasuryAdmin Treasury administrator that is not allowlisted.
     error TreasuryAdminNotApproved(address treasuryAdmin);
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     /// @notice MUSD token used by Treasury Accounts for repayment and destination allocations.
     IERC20 public immutable musdToken;
     /// @notice Policy engine used for Treasury Account initialization and policy enforcement.
@@ -48,6 +60,10 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
     mapping(address treasuryAdmin => bool approved) public approvedTreasuryAdmins;
     /// @notice Registry of Treasury Accounts officially deployed through this factory.
     mapping(address treasuryAccount => bool registered) public isTreasuryAccount;
+
+    // =============================================================
+    // Constructor
+    // =============================================================
 
     /// @param _musdToken MUSD token used by Treasury Accounts for repayment and destination allocations.
     /// @param _policyEngine Policy engine used for Treasury Account initialization.
@@ -59,6 +75,10 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
         policyEngine = _policyEngine;
         _policyEngine.setFactory(address(this));
     }
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @notice Approves or revokes a treasury administrator for official TreasuryOS onboarding.
     /// @param _treasuryAdmin Treasury administrator being updated.

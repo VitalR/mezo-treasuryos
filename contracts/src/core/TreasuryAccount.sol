@@ -22,6 +22,10 @@ import { ITroveManager } from "../interfaces/ITroveManager.sol";
 contract TreasuryAccount is Ownable2Step {
     using SafeERC20 for IERC20;
 
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when the connected Mezo borrower operations contract is updated.
     event BorrowerOperationsUpdated(address indexed borrowerOperations);
     /// @notice Emitted when the trusted allocation router is updated.
@@ -102,6 +106,10 @@ contract TreasuryAccount is Ownable2Step {
         uint256 positionDebtAfter
     );
 
+    // =============================================================
+    // Errors
+    // =============================================================
+
     /// @notice Raised when the allocation router address is zero.
     /// @param allocationRouter Invalid allocation router address.
     error InvalidAllocationRouter(address allocationRouter);
@@ -160,6 +168,10 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Raised when an account-level caller lacks the required authority.
     /// @param caller Unauthorized caller.
     error UnauthorizedCaller(address caller);
+
+    // =============================================================
+    // Types
+    // =============================================================
 
     /// @notice Protocol-backed treasury position snapshot for service and dashboard consumption.
     /// @param owner Treasury Account owner and admin.
@@ -287,6 +299,10 @@ contract TreasuryAccount is Ownable2Step {
         DestinationExposure[] exposures;
     }
 
+    // =============================================================
+    // Storage
+    // =============================================================
+
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
     ITreasuryPolicyEngine public immutable policyEngine;
     /// @notice MUSD token used for debt repayment and treasury destination allocations.
@@ -303,6 +319,10 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Deployed MUSD amount tracked per approved destination.
     mapping(address destination => uint256 amount) public destinationAllocations;
 
+    // =============================================================
+    // Constructor
+    // =============================================================
+
     /// @param _owner Treasury administrator and initial owner for the account.
     /// @param _policyEngine Policy engine enforcing TreasuryOS internal controls.
     /// @param _musdToken MUSD token used by this Treasury Account.
@@ -314,8 +334,16 @@ contract TreasuryAccount is Ownable2Step {
         musdToken = _musdToken;
     }
 
+    // =============================================================
+    // Receive
+    // =============================================================
+
     /// @notice Accepts BTC returned from Mezo position withdrawals and closes.
     receive() external payable { }
+
+    // =============================================================
+    // Position Lifecycle
+    // =============================================================
 
     /// @notice Opens a Mezo position owned by this Treasury Account and borrows MUSD into idle treasury balance.
     /// @param _musdAmount Amount of MUSD to draw into the Treasury Account.
@@ -455,6 +483,10 @@ contract TreasuryAccount is Ownable2Step {
         emit PositionClosed(_collateral, _closeDebt, idleBTC, idleMUSD);
     }
 
+    // =============================================================
+    // Treasury Operations
+    // =============================================================
+
     /// @notice Funds idle treasury MUSD so the account can restore working capital or repay debt.
     /// @param _amount Amount of MUSD transferred into the Treasury Account.
     function fundIdleMUSD(uint256 _amount) external {
@@ -573,6 +605,10 @@ contract TreasuryAccount is Ownable2Step {
             positionTotalDebt()
         );
     }
+
+    // =============================================================
+    // Handler-Scoped Execution
+    // =============================================================
 
     /// @notice Sets token allowance from the Treasury Account for an authorized router handler.
     /// @param _token Token being approved.
@@ -712,6 +748,10 @@ contract TreasuryAccount is Ownable2Step {
         emit YieldClaimedFromDestination(_savingsRate, claimedYield, idleMUSD);
     }
 
+    // =============================================================
+    // Direct Allocation Accounting
+    // =============================================================
+
     /// @notice Allocates idle MUSD into an approved destination.
     /// @param _destination Destination receiving funds.
     /// @param _amount Amount being allocated.
@@ -830,6 +870,10 @@ contract TreasuryAccount is Ownable2Step {
         _actor;
     }
 
+    // =============================================================
+    // Administration
+    // =============================================================
+
     /// @notice Updates the paused state of the Treasury Account.
     /// @param _paused New paused state.
     function setPause(bool _paused) external {
@@ -868,6 +912,10 @@ contract TreasuryAccount is Ownable2Step {
 
         emit TreasuryAdminSynced(_previousTreasuryAdmin, owner());
     }
+
+    // =============================================================
+    // View Functions
+    // =============================================================
 
     /// @notice Returns the protocol governable variables contract configured by borrower operations.
     function governableVariables() public view returns (IGovernableVariables) {
@@ -1109,6 +1157,10 @@ contract TreasuryAccount is Ownable2Step {
             exposures: _exposures
         });
     }
+
+    // =============================================================
+    // Internal Functions
+    // =============================================================
 
     /// @notice Applies local idle-balance accounting after a protocol-native trove adjustment.
     /// @param _collateralWithdrawal BTC collateral withdrawn back into idle treasury custody.

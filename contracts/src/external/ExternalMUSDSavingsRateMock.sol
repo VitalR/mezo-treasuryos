@@ -22,6 +22,10 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
     using SafeERC20 for IERC20;
     using Math for uint256;
 
+    // =============================================================
+    // Events
+    // =============================================================
+
     /// @notice Emitted when a depositor contributes MUSD principal and receives sMUSD.
     /// @param user Depositor receiving the sMUSD receipts.
     /// @param amount Amount of MUSD principal deposited.
@@ -39,6 +43,10 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
     /// @param amount Amount of MUSD yield distributed or buffered.
     event YieldFunded(address indexed funder, uint256 amount);
 
+    // =============================================================
+    // Errors
+    // =============================================================
+
     /// @notice Reverts when a user attempts to withdraw more sMUSD than owned.
     error InsufficientBalance();
     /// @notice Reverts when a user with no shares tries to claim yield.
@@ -47,6 +55,10 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
     error ZeroAddress();
     /// @notice Reverts when an amount is zero.
     error ZeroAmount();
+
+    // =============================================================
+    // Storage
+    // =============================================================
 
     /// @notice Underlying MUSD token accepted as principal and paid as yield.
     IERC20 public immutable musdToken;
@@ -64,6 +76,10 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
     /// @notice Last synchronized global yield index per account.
     mapping(address account => uint256 index) public supplyYieldIndex;
 
+    // =============================================================
+    // Constructor
+    // =============================================================
+
     /// @param _owner Owner allowed to fund simulated yield.
     /// @param _musdToken Underlying MUSD token accepted by the vault.
     constructor(address _owner, IERC20 _musdToken) ERC20("External MUSD Savings Rate Mock", "sMUSD") Ownable(_owner) {
@@ -71,6 +87,10 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
 
         musdToken = _musdToken;
     }
+
+    // =============================================================
+    // External Functions
+    // =============================================================
 
     /// @notice Deposits MUSD principal and mints 1:1 sMUSD receipt tokens.
     /// @param _amount Amount of MUSD principal deposited.
@@ -171,6 +191,10 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
 
         emit YieldFunded(msg.sender, amount);
     }
+
+    // =============================================================
+    // Internal Functions
+    // =============================================================
 
     /// @notice Claims yield for a specific account after synchronizing its accrual.
     /// @param _account Account whose claimable yield should be paid out.
