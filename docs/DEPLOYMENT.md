@@ -42,6 +42,27 @@ DEPLOYER_PRIVATE_KEY=<deployer private key>
 MEZO_MUSD_TOKEN=<MUSD token>
 ```
 
+For the Spectrum bonus track, set:
+
+```bash
+SPECTRUM_MEZO_RPC_URL_1=<Spectrum Mezo testnet RPC candidate>
+SPECTRUM_MEZO_RPC_URL_2=<Spectrum Mezo testnet RPC candidate>
+SPECTRUM_MEZO_RPC_URL_3=<Spectrum Mezo testnet RPC candidate>
+MEZO_RPC_URL=https://rpc.test.mezo.org
+```
+
+TreasuryOS loads the real root `.env`, probes the Spectrum candidates first, and checks for Mezo testnet chain ID `31611`. If no Spectrum candidate is an EVM JSON-RPC endpoint for Mezo, scripts fall back to `MEZO_RPC_URL` so the demo still works.
+
+Before deploy or demo actions, run:
+
+```bash
+make rpc-health
+```
+
+Deployment and onboarding Make targets use the selected active RPC provider internally and print only the selected provider label/env key, not the raw URL.
+
+Goldsky reporting is scaffolded under `indexer/goldsky`. After deploying core and client contracts, copy deployed addresses and start blocks into `indexer/goldsky/subgraph.yaml`, then copy Foundry-generated ABI JSON files into `indexer/goldsky/abis/`. Do not publish the indexer with placeholder zero addresses.
+
 Client onboarding requires:
 
 ```bash

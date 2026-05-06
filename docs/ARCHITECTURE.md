@@ -457,6 +457,25 @@ Primary Mezo testnet RPC provider for:
 - monitoring
 - transaction submission
 
+Implementation note:
+
+- `services/spectrum-state/rpc-health.mjs` probes `SPECTRUM_MEZO_RPC_URL_1`, `_2`, `_3`, legacy `SPECTRUM_MEZO_RPC_URL`, then `MEZO_RPC_URL`
+- each candidate must answer JSON-RPC `eth_chainId` with Mezo testnet chain ID `31611`
+- if no Spectrum endpoint is healthy, deployment/demo scripts fall back to `MEZO_RPC_URL` and print an honest fallback warning
+- the same service reads treasury state, sleeve exposure, collateral health, and allocation-policy previews for the Yield Console and future AI memo layer
+
+### Goldsky Indexing
+
+Goldsky is the reporting indexer scaffold for reviewer-facing history:
+
+- target network slug: `mezo-testnet`
+- manifest: `indexer/goldsky/subgraph.yaml`
+- schema: `indexer/goldsky/schema.graphql`
+- mappings: `indexer/goldsky/src/mapping.ts`
+- ABI directory: `indexer/goldsky/abis`
+
+The scaffold indexes existing events only: Treasury Account deployment, policy configuration, routed savings/Tigris sleeve activity, automation executions, and multisig proposals/confirmations/executions. It should not claim blocked policy decisions as onchain events until those events actually exist. For V1 reporting, combine Goldsky event history with live Spectrum-backed state snapshots.
+
 ### Tigris stable-pool sleeve
 
 Current official Mezo testnet targets:

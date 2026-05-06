@@ -10,7 +10,7 @@ The current target is **Mezo Testnet**.
 
 - `mezo-testnet.json` — checked-in network metadata and confirmed public contract addresses
 
-Environment-specific secrets and RPC credentials should not be committed here. Use the root `.env` file derived from `.env.example`.
+Environment-specific secrets and RPC credentials should not be committed here. Use the real root `.env` file for runtime values.
 
 ---
 
@@ -40,7 +40,7 @@ Until that address is confirmed, TreasuryOS should use one of these approaches:
 
 ## Required Runtime Variables
 
-The root `.env.example` defines the shared runtime surface.
+The root `.env` defines the shared runtime surface for local deploy, health-check, and demo commands.
 
 The most important variables are:
 

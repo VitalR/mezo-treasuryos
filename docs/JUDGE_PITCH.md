@@ -41,6 +41,10 @@ It gives each client:
 
 For the hackathon build, TreasuryOS uses **Spectrum Nodes** as the primary Mezo testnet RPC provider for treasury state reads, monitoring, and transaction execution.
 
+TreasuryOS is Spectrum-preferred rather than Spectrum-assumed: the demo runs `make rpc-health`, tests multiple configured Spectrum Mezo Testnet RPC candidates for chain ID `31611`, uses Spectrum when healthy, and falls back to official Mezo RPC only for reliability if no Spectrum candidate is active.
+
+Goldsky is the planned reporting indexer for treasury activity timelines, sleeve exposure history, automation events, and multisig approval history. The V1 scaffold indexes real TreasuryOS events only and stays paired with live Spectrum-backed snapshots for current balances and policy previews.
+
 ---
 
 ## How It Works
@@ -179,7 +183,7 @@ The strongest demo is:
 8. Show TreasuryOS restoring buffer or blocking a risky action
 9. Show the Treasury Yield Console and AI memo explaining what happened and why
 
-Throughout the flow, show that live reads, monitoring, and transaction execution are running through **Spectrum Nodes** on Mezo testnet.
+Throughout the flow, show the selected Mezo testnet RPC provider. If `make rpc-health` selects Spectrum, call out that live reads, monitoring, and transaction execution are running through **Spectrum Nodes**; if not, show the official fallback honestly and keep Spectrum as the preferred provider path.
 
 If that flow works, TreasuryOS feels like a product, not a prototype.
 

@@ -164,6 +164,23 @@ Demo renderer:
 npm run demo:yield-console
 ```
 
+Live RPC state probe:
+
+```sh
+npm run rpc-health
+npm run state:probe
+```
+
+The state reader loads the real `.env`, tests `SPECTRUM_MEZO_RPC_URL_1`, `_2`, `_3`, then the legacy `SPECTRUM_MEZO_RPC_URL`, and falls back to `MEZO_RPC_URL` only if no Spectrum candidate returns Mezo testnet chain ID `31611`. We should not claim Spectrum was active in a given run unless `make rpc-health` reports a Spectrum endpoint as `OK`.
+
+Goldsky indexing scaffold:
+
+```sh
+ls indexer/goldsky
+```
+
+The scaffold targets `mezo-testnet` and indexes real TreasuryOS events for account creation, policy updates, sleeve activity, automation, and multisig approvals. It is intentionally not published until deployed contract addresses, start blocks, and Foundry-generated ABIs are copied in.
+
 ---
 
 ## Automation Position
@@ -246,7 +263,7 @@ Critical setup and business-cash withdrawals should flow through that owner. Aut
 
 - [Config](config/README.md)
 - [Deployments](deployments/README.md)
-- [.env example](.env.example)
+- [Deployment env requirements](docs/DEPLOYMENT.md)
 - [Mezo testnet demo manifest template](deployments/mezo-testnet-demo.template.json)
 
 ### Draft archive

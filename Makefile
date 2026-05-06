@@ -20,6 +20,9 @@ help:
 	@echo "  make coverage-report              - run production contract coverage with lcov output"
 	@echo "  make fmt                          - format contracts"
 	@echo "  make clean                        - clean Foundry artifacts"
+	@echo "  make rpc-health                   - test Spectrum Mezo RPC candidates and fallback"
+	@echo "  make state-probe                  - probe selected Mezo testnet RPC"
+	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
@@ -67,6 +70,18 @@ fmt:
 clean:
 	forge clean --root $(CONTRACTS_ROOT)
 
+.PHONY: state-probe
+state-probe:
+	npm run state:probe
+
+.PHONY: rpc-health
+rpc-health:
+	npm run rpc-health
+
+.PHONY: yield-console-demo
+yield-console-demo:
+	npm run demo:yield-console
+
 .PHONY: anvil
 anvil:
 	anvil
@@ -81,7 +96,7 @@ deploy-anvil:
 
 define require_env_file
 	@if [ ! -s "$(ENV_FILE)" ]; then \
-		echo "Missing or empty $(ENV_FILE). Fill it from .env.example first."; \
+		echo "Missing or empty $(ENV_FILE). Fill the real .env before running this target."; \
 		exit 1; \
 	fi
 endef
@@ -90,8 +105,20 @@ define load_env
 	set -a && source "$(ENV_FILE)" && set +a;
 endef
 
+define require_mezo_rpc_candidate
+	[ -n "$${SPECTRUM_MEZO_RPC_URL_1:-}$${SPECTRUM_MEZO_RPC_URL_2:-}$${SPECTRUM_MEZO_RPC_URL_3:-}$${SPECTRUM_MEZO_RPC_URL:-}$${MEZO_RPC_URL:-}" ] || { echo "Missing a Mezo RPC endpoint. Set SPECTRUM_MEZO_RPC_URL_1/2/3 or MEZO_RPC_URL in .env"; exit 1; };
+endef
+
+define select_active_mezo_rpc
+	eval "$$(node services/spectrum-state/rpc-health.mjs --shell)"; \
+	ACTIVE_MEZO_RPC_URL="$${!ACTIVE_MEZO_RPC_ENV}"; \
+	[ -n "$$ACTIVE_MEZO_RPC_URL" ] || { echo "Selected Mezo RPC env is empty: $$ACTIVE_MEZO_RPC_ENV"; exit 1; }; \
+	export ACTIVE_MEZO_RPC_URL ACTIVE_MEZO_RPC_PROVIDER ACTIVE_MEZO_RPC_ENV ACTIVE_MEZO_RPC_KIND; \
+	echo "Selected Mezo RPC provider: $$ACTIVE_MEZO_RPC_PROVIDER ($$ACTIVE_MEZO_RPC_ENV)";
+endef
+
 define require_testnet_env
-	[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+	$(call require_mezo_rpc_candidate) \
 	[ -n "$$DEPLOYER_PRIVATE_KEY" ] || { echo "Missing DEPLOYER_PRIVATE_KEY"; exit 1; }; \
 	if [ "$${DEPLOY_TREASURY_MULTISIG:-false}" = "true" ]; then \
 		[ -n "$$TREASURY_MULTISIG_OWNER_1" ] || { echo "Missing TREASURY_MULTISIG_OWNER_1"; exit 1; }; \
@@ -111,13 +138,13 @@ define require_testnet_env
 endef
 
 define require_core_deploy_env
-	[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+	$(call require_mezo_rpc_candidate) \
 	[ -n "$$DEPLOYER_PRIVATE_KEY" ] || { echo "Missing DEPLOYER_PRIVATE_KEY"; exit 1; }; \
 	[ -n "$$MEZO_MUSD_TOKEN" ] || { echo "Missing MEZO_MUSD_TOKEN"; exit 1; };
 endef
 
 define require_client_onboard_env
-	[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+	$(call require_mezo_rpc_candidate) \
 	[ -n "$$DEPLOYER_PRIVATE_KEY" ] || { echo "Missing DEPLOYER_PRIVATE_KEY"; exit 1; }; \
 	[ -n "$$TREASURY_POLICY_ENGINE" ] || { echo "Missing TREASURY_POLICY_ENGINE"; exit 1; }; \
 	[ -n "$$TREASURY_ACCOUNT_FACTORY" ] || { echo "Missing TREASURY_ACCOUNT_FACTORY"; exit 1; }; \
@@ -139,9 +166,10 @@ define require_client_onboard_env
 endef
 
 define forge_deploy_testnet_verified
+	$(call select_active_mezo_rpc) \
 	forge script $(DEPLOY_SCRIPT) \
 		--root $(CONTRACTS_ROOT) \
-		--rpc-url "$$MEZO_RPC_URL" \
+		--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 		--broadcast \
 		--verify \
 		--verifier blockscout \
@@ -150,9 +178,10 @@ define forge_deploy_testnet_verified
 endef
 
 define forge_deploy_core_verified
+	$(call select_active_mezo_rpc) \
 	forge script $(CORE_DEPLOY_SCRIPT) \
 		--root $(CONTRACTS_ROOT) \
-		--rpc-url "$$MEZO_RPC_URL" \
+		--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 		--broadcast \
 		--verify \
 		--verifier blockscout \
@@ -161,9 +190,10 @@ define forge_deploy_core_verified
 endef
 
 define forge_onboard_client_verified
+	$(call select_active_mezo_rpc) \
 	forge script $(CLIENT_ONBOARD_SCRIPT) \
 		--root $(CONTRACTS_ROOT) \
-		--rpc-url "$$MEZO_RPC_URL" \
+		--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 		--broadcast \
 		--verify \
 		--verifier blockscout \
@@ -204,9 +234,10 @@ deploy-mezo-testnet:
 	$(call require_env_file)
 	@bash -lc '$(call load_env) \
 		$(call require_testnet_env) \
+		$(call select_active_mezo_rpc) \
 		forge script $(DEPLOY_SCRIPT) \
 			--root $(CONTRACTS_ROOT) \
-			--rpc-url "$$MEZO_RPC_URL" \
+			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 			--broadcast \
 			-vvvv \
 	'
@@ -346,13 +377,14 @@ multisig-confirm-batch-mezo:
 		MULTISIG_ADDRESS="$${TREASURY_MULTISIG_ADDRESS:-$(MULTISIG_ADDRESS)}"; \
 		BATCH_ID_VALUE="$${BATCH_ID:-$(BATCH_ID)}"; \
 		SIGNER_KEY="$${SIGNER_PRIVATE_KEY:-$(SIGNER_PRIVATE_KEY)}"; \
-		[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+		$(call require_mezo_rpc_candidate) \
+		$(call select_active_mezo_rpc) \
 		[ -n "$$MULTISIG_ADDRESS" ] || { echo "Missing TREASURY_MULTISIG_ADDRESS or MULTISIG_ADDRESS=<address>"; exit 1; }; \
 		[ -n "$$BATCH_ID_VALUE" ] || { echo "Missing BATCH_ID=<id>"; exit 1; }; \
 		[ -n "$$SIGNER_KEY" ] || { echo "Missing SIGNER_PRIVATE_KEY=<private key>"; exit 1; }; \
 		cast send "$$MULTISIG_ADDRESS" "confirmBatchTransaction(uint256)" "$$BATCH_ID_VALUE" \
 			--private-key "$$SIGNER_KEY" \
-			--rpc-url "$$MEZO_RPC_URL" \
+			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 	'
 
 .PHONY: verify-mezo-testnet-resume
@@ -360,9 +392,10 @@ verify-mezo-testnet-resume:
 	$(call require_env_file)
 	@bash -lc '$(call load_env) \
 		$(call require_testnet_env) \
+		$(call select_active_mezo_rpc) \
 		forge script $(DEPLOY_SCRIPT) \
 			--root $(CONTRACTS_ROOT) \
-			--rpc-url "$$MEZO_RPC_URL" \
+			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 			--resume \
 			--verify \
 			--verifier blockscout \

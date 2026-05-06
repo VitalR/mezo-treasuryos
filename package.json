@@ -6,6 +6,9 @@
     "contracts:build": "forge build --root contracts",
     "contracts:test": "forge test --root contracts",
     "contracts:fmt": "forge fmt --root contracts",
-    "demo:yield-console": "node services/yield-console/render.mjs services/yield-console/sample-snapshot.json"
+    "demo:yield-console": "node services/yield-console/render.mjs services/yield-console/sample-snapshot.json",
+    "rpc-health": "node services/spectrum-state/rpc-health.mjs",
+    "state:probe": "node services/spectrum-state/snapshot.mjs",
+    "state:snapshot": "node services/spectrum-state/snapshot.mjs"
   }
 }

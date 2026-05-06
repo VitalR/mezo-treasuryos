@@ -6,7 +6,20 @@
   },
   "rpc": {
     "provider": "Spectrum Nodes",
-    "urlEnv": "MEZO_RPC_URL"
+    "candidateUrlEnvs": [
+      "SPECTRUM_MEZO_RPC_URL_1",
+      "SPECTRUM_MEZO_RPC_URL_2",
+      "SPECTRUM_MEZO_RPC_URL_3",
+      "SPECTRUM_MEZO_RPC_URL"
+    ],
+    "fallbackUrlEnv": "MEZO_RPC_URL",
+    "fallbackUrl": "https://rpc.test.mezo.org"
+  },
+  "indexing": {
+    "provider": "Goldsky",
+    "networkSlug": "mezo-testnet",
+    "manifest": "indexer/goldsky/subgraph.yaml",
+    "status": "scaffold_requires_deployed_addresses_start_blocks_and_abis"
   },
   "musd": {
     "token": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",

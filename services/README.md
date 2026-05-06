@@ -14,4 +14,10 @@ Planned V1 services:
 
 These services should consume the same Mezo testnet configuration and use Spectrum Nodes as the primary RPC provider in the hackathon environment.
 
+Current runnable services:
+
+- `services/spectrum-state/rpc-health.mjs`: multi-endpoint Spectrum-first RPC health check
+- `services/spectrum-state`: Spectrum-first Mezo testnet RPC state reader with `MEZO_RPC_URL` fallback
+- `services/yield-console`: console/reporting renderer for treasury yield allocation snapshots
+
 The AI advisor is advisory only. It should consume deterministic onchain state and policy-decision previews, then generate recommendation memos for operators and reviewers. It must never control funds or bypass `TreasuryPolicyEngine`.

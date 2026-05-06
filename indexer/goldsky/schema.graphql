@@ -1,0 +1,76 @@
+type TreasuryAccount @entity {
+  id: ID!
+  treasuryAdmin: Bytes!
+  deployer: Bytes!
+  operator: Bytes!
+  approver: Bytes!
+  createdAt: BigInt!
+  createdTx: Bytes!
+}
+
+type TreasuryActivity @entity {
+  id: ID!
+  account: Bytes
+  actor: Bytes
+  destination: Bytes
+  category: String!
+  action: String!
+  amount: BigInt
+  secondaryAmount: BigInt
+  txHash: Bytes!
+  logIndex: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type PolicyConfig @entity {
+  id: ID!
+  account: Bytes!
+  treasuryAdmin: Bytes
+  operator: Bytes
+  approver: Bytes
+  liquidityBuffer: BigInt
+  approvalThreshold: BigInt
+  automationEnabled: Boolean
+  paused: Boolean
+  updatedAt: BigInt!
+  updatedTx: Bytes!
+}
+
+type SleeveExposure @entity {
+  id: ID!
+  account: Bytes!
+  destination: Bytes!
+  allocatedMUSD: BigInt!
+  updatedAt: BigInt!
+  updatedTx: Bytes!
+}
+
+type AutomationAction @entity {
+  id: ID!
+  account: Bytes!
+  operator: Bytes!
+  destination: Bytes!
+  action: String!
+  requestedAmount: BigInt!
+  actualAmount: BigInt!
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type MultisigProposal @entity {
+  id: ID!
+  multisig: Bytes!
+  proposalType: String!
+  internalId: BigInt!
+  proposer: Bytes
+  target: Bytes
+  selector: Bytes
+  txIdOffchain: Bytes
+  confirmations: BigInt
+  executed: Boolean!
+  proposedAt: BigInt
+  executedAt: BigInt
+  txHash: Bytes!
+}

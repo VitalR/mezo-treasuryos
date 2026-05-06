@@ -1,0 +1,204 @@
+specVersion: 0.0.5
+description: Mezo TreasuryOS treasury activity and reporting indexer
+repository: https://github.com/your-org/mezo-treasuryos
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: TreasuryAccountFactory
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: TreasuryAccountFactory
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryAccount
+      abis:
+        - name: TreasuryAccountFactory
+          file: ./abis/TreasuryAccountFactory.json
+      eventHandlers:
+        - event: TreasuryAccountDeployed(indexed address,indexed address,indexed address,address,address)
+          handler: handleTreasuryAccountDeployed
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: TreasuryPolicyEngine
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: TreasuryPolicyEngine
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - PolicyConfig
+        - TreasuryActivity
+      abis:
+        - name: TreasuryPolicyEngine
+          file: ./abis/TreasuryPolicyEngine.json
+      eventHandlers:
+        - event: AccountPolicyInitialized(indexed address,indexed address,indexed address,address,uint256,uint256,uint256,uint256,bool,bool)
+          handler: handleAccountPolicyInitialized
+        - event: PauseUpdated(indexed address,bool)
+          handler: handlePauseUpdated
+        - event: AutomationExecutorUpdated(indexed address,indexed address,indexed address)
+          handler: handleAutomationExecutorUpdated
+        - event: AutomationLimitsUpdated(indexed address,uint256,uint256)
+          handler: handleAutomationLimitsUpdated
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: AllocationRouter
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: AllocationRouter
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+      abis:
+        - name: AllocationRouter
+          file: ./abis/AllocationRouter.json
+      eventHandlers:
+        - event: HandlerRegistered(indexed address,indexed address)
+          handler: handleHandlerRegistered
+        - event: HandlerRemoved(indexed address,indexed address)
+          handler: handleHandlerRemoved
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: TreasuryAutomationExecutor
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: TreasuryAutomationExecutor
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - AutomationAction
+        - TreasuryActivity
+      abis:
+        - name: TreasuryAutomationExecutor
+          file: ./abis/TreasuryAutomationExecutor.json
+      eventHandlers:
+        - event: BufferRestoreExecuted(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleBufferRestoreExecuted
+        - event: DeRiskRepaymentExecuted(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleDeRiskRepaymentExecuted
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: MUSDSavingsRateHandler
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: MUSDSavingsRateHandler
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+      abis:
+        - name: MUSDSavingsRateHandler
+          file: ./abis/MUSDSavingsRateHandler.json
+      eventHandlers:
+        - event: SavingsDepositRouted(indexed address,indexed address,uint256,uint256)
+          handler: handleSavingsDepositRouted
+        - event: SavingsWithdrawalRouted(indexed address,indexed address,uint256,uint256)
+          handler: handleSavingsWithdrawalRouted
+        - event: SavingsYieldClaimed(indexed address,indexed address,uint256)
+          handler: handleSavingsYieldClaimed
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: TigrisStablePoolHandler
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: TigrisStablePoolHandler
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+      abis:
+        - name: TigrisStablePoolHandler
+          file: ./abis/TigrisStablePoolHandler.json
+      eventHandlers:
+        - event: StablePoolDepositRouted(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleStablePoolDepositRouted
+        - event: StablePoolWithdrawalRouted(indexed address,indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleStablePoolWithdrawalRouted
+      file: ./src/mapping.ts
+templates:
+  - kind: ethereum/contract
+    name: TreasuryAccount
+    network: mezo-testnet
+    source:
+      abi: TreasuryAccount
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+        - SleeveExposure
+      abis:
+        - name: TreasuryAccount
+          file: ./abis/TreasuryAccount.json
+      eventHandlers:
+        - event: PositionOpened(uint256,uint256,uint256,uint256,uint256)
+          handler: handlePositionOpened
+        - event: TreasuryDisbursed(indexed address,indexed address,uint256,uint256)
+          handler: handleTreasuryDisbursed
+        - event: AllocationExecuted(indexed address,uint256,uint256,uint256)
+          handler: handleAllocationExecuted
+        - event: WithdrawalExecuted(indexed address,uint256,uint256,uint256)
+          handler: handleWithdrawalExecuted
+        - event: YieldClaimedFromDestination(indexed address,uint256,uint256)
+          handler: handleYieldClaimedFromDestination
+        - event: LiquidityBufferRestored(indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleLiquidityBufferRestored
+        - event: SleeveUnwoundAndDebtRepaid(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleSleeveUnwoundAndDebtRepaid
+      file: ./src/mapping.ts
+  - kind: ethereum/contract
+    name: TreasuryMultisig
+    network: mezo-testnet
+    source:
+      abi: TreasuryMultisig
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - MultisigProposal
+      abis:
+        - name: TreasuryMultisig
+          file: ./abis/TreasuryMultisig.json
+      eventHandlers:
+        - event: TransactionProposed(indexed uint256,indexed address,indexed address,uint256,bytes4,bytes32,uint64,uint64)
+          handler: handleTransactionProposed
+        - event: TransactionConfirmed(indexed uint256,indexed address,uint256)
+          handler: handleTransactionConfirmed
+        - event: TransactionExecuted(indexed uint256,indexed address,indexed address,bytes32)
+          handler: handleTransactionExecuted
+        - event: BatchProposed(indexed uint256,indexed address,bytes32,uint64,uint64)
+          handler: handleBatchProposed
+        - event: BatchConfirmed(indexed uint256,indexed address,uint256)
+          handler: handleBatchConfirmed
+        - event: BatchExecuted(indexed uint256,indexed address,bytes32)
+          handler: handleBatchExecuted
+      file: ./src/mapping.ts

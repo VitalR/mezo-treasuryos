@@ -94,7 +94,8 @@ The right posture is: TreasuryOS helps a treasury decide, approve, execute, and 
 - `ARCHITECTURE.md`
 - `JUDGE_PITCH.md`
 - confirmed integration assumptions for Mezo borrow and sleeve destinations
-- Spectrum Nodes selected and documented as the primary Mezo testnet RPC provider
+- Spectrum Nodes selected and documented as the primary Mezo testnet RPC provider, with multi-endpoint health checks and official Mezo RPC fallback if no Spectrum candidate answers as Mezo EVM testnet
+- Goldsky indexing scaffold for treasury activity and reporting
 - Tigris testnet sleeve targets identified and documented
 
 ### Success criteria
@@ -103,6 +104,7 @@ The right posture is: TreasuryOS helps a treasury decide, approve, execute, and 
 - the V1 workflow is concrete and stable
 - the sleeve set is locked
 - the RPC decision is locked early enough to shape the monitoring and demo stack
+- `make rpc-health` selects Spectrum when a configured Spectrum endpoint returns chain ID `31611`, otherwise falls back honestly
 - the product is clearly differentiated from Mezo Institutional without retreating from the subtrack
 
 ---
@@ -277,6 +279,7 @@ Do not make AI the controlling authority for treasury actions.
 - idle vs allocated summary
 - sleeve exposure summary
 - policy decision log
+- Goldsky-powered event history for account, policy, sleeve, automation, and multisig activity
 - Treasury Yield Console
 - AI Treasury Allocation Advisor memo output
 - Term Yield Planner view for simulated 7/30/60-day plans
@@ -316,6 +319,7 @@ The Term Yield Planner should remain reporting-oriented in V1. It can model allo
 - fallback plan for live demo risk
 - polished judge-facing narrative
 - explicit Spectrum Nodes integration callout in the demo and architecture notes
+- Goldsky indexing story with clear deployed-address/start-block prerequisites
 
 ### Required demo sequence
 
@@ -329,4 +333,5 @@ The Term Yield Planner should remain reporting-oriented in V1. It can model allo
 8. show bounded treasury response
 9. show Treasury Yield Console with policy decision result
 10. show AI treasury memo and reviewer view
-11. explicitly show Spectrum Nodes in the stack narrative
+11. explicitly show the active RPC provider and Spectrum-preferred selection path
+12. show the Goldsky-backed reporting/indexing plan without pretending unpublished indexer state is live
