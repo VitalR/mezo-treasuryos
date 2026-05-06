@@ -53,6 +53,26 @@ The product spine is:
 
 Anything that does not strengthen that spine should be deferred.
 
+## Yield And Investment Angle
+
+The yield angle belongs inside the treasury workflow, not beside it as a separate product.
+
+V1 should add:
+
+- policy-governed yield allocation of surplus MUSD only
+- a Treasury Yield Console that shows idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, and the policy decision for a proposed allocation
+- AI-assisted treasury allocation memos that explain the policy-aware recommendation but never control funds
+- a lightweight Term Yield Planner for 7/30/60-day treasury planning, using projected assumptions, review dates, buffer constraints, and unwind conditions
+
+V1 should not build:
+
+- a proprietary high-yield vault
+- a general strategy marketplace
+- a Pendle-style fixed-yield protocol
+- autonomous AI execution
+
+The right posture is: TreasuryOS helps a treasury decide, approve, execute, and explain approved Mezo-native allocation of surplus MUSD.
+
 ---
 
 ## Phase 0 — Product Lock And Reference Validation
@@ -168,6 +188,7 @@ If borrow origination or position ownership is weak or fake, the whole product b
 - `MUSDSavingsRateHandler`
 - `TigrisStablePoolHandler`
 - destination state tracking
+- allocation decision preview for proposed sleeve actions
 - governed allocation UI flow
 - integration tests for deploy and withdraw behavior
 - Spectrum-backed polling for sleeve and treasury balance state
@@ -183,13 +204,16 @@ If borrow origination or position ownership is weak or fake, the whole product b
 - allocation cap rules are enforced
 - the product can withdraw from sleeves to restore treasury liquidity
 - the Treasury Account can disburse idle MUSD for operations under policy, with elevated withdrawals controlled by the treasury admin path
+- reviewers can see why a proposed allocation is allowed or blocked before execution
 
 ### Notes
 
 Do not expand beyond the current sleeve set unless both sleeves are fully convincing.
 
-Before Tigris is used in the final demo allocation path, add slippage/min-out controls to `TigrisStablePoolHandler`.
-The required protection is standard Uniswap-style execution hygiene:
+For the final demo, keep **MUSD Savings Rate** as the primary guaranteed allocation sleeve. Treat Tigris `MUSD/mUSDC` as the secondary differentiating sleeve only when testnet pool liquidity and route behavior are healthy. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
+
+Before Tigris is used in the final demo allocation path, keep slippage/min-out controls enabled in `TigrisStablePoolHandler`.
+The required protection is standard AMM execution hygiene:
 
 - minimum paired token output when swapping MUSD into the paired stable
 - minimum liquidity minted when adding stable-pool liquidity
@@ -214,6 +238,7 @@ The required protection is standard Uniswap-style execution hygiene:
 - paused-state handling
 - automated or auto-prepared low-risk action flow
 - operations view in the dashboard
+- policy-aware recommendation inputs for the AI memo layer
 - Spectrum-backed live reads for automation checks and transaction execution
 
 ### Required V1 automated behaviors
@@ -252,6 +277,9 @@ Do not make AI the controlling authority for treasury actions.
 - idle vs allocated summary
 - sleeve exposure summary
 - policy decision log
+- Treasury Yield Console
+- AI Treasury Allocation Advisor memo output
+- Term Yield Planner view for simulated 7/30/60-day plans
 - reviewer-facing treasury summary
 - documentation showing where Spectrum Nodes is used in the product architecture
 
@@ -259,6 +287,17 @@ Do not make AI the controlling authority for treasury actions.
 
 - a finance or reviewer stakeholder can understand what happened without reading raw transactions
 - reporting reflects real state changes and policy outcomes
+- recommendations stay advisory and map back to policy state, buffer state, sleeve caps, exposure, and collateral health
+
+### Notes
+
+The AI layer should produce treasury memos such as:
+
+- idle MUSD exceeds the buffer by a specific amount and only that surplus is allocatable
+- a sleeve cap is close to full and another approved sleeve is preferred
+- collateral health is weakening, so the next action should be buffer restoration or debt repayment rather than more allocation
+
+The Term Yield Planner should remain reporting-oriented in V1. It can model allocation windows, projected yield assumptions, maturity/review dates, and unwind conditions without creating new fixed-yield instruments.
 
 ---
 
@@ -288,5 +327,6 @@ Do not make AI the controlling authority for treasury actions.
 6. allocate approved surplus into savings and approved Tigris sleeve
 7. trigger buffer or policy condition
 8. show bounded treasury response
-9. show reporting and reviewer view
-10. explicitly show Spectrum Nodes in the stack narrative
+9. show Treasury Yield Console with policy decision result
+10. show AI treasury memo and reviewer view
+11. explicitly show Spectrum Nodes in the stack narrative

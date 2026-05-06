@@ -30,6 +30,7 @@ contract DeployTreasuryOS is Script {
     uint256 internal constant DEFAULT_SAVINGS_CAP = 10_000e18;
     uint256 internal constant DEFAULT_TIGRIS_CAP = 5000e18;
     uint256 internal constant DEFAULT_TIGRIS_DEADLINE_WINDOW = 15 minutes;
+    uint256 internal constant DEFAULT_TIGRIS_MAX_SLIPPAGE_BPS = 100;
     uint256 internal constant DEFAULT_TREASURY_MULTISIG_THRESHOLD = 2;
     uint64 internal constant DEFAULT_TREASURY_MULTISIG_SIG_DELAY = 0;
     uint64 internal constant DEFAULT_TREASURY_MULTISIG_MAX_PENDING = 7 days;
@@ -60,6 +61,7 @@ contract DeployTreasuryOS is Script {
         address tigrisMusdMusdcPool;
         address musdcToken;
         uint256 tigrisDeadlineWindow;
+        uint256 tigrisMaxSlippageBps;
         uint256 liquidityBuffer;
         uint256 approvalThreshold;
         uint256 warningCollateralRatioBps;
@@ -159,6 +161,7 @@ contract DeployTreasuryOS is Script {
         config.tigrisMusdMusdcPool = vm.envOr("MEZO_TIGRIS_MUSD_MUSDC_POOL", address(0));
         config.musdcToken = vm.envOr("MEZO_MUSDC_TOKEN", address(0));
         config.tigrisDeadlineWindow = vm.envOr("TIGRIS_DEADLINE_WINDOW", DEFAULT_TIGRIS_DEADLINE_WINDOW);
+        config.tigrisMaxSlippageBps = vm.envOr("TIGRIS_MAX_SLIPPAGE_BPS", DEFAULT_TIGRIS_MAX_SLIPPAGE_BPS);
         config.liquidityBuffer = vm.envOr("DEMO_TREASURY_LIQUIDITY_BUFFER", DEFAULT_LIQUIDITY_BUFFER);
         config.approvalThreshold = vm.envOr("DEMO_TREASURY_APPROVAL_THRESHOLD", DEFAULT_APPROVAL_THRESHOLD);
         config.warningCollateralRatioBps =
@@ -313,7 +316,8 @@ contract DeployTreasuryOS is Script {
                 config.tigrisMusdMusdcPool,
                 IERC20(config.musdToken),
                 IERC20(config.musdcToken),
-                config.tigrisDeadlineWindow
+                config.tigrisDeadlineWindow,
+                config.tigrisMaxSlippageBps
             );
 
             artifacts.tigrisStablePoolHandler = address(tigrisStablePoolHandler);
@@ -604,6 +608,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(config.tigrisMusdMusdcPool),
             '","musdcToken":"',
             vm.toString(config.musdcToken),
+            '","tigrisMaxSlippageBps":"',
+            vm.toString(config.tigrisMaxSlippageBps),
             '"}'
         );
     }
@@ -618,6 +624,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(config.savingsCap),
             '","tigrisCap":"',
             vm.toString(config.tigrisCap),
+            '","tigrisMaxSlippageBps":"',
+            vm.toString(config.tigrisMaxSlippageBps),
             '","automationEnabled":',
             _jsonBool(config.automationEnabled),
             ',"startPaused":',

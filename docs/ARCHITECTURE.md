@@ -142,6 +142,7 @@ Production-oriented read model:
 - protocol-backed debt and collateral reads from Mezo
 - consolidated treasury position snapshot
 - consolidated treasury composition snapshot
+- allocation decision preview for proposed surplus deployment
 
 The Treasury Account should be:
 
@@ -181,6 +182,8 @@ Optional TreasuryOS-native multisig controller for client treasury administratio
 Responsibilities:
 
 - own a Treasury Account as the treasury admin authority when a user does not bring an external multisig
+- receive native BTC from client custody before a multisig-approved trove-opening transaction
+- forward native BTC into `TreasuryAccount.openTrove` or `TreasuryAccount.addCollateral` through approved proposals
 - execute critical setup and policy-administration transactions through a signer threshold
 - execute business MUSD disbursements from the Treasury Account when they require elevated treasury approval
 - support batch setup transactions for onboarding and demo flows
@@ -189,6 +192,7 @@ Responsibilities:
 Design boundaries:
 
 - it does not hold treasury funds as the primary custody boundary
+- it may temporarily hold native BTC before forwarding it into the Treasury Account's Mezo position lifecycle
 - it does not duplicate `TreasuryPolicyEngine` rules
 - it does not execute arbitrary automated risk actions
 - it can be replaced by Safe, Den-backed Safe, Porto-style custody, or another contract wallet
@@ -314,7 +318,18 @@ Responsibilities:
 - generate reviewer-facing views
 - produce exportable or demo-ready reporting artifacts
 
-AI usage, if any, should remain limited to explanation and summarization support.
+AI usage should remain limited to recommendation, explanation, memo drafting, and summarization support. It should consume deterministic treasury state and policy decision previews; it should not become an execution authority.
+
+### 4. Term Yield Planner
+
+Responsibilities:
+
+- generate 7/30/60-day treasury allocation plans
+- apply buffer constraints and sleeve caps
+- include projected yield assumptions and review dates
+- define unwind conditions for buffer shortfall, sleeve pressure, or collateral-health deterioration
+
+V1 should keep this reporting-oriented. It should not introduce a Pendle-style fixed-yield protocol or new onchain yield primitive.
 
 ---
 
@@ -350,9 +365,27 @@ Shows:
 - approved sleeves
 - deployed amount by sleeve
 - remaining allocation capacity
+- required liquid MUSD operating buffer
+- allocatable surplus
+- policy decision preview for a proposed allocation
 - restore-liquidity, disbursement, or withdraw action path
 
-### 4. Operations View
+### 4. Treasury Yield Console
+
+Shows:
+
+- idle MUSD
+- required buffer
+- allocatable surplus
+- approved sleeves
+- sleeve caps and remaining capacity
+- current exposure and receipt assets
+- proposed allocation decision result
+- recommendation memo
+
+This console is the main product surface for the yield angle. It should read like treasury software, not a vault APY page.
+
+### 5. Operations View
 
 Shows:
 
@@ -360,7 +393,7 @@ Shows:
 - recommended or executed automated actions
 - rationale and action history
 
-### 5. Reporting View
+### 6. Reporting View
 
 Shows:
 
@@ -368,6 +401,8 @@ Shows:
 - treasury summary
 - policy decision log
 - reviewer-facing output
+- AI-assisted treasury allocation memo
+- Term Yield Planner output
 
 ---
 
@@ -378,11 +413,15 @@ The asset flow should be explicit and easy to explain.
 ### Step 1 — Treasury setup
 
 - Treasury deploys an isolated Treasury Account through TreasuryOS
-- Treasury chooses the admin control path: bring-your-own multisig/custody account or optional `TreasuryMultisig`
+- TreasuryOS protocol admin approves/onboards the client treasury admin through the factory
+- Treasury chooses the client admin control path: bring-your-own multisig/custody account or optional `TreasuryMultisig`
+
+Protocol admin and client treasury admin are intentionally different roles. The protocol admin operates onboarding rails and registry controls; the client treasury admin owns the Treasury Account and critical treasury actions.
 
 ### Step 2 — BTC-backed borrow origination
 
-- Treasury initiates deposit plus borrow through TreasuryOS
+- Client custody funds the client treasury admin, usually the `TreasuryMultisig`
+- The client treasury admin executes `TreasuryAccount.openTrove` with native BTC value
 - Treasury Account becomes the governed owner of the Mezo position lifecycle
 
 ### Step 3 — MUSD operating capital lands in Treasury Account

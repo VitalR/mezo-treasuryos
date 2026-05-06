@@ -224,7 +224,46 @@ Responsibilities:
 - idle vs allocated balance view
 - sleeve exposure summary
 - policy decision log
+- Treasury Yield Console data
+- AI-assisted treasury memo generation
+- lightweight term-yield planning output
 - reviewer-facing summary output
+
+### 8. AI Treasury Allocation Advisor
+
+Advisory layer for treasury recommendations.
+
+Responsibilities:
+
+- read treasury state, policy state, allocation previews, sleeve exposure, and collateral-health signals
+- generate recommendation memos and risk notes
+- explain why capital is or is not allocatable
+- map recommendations to allowed sleeves, buffer constraints, caps, and unwind conditions
+
+Boundaries:
+
+- AI does not control funds
+- AI does not bypass `TreasuryPolicyEngine`
+- AI does not initiate arbitrary transactions
+- AI output is advisory reporting that must map back to deterministic policy state
+
+### 9. Term Yield Planner
+
+Planning-oriented view for treasury allocation windows.
+
+Responsibilities:
+
+- model 7/30/60-day allocation plans
+- show projected yield assumptions without guaranteeing returns
+- include maturity or review dates
+- respect required operating buffer constraints
+- define unwind conditions such as buffer shortfall, cap pressure, or weakening collateral health
+
+V1 expectation:
+
+- simulated or reporting-oriented only
+- no Pendle-style fixed-yield market in V1
+- no new proprietary yield primitive
 
 ---
 
@@ -280,6 +319,8 @@ Defines which actors may propose, approve, or execute actions.
 ### Signer / Multisig Policy
 
 Defines whether the treasury admin is an external multisig/custody account, optional `TreasuryMultisig`, or development EOA.
+
+This is a client treasury control policy, not TreasuryOS protocol administration. The protocol admin may remain an EOA during testnet development, while the user's Treasury Account is still owned and operated by a client multisig.
 
 ### Approval Policy
 
@@ -339,6 +380,8 @@ The user must be able to:
 - identify idle MUSD above the configured buffer
 - allocate only the permitted portion to approved sleeves
 - view resulting idle vs allocated balances
+- preview whether a proposed allocation is allowed or blocked
+- see the reason for a blocked allocation, including buffer breach, cap breach, unapproved sleeve, insufficient idle MUSD, or approval requirement
 
 ### 4. Treasury Disbursement
 
@@ -376,6 +419,9 @@ The product must be able to:
 - show idle vs allocated capital
 - show sleeve exposures and receipt assets
 - show policy decisions and action history
+- show a Treasury Yield Console with buffer, surplus, caps, exposure, and policy decision result
+- generate an AI-assisted treasury memo that explains current position, idle versus allocated MUSD, sleeve exposure, policy decisions, automation actions, and recommended next step
+- show term-yield planning assumptions for 7/30/60-day allocation windows
 - provide reviewer-facing treasury context
 
 ---
@@ -391,4 +437,5 @@ It should prove the following, clearly:
 - multisig-managed critical setup and business MUSD disbursement
 - multi-sleeve governed allocation
 - one bounded automated treasury response
+- policy-aware yield allocation console and advisory memo
 - reviewer-facing treasury reporting

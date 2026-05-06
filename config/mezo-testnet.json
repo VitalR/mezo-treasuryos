@@ -25,6 +25,8 @@
   "tigris": {
     "router": "0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9",
     "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
+    "maxSlippageBpsEnv": "TIGRIS_MAX_SLIPPAGE_BPS",
+    "defaultMaxSlippageBps": 100,
     "pools": {
       "musdBtc": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
       "musdMusdc": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",

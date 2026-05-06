@@ -47,7 +47,8 @@ contract TigrisStablePoolHandlerTest is Test {
             address(_poolToken),
             IERC20(_borrowerOperations.musdToken()),
             IERC20(address(_pairedStable)),
-            1 hours
+            1 hours,
+            100
         );
 
         vm.deal(_TREASURY_ADMIN, 50 ether);
@@ -78,23 +79,48 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 100 ether);
         assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 100 ether);
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
+        assertEq(_router.lastSwapAmountOutMin(), 49.5 ether);
+        assertEq(_router.lastAddAmountAMin(), 49.5 ether);
+        assertEq(_router.lastAddAmountBMin(), 49.5 ether);
     }
 
     function test_Deposit_RefundsUnusedMUSDWhenPoolUsesPartialLiquidity() public {
-        _router.setAddLiquidityUsageBps(5000);
+        _router.setAddLiquidityUsageBps(9900);
 
         vm.prank(_OPERATOR);
         uint256 _liquidity = _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
 
-        assertEq(_liquidity, 50 ether);
-        assertEq(_treasuryAccount.idleMUSD(), 550 ether);
-        assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 50 ether);
-        assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 50 ether);
+        assertEq(_liquidity, 99 ether);
+        assertEq(_treasuryAccount.idleMUSD(), 501 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 99 ether);
+        assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 99 ether);
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
     }
 
+    function test_Deposit_RevertsWhenSwapOutputIsBelowMinimum() public {
+        _router.setSwapOutputBps(9800);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(MockTigrisBasicRouter.InsufficientSwapOutput.selector, 49 ether, 49.5 ether)
+        );
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+    }
+
+    function test_Deposit_RevertsWhenLiquidityUsedIsBelowMinimum() public {
+        _router.setAddLiquidityUsageBps(9800);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(MockTigrisBasicRouter.InsufficientLiquidityAmountA.selector, 49 ether, 49.5 ether)
+        );
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+    }
+
     function test_Deposit_UnexpectedSwapPathLengthReverts() public {
-        _router.setAddLiquidityUsageBps(5000);
+        _router.setAddLiquidityUsageBps(9900);
         _router.setSwapReturnPathLength(1);
 
         vm.expectRevert(abi.encodeWithSelector(TigrisStablePoolHandler.UnexpectedSwapPathLength.selector, 1));
@@ -115,6 +141,23 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_treasuryAccount.destinationAllocations(address(_poolToken)), 60 ether);
         assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 60 ether);
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
+        assertEq(_router.lastRemoveAmountAMin(), 19.8 ether);
+        assertEq(_router.lastRemoveAmountBMin(), 19.8 ether);
+        assertEq(_router.lastSwapAmountOutMin(), 19.8 ether);
+    }
+
+    function test_Withdraw_RevertsWhenRemoveLiquidityOutputIsBelowMinimum() public {
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+
+        _router.setRemoveLiquidityOutputBps(9800);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(MockTigrisBasicRouter.InsufficientRemoveAmountA.selector, 19.6 ether, 19.8 ether)
+        );
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.withdraw(address(_treasuryAccount), address(_poolToken), 40 ether);
     }
 
     function test_Withdraw_NoLiquidityReverts() public {
@@ -171,6 +214,7 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_handler.router(), address(_router));
         assertEq(_handler.pairedToken(), address(_pairedStable));
         assertEq(_handler.destination(), address(_poolToken));
+        assertEq(_handler.maxSlippageBps(), 100);
     }
 
     function test_Handler_UnauthorizedDirectCallerReverts() public {

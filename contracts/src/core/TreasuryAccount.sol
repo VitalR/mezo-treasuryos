@@ -299,6 +299,52 @@ contract TreasuryAccount is Ownable2Step {
         DestinationExposure[] exposures;
     }
 
+    /// @notice Machine-readable reason code for allocation previews.
+    enum AllocationDecisionCode {
+        Allowed,
+        Paused,
+        ZeroAmount,
+        InvalidDestination,
+        NotApprovedDestination,
+        UnauthorizedActor,
+        ApprovalRequired,
+        InsufficientIdleBalance,
+        LiquidityBufferBreached,
+        AllocationCapExceeded
+    }
+
+    /// @notice Read-only allocation decision used by consoles, reporting, and memo generation.
+    /// @param allowed Whether the allocation would pass the current account policy.
+    /// @param code Machine-readable decision reason.
+    /// @param actor Treasury actor being evaluated.
+    /// @param destination Sleeve destination being evaluated.
+    /// @param amount Requested MUSD allocation amount.
+    /// @param idleMUSD Current idle MUSD before allocation.
+    /// @param liquidityBuffer Required idle operating buffer.
+    /// @param deployableSurplus Idle MUSD above the required operating buffer.
+    /// @param approvalThreshold Operator movement threshold before approver/admin authority is needed.
+    /// @param currentAllocation Current destination allocation.
+    /// @param allocationCap Destination allocation cap.
+    /// @param remainingCapacity Remaining destination capacity before this action.
+    /// @param nextIdleMUSD Projected idle MUSD after allocation.
+    /// @param nextAllocation Projected destination allocation after allocation.
+    struct AllocationDecision {
+        bool allowed;
+        AllocationDecisionCode code;
+        address actor;
+        address destination;
+        uint256 amount;
+        uint256 idleMUSD;
+        uint256 liquidityBuffer;
+        uint256 deployableSurplus;
+        uint256 approvalThreshold;
+        uint256 currentAllocation;
+        uint256 allocationCap;
+        uint256 remainingCapacity;
+        uint256 nextIdleMUSD;
+        uint256 nextAllocation;
+    }
+
     // =============================================================
     // Storage
     // =============================================================
@@ -635,7 +681,10 @@ contract TreasuryAccount is Ownable2Step {
         require(_target != address(0), InvalidExecutionTarget(_target));
 
         (bool _success, bytes memory _result) = _target.call{ value: _value }(_data);
-        require(_success, string(_result));
+        if (!_success) {
+            _revertWithReturnData(_result);
+        }
+
         return _result;
     }
 
@@ -1158,6 +1207,102 @@ contract TreasuryAccount is Ownable2Step {
         });
     }
 
+    /// @notice Previews whether an idle-MUSD allocation would pass policy and why.
+    /// @dev This mirrors the allocation policy checks without mutating state or replacing enforcement.
+    /// @param _actor Treasury actor whose authority should be evaluated.
+    /// @param _destination Destination sleeve being evaluated.
+    /// @param _amount Requested MUSD allocation amount.
+    function previewAllocation(address _actor, address _destination, uint256 _amount)
+        external
+        view
+        returns (AllocationDecision memory decision)
+    {
+        (
+            address _treasuryAdmin,
+            address _operator,
+            address _approver,
+            uint256 _liquidityBuffer,
+            uint256 _approvalThreshold,,
+            bool _paused,
+        ) = policyEngine.getAccountPolicy(address(this));
+
+        decision.actor = _actor;
+        decision.destination = _destination;
+        decision.amount = _amount;
+        decision.idleMUSD = idleMUSD;
+        decision.liquidityBuffer = _liquidityBuffer;
+        decision.approvalThreshold = _approvalThreshold;
+        decision.currentAllocation = destinationAllocations[_destination];
+        decision.allocationCap = policyEngine.allocationCap(address(this), _destination);
+
+        if (decision.allocationCap > decision.currentAllocation) {
+            decision.remainingCapacity = decision.allocationCap - decision.currentAllocation;
+        }
+
+        if (idleMUSD > _liquidityBuffer) {
+            decision.deployableSurplus = idleMUSD - _liquidityBuffer;
+        }
+
+        if (idleMUSD >= _amount) {
+            decision.nextIdleMUSD = idleMUSD - _amount;
+        }
+
+        decision.nextAllocation = type(uint256).max;
+        if (type(uint256).max - decision.currentAllocation >= _amount) {
+            decision.nextAllocation = decision.currentAllocation + _amount;
+        }
+
+        decision.code = _previewAllocationCode(decision, _treasuryAdmin, _operator, _approver, _paused);
+        decision.allowed = decision.code == AllocationDecisionCode.Allowed;
+    }
+
+    /// @notice Evaluates a prepared allocation preview against current policy inputs.
+    function _previewAllocationCode(
+        AllocationDecision memory _decision,
+        address _treasuryAdmin,
+        address _operator,
+        address _approver,
+        bool _paused
+    ) internal view returns (AllocationDecisionCode code) {
+        if (_paused) {
+            return AllocationDecisionCode.Paused;
+        }
+
+        if (_decision.amount == 0) {
+            return AllocationDecisionCode.ZeroAmount;
+        }
+
+        if (_decision.destination == address(0)) {
+            return AllocationDecisionCode.InvalidDestination;
+        }
+
+        if (!policyEngine.isDestinationApproved(address(this), _decision.destination)) {
+            return AllocationDecisionCode.NotApprovedDestination;
+        }
+
+        if (_decision.actor != _treasuryAdmin && _decision.actor != _approver && _decision.actor != _operator) {
+            return AllocationDecisionCode.UnauthorizedActor;
+        }
+
+        if (_decision.actor == _operator && _decision.amount > _decision.approvalThreshold) {
+            return AllocationDecisionCode.ApprovalRequired;
+        }
+
+        if (_decision.idleMUSD < _decision.amount) {
+            return AllocationDecisionCode.InsufficientIdleBalance;
+        }
+
+        if (_decision.nextIdleMUSD < _decision.liquidityBuffer) {
+            return AllocationDecisionCode.LiquidityBufferBreached;
+        }
+
+        if (_decision.nextAllocation > _decision.allocationCap) {
+            return AllocationDecisionCode.AllocationCapExceeded;
+        }
+
+        return AllocationDecisionCode.Allowed;
+    }
+
     // =============================================================
     // Internal Functions
     // =============================================================
@@ -1297,6 +1442,18 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Reverts when the allocation router is not configured for workflow-scoped sleeve actions.
     function _requireAllocationRouterConfigured() internal view {
         require(allocationRouter != address(0), AllocationRouterNotConfigured());
+    }
+
+    /// @notice Bubbles custom errors and revert strings returned by destination protocols.
+    /// @param _returnData Revert data from the failed external call.
+    function _revertWithReturnData(bytes memory _returnData) internal pure {
+        if (_returnData.length == 0) {
+            revert();
+        }
+
+        assembly {
+            revert(add(_returnData, 32), mload(_returnData))
+        }
     }
 
     /// @notice Previews claimable savings-vault yield including any uncheckpointed yield index delta.

@@ -4,6 +4,8 @@ SHELL := /bin/bash
 ENV_FILE := .env
 CONTRACTS_ROOT := contracts
 DEPLOY_SCRIPT := script/DeployTreasuryOS.s.sol:DeployTreasuryOS
+CORE_DEPLOY_SCRIPT := script/DeployTreasuryOSCore.s.sol:DeployTreasuryOSCore
+CLIENT_ONBOARD_SCRIPT := script/OnboardTreasuryClient.s.sol:OnboardTreasuryClient
 LOCAL_DEPLOY_SCRIPT := script/DeployLocalTreasuryOS.s.sol:DeployLocalTreasuryOS
 BLOCKSCOUT_API := https://api.explorer.test.mezo.org/api/
 ANVIL_RPC_URL ?= http://127.0.0.1:8545
@@ -21,12 +23,19 @@ help:
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
-	@echo "  make deploy-mezo-testnet          - deploy TreasuryOS stack to Mezo testnet"
-	@echo "  make deploy-mezo-testnet-verify   - deploy and verify on Mezo testnet Blockscout"
-	@echo "  make deploy-mezo-testnet-eoa      - deploy verified stack with EOA Treasury Account owner"
-	@echo "  make deploy-mezo-testnet-multisig - deploy verified stack with 1-of-1 TreasuryMultisig owner"
-	@echo "  make deploy-mezo-testnet-2of3     - deploy verified stack with 2-of-3 TreasuryMultisig owner"
-	@echo "  make deploy-mezo-testnet-external - deploy verified stack for external multisig/custody owner"
+	@echo "  make check-core-env               - verify protocol core deployment env vars"
+	@echo "  make check-client-env             - verify client onboarding env vars"
+	@echo "  make deploy-mezo-testnet-core     - deploy verified protocol core only"
+	@echo "  make onboard-mezo-client-multisig - onboard one client with 1-of-1 TreasuryMultisig"
+	@echo "  make onboard-mezo-client-2of3     - onboard one client with 2-of-3 TreasuryMultisig"
+	@echo "  make onboard-mezo-client-eoa      - onboard one client with EOA owner"
+	@echo "  make onboard-mezo-client-external - onboard one client with external multisig/custody owner"
+	@echo "  make deploy-mezo-testnet          - deploy protocol + one client treasury stack to Mezo testnet"
+	@echo "  make deploy-mezo-testnet-verify   - deploy protocol + one client treasury stack and verify"
+	@echo "  make deploy-mezo-testnet-eoa      - deploy verified stack with client EOA Treasury Account owner"
+	@echo "  make deploy-mezo-testnet-multisig - deploy verified stack with client 1-of-1 TreasuryMultisig owner"
+	@echo "  make deploy-mezo-testnet-2of3     - deploy verified stack with client 2-of-3 TreasuryMultisig owner"
+	@echo "  make deploy-mezo-testnet-external - deploy verified stack for external client multisig/custody owner"
 	@echo "  make multisig-confirm-batch-mezo  - confirm a pending TreasuryMultisig setup batch"
 	@echo "  make verify-mezo-testnet-resume   - resume verification for the latest deployment"
 
@@ -101,8 +110,58 @@ define require_testnet_env
 	[ -n "$$MEZO_BORROWER_OPERATIONS" ] || { echo "Missing MEZO_BORROWER_OPERATIONS"; exit 1; };
 endef
 
+define require_core_deploy_env
+	[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+	[ -n "$$DEPLOYER_PRIVATE_KEY" ] || { echo "Missing DEPLOYER_PRIVATE_KEY"; exit 1; }; \
+	[ -n "$$MEZO_MUSD_TOKEN" ] || { echo "Missing MEZO_MUSD_TOKEN"; exit 1; };
+endef
+
+define require_client_onboard_env
+	[ -n "$$MEZO_RPC_URL" ] || { echo "Missing MEZO_RPC_URL"; exit 1; }; \
+	[ -n "$$DEPLOYER_PRIVATE_KEY" ] || { echo "Missing DEPLOYER_PRIVATE_KEY"; exit 1; }; \
+	[ -n "$$TREASURY_POLICY_ENGINE" ] || { echo "Missing TREASURY_POLICY_ENGINE"; exit 1; }; \
+	[ -n "$$TREASURY_ACCOUNT_FACTORY" ] || { echo "Missing TREASURY_ACCOUNT_FACTORY"; exit 1; }; \
+	if [ "$${DEPLOY_CLIENT_TREASURY_MULTISIG:-$${DEPLOY_TREASURY_MULTISIG:-true}}" = "true" ]; then \
+		[ -n "$${CLIENT_TREASURY_MULTISIG_OWNER_1:-$${TREASURY_MULTISIG_OWNER_1:-}}" ] || { echo "Missing CLIENT_TREASURY_MULTISIG_OWNER_1 or TREASURY_MULTISIG_OWNER_1"; exit 1; }; \
+		if [ "$${PROPOSE_CLIENT_TREASURY_MULTISIG_SETUP:-$${PROPOSE_TREASURY_MULTISIG_SETUP:-true}}" != "false" ]; then \
+			[ -n "$${CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY:-$${TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY:-}}" ] || { echo "Missing CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY or TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY"; exit 1; }; \
+		fi; \
+	else \
+		[ -n "$${CLIENT_TREASURY_OWNER:-$${TREASURY_OWNER:-}}" ] || { echo "Missing CLIENT_TREASURY_OWNER or TREASURY_OWNER"; exit 1; }; \
+		if [ "$${EXECUTE_CLIENT_OWNER_SETUP:-$${EXECUTE_OWNER_CONTROLLED_SETUP:-true}}" != "false" ]; then \
+			if [ -z "$${CLIENT_TREASURY_OWNER_PRIVATE_KEY:-$${TREASURY_OWNER_PRIVATE_KEY:-}}" ]; then echo "CLIENT_TREASURY_OWNER_PRIVATE_KEY not set; setup can only continue if client owner is the protocol admin."; fi; \
+		fi; \
+	fi; \
+	[ -n "$$TREASURY_APPROVER" ] || { echo "Missing TREASURY_APPROVER"; exit 1; }; \
+	[ -n "$$TREASURY_OPERATOR" ] || { echo "Missing TREASURY_OPERATOR"; exit 1; }; \
+	[ -n "$$MEZO_MUSD_TOKEN" ] || { echo "Missing MEZO_MUSD_TOKEN"; exit 1; }; \
+	[ -n "$$MEZO_BORROWER_OPERATIONS" ] || { echo "Missing MEZO_BORROWER_OPERATIONS"; exit 1; };
+endef
+
 define forge_deploy_testnet_verified
 	forge script $(DEPLOY_SCRIPT) \
+		--root $(CONTRACTS_ROOT) \
+		--rpc-url "$$MEZO_RPC_URL" \
+		--broadcast \
+		--verify \
+		--verifier blockscout \
+		--verifier-url "$(BLOCKSCOUT_API)" \
+		-vvvv
+endef
+
+define forge_deploy_core_verified
+	forge script $(CORE_DEPLOY_SCRIPT) \
+		--root $(CONTRACTS_ROOT) \
+		--rpc-url "$$MEZO_RPC_URL" \
+		--broadcast \
+		--verify \
+		--verifier blockscout \
+		--verifier-url "$(BLOCKSCOUT_API)" \
+		-vvvv
+endef
+
+define forge_onboard_client_verified
+	forge script $(CLIENT_ONBOARD_SCRIPT) \
 		--root $(CONTRACTS_ROOT) \
 		--rpc-url "$$MEZO_RPC_URL" \
 		--broadcast \
@@ -122,6 +181,24 @@ check-env:
 		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (external savings mock path expected)"; fi; \
 	'
 
+.PHONY: check-core-env
+check-core-env:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_core_deploy_env) \
+		echo "Required TreasuryOS protocol core env vars are set."; \
+	'
+
+.PHONY: check-client-env
+check-client-env:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_client_onboard_env) \
+		echo "Required TreasuryOS client onboarding env vars are set."; \
+		if [ -n "$$MEZO_MUSDC_TOKEN" ]; then echo "MEZO_MUSDC_TOKEN=SET"; else echo "MEZO_MUSDC_TOKEN=MISSING (Tigris handler will be skipped)"; fi; \
+		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (external savings mock path expected)"; fi; \
+	'
+
 .PHONY: deploy-mezo-testnet
 deploy-mezo-testnet:
 	$(call require_env_file)
@@ -132,6 +209,71 @@ deploy-mezo-testnet:
 			--rpc-url "$$MEZO_RPC_URL" \
 			--broadcast \
 			-vvvv \
+	'
+
+.PHONY: deploy-mezo-testnet-core
+deploy-mezo-testnet-core:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_core_deploy_env) \
+		$(call forge_deploy_core_verified) \
+	'
+
+.PHONY: onboard-mezo-client-multisig
+onboard-mezo-client-multisig:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		if [ -z "$$CLIENT_TREASURY_MULTISIG_OWNER_1" ] && [ -n "$$TREASURY_MULTISIG_OWNER_1" ]; then export CLIENT_TREASURY_MULTISIG_OWNER_1="$$TREASURY_MULTISIG_OWNER_1"; fi; \
+		if [ -z "$$CLIENT_TREASURY_MULTISIG_OWNER_1" ] && [ -n "$$TREASURY_OWNER" ]; then export CLIENT_TREASURY_MULTISIG_OWNER_1="$$TREASURY_OWNER"; fi; \
+		if [ -z "$$CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] && [ -n "$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ]; then export CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY="$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY"; fi; \
+		if [ -z "$$CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] && [ -n "$$TREASURY_OWNER_PRIVATE_KEY" ]; then export CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY="$$TREASURY_OWNER_PRIVATE_KEY"; fi; \
+		export DEPLOY_CLIENT_TREASURY_MULTISIG=true; \
+		export CLIENT_TREASURY_MULTISIG_THRESHOLD=1; \
+		unset CLIENT_TREASURY_MULTISIG_OWNER_2 CLIENT_TREASURY_MULTISIG_OWNER_3 CLIENT_TREASURY_MULTISIG_OWNER_4 CLIENT_TREASURY_MULTISIG_OWNER_5; \
+		export PROPOSE_CLIENT_TREASURY_MULTISIG_SETUP=true; \
+		$(call require_client_onboard_env) \
+		$(call forge_onboard_client_verified) \
+	'
+
+.PHONY: onboard-mezo-client-2of3
+onboard-mezo-client-2of3:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		if [ -z "$$CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] && [ -n "$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ]; then export CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY="$$TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY"; fi; \
+		if [ -z "$$CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY" ] && [ -n "$$TREASURY_OWNER_PRIVATE_KEY" ]; then export CLIENT_TREASURY_MULTISIG_PROPOSER_PRIVATE_KEY="$$TREASURY_OWNER_PRIVATE_KEY"; fi; \
+		export DEPLOY_CLIENT_TREASURY_MULTISIG=true; \
+		export CLIENT_TREASURY_MULTISIG_THRESHOLD=2; \
+		unset CLIENT_TREASURY_MULTISIG_OWNER_4 CLIENT_TREASURY_MULTISIG_OWNER_5; \
+		export PROPOSE_CLIENT_TREASURY_MULTISIG_SETUP=true; \
+		[ -n "$${CLIENT_TREASURY_MULTISIG_OWNER_1:-$${TREASURY_MULTISIG_OWNER_1:-}}" ] || { echo "Missing CLIENT_TREASURY_MULTISIG_OWNER_1 or TREASURY_MULTISIG_OWNER_1"; exit 1; }; \
+		[ -n "$${CLIENT_TREASURY_MULTISIG_OWNER_2:-$${TREASURY_MULTISIG_OWNER_2:-}}" ] || { echo "Missing CLIENT_TREASURY_MULTISIG_OWNER_2 or TREASURY_MULTISIG_OWNER_2"; exit 1; }; \
+		[ -n "$${CLIENT_TREASURY_MULTISIG_OWNER_3:-$${TREASURY_MULTISIG_OWNER_3:-}}" ] || { echo "Missing CLIENT_TREASURY_MULTISIG_OWNER_3 or TREASURY_MULTISIG_OWNER_3"; exit 1; }; \
+		$(call require_client_onboard_env) \
+		$(call forge_onboard_client_verified) \
+	'
+
+.PHONY: onboard-mezo-client-eoa
+onboard-mezo-client-eoa:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		if [ -z "$$CLIENT_TREASURY_OWNER" ] && [ -n "$$TREASURY_OWNER" ]; then export CLIENT_TREASURY_OWNER="$$TREASURY_OWNER"; fi; \
+		if [ -z "$$CLIENT_TREASURY_OWNER_PRIVATE_KEY" ] && [ -n "$$TREASURY_OWNER_PRIVATE_KEY" ]; then export CLIENT_TREASURY_OWNER_PRIVATE_KEY="$$TREASURY_OWNER_PRIVATE_KEY"; fi; \
+		export DEPLOY_CLIENT_TREASURY_MULTISIG=false; \
+		export EXECUTE_CLIENT_OWNER_SETUP=true; \
+		$(call require_client_onboard_env) \
+		[ -n "$$CLIENT_TREASURY_OWNER_PRIVATE_KEY" ] || { echo "Missing CLIENT_TREASURY_OWNER_PRIVATE_KEY for EOA setup execution"; exit 1; }; \
+		$(call forge_onboard_client_verified) \
+	'
+
+.PHONY: onboard-mezo-client-external
+onboard-mezo-client-external:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		if [ -z "$$CLIENT_TREASURY_OWNER" ] && [ -n "$$TREASURY_OWNER" ]; then export CLIENT_TREASURY_OWNER="$$TREASURY_OWNER"; fi; \
+		export DEPLOY_CLIENT_TREASURY_MULTISIG=false; \
+		export EXECUTE_CLIENT_OWNER_SETUP=false; \
+		$(call require_client_onboard_env) \
+		$(call forge_onboard_client_verified) \
 	'
 
 .PHONY: deploy-mezo-testnet-verify

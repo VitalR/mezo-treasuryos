@@ -98,6 +98,8 @@ The product now proves one allocation routing model with two concrete Mezo-nativ
 - a treasury savings sleeve for idle MUSD
 - a treasury LP sleeve for approved stable-pool deployment
 
+The yield angle is not a separate high-yield product. TreasuryOS preserves the required operating buffer first, calculates allocatable surplus, previews the policy decision for proposed sleeve allocations, and routes only approved surplus into capped Mezo-native sleeves.
+
 ---
 
 ## Deployment Modes
@@ -149,6 +151,18 @@ Monitoring and bounded automated treasury actions.
 ### Treasury Reporting Layer
 
 Treasury state, activity, policy, sleeve exposure, and reviewer-facing reporting outputs.
+
+### Treasury Yield Console And AI Memo
+
+Planned product/reporting surface for idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, policy decision results, and advisory treasury memos.
+
+AI can explain and recommend. It cannot sign, bypass policy, or control funds.
+
+Demo renderer:
+
+```sh
+npm run demo:yield-console
+```
 
 ---
 

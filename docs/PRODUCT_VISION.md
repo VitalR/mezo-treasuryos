@@ -124,6 +124,51 @@ It should explicitly position itself alongside Mezo's institutional direction.
 
 This keeps the product institutional without turning it into a clone of Mezo Institutional or Enclaves.
 
+### Differentiation vs Mezo Prime / Enclave
+
+Mezo Prime and Enclave-style infrastructure are upstream institutional rails:
+
+- segregated BTC vaults
+- qualified-custody onboarding
+- BTC-backed lending access
+- Mezo-native BTC yield participation
+- institutional account infrastructure
+
+TreasuryOS should not compete with that layer.
+
+TreasuryOS should own the downstream treasury workflow after the client has borrowed or is managing MUSD capital:
+
+- operating liquidity buffer policy
+- surplus MUSD allocation rules
+- multisig-aware approval paths
+- approved sleeve routing
+- automation inside explicit limits
+- reporting and reviewer memos
+
+The yield angle strengthens this distinction only if it remains policy-governed treasury allocation. It weakens the product if it becomes a generic APY vault.
+
+### Treasury Yield Positioning
+
+The right yield positioning is:
+
+**TreasuryOS helps a BTC treasury decide, approve, execute, and explain approved allocation of surplus MUSD.**
+
+The product should support:
+
+- a required liquid MUSD operating buffer
+- allocatable-surplus calculation
+- approved Mezo-native sleeves such as MUSD Savings Rate and Tigris `MUSD/mUSDC`
+- per-sleeve caps and exposure reporting
+- policy decision previews
+- AI-assisted treasury memos
+- term planning for review windows and unwind conditions
+
+It should not support in V1:
+
+- a proprietary fixed-yield protocol
+- autonomous AI capital management
+- an unbounded strategy marketplace
+
 ---
 
 ## Target Customer
@@ -218,16 +263,21 @@ It should not be presented as:
 
 ### What the treasury admin controls
 
-The treasury admin is the authority for critical actions.
+The client treasury admin is the authority for critical user-treasury actions.
 
 In production this can be an existing Safe, Den-backed Safe, Porto-style custody account, or another contract wallet. For onboarding and hackathon demo flows, TreasuryOS can provide an optional `TreasuryMultisig`.
 
-The treasury admin should control:
+This is separate from TreasuryOS protocol administration. During testnet development, the protocol admin can remain an EOA that owns onboarding controls such as the factory; the client treasury admin should still own the user's Treasury Account and funds.
+
+The client treasury admin should control:
 
 - critical setup and dependency changes
+- BTC funding approval for opening or adding collateral to the Treasury Account's Mezo position
 - elevated business MUSD disbursements
 - policy and automation executor configuration
 - signer or owner rotation
+
+If TreasuryOS provides the client `TreasuryMultisig`, that multisig can receive native BTC and forward it into the Treasury Account through approved proposals. The multisig is still not the long-term treasury accounting boundary; after `openTrove`, the Treasury Account owns the Mezo position lifecycle and manages MUSD accounting.
 
 The automation executor should not control arbitrary business withdrawals. It should only execute bounded, policy-authorized workflows such as restoring the liquid buffer or unwinding a sleeve to repay debt.
 
@@ -263,7 +313,7 @@ The intended control options are:
 - optional `TreasuryMultisig`
 - EOA only for development or early testnet usage
 
-This layer is execution authority, not policy logic. `TreasuryPolicyEngine` still decides whether actions comply with treasury rules.
+This layer is client execution authority, not protocol administration and not policy logic. `TreasuryPolicyEngine` still decides whether actions comply with treasury rules.
 
 ### 4. Mezo Position Lifecycle
 

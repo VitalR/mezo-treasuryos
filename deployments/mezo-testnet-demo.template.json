@@ -94,12 +94,14 @@
       "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
       "musdMusdcPool": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
       "musdMusdtPool": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e",
-      "musdBtcPool": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9"
+      "musdBtcPool": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
+      "maxSlippageBps": "100"
     }
   },
   "treasuryScenario": {
     "liquidityBuffer": "0",
     "approvalThreshold": "0",
+    "tigrisMaxSlippageBps": "100",
     "approvedSleeves": [
       {
         "label": "MUSD Savings Rate",

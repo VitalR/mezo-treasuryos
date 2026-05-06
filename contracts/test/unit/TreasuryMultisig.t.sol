@@ -84,6 +84,20 @@ contract TreasuryMultisigTest is Test {
         assertEq(_operatingRecipient.balance, _transferAmount);
     }
 
+    function test_ProposeTransaction_CanTransferERC20Funds() public {
+        IERC20 _musdToken = IERC20(_borrowerOperations.musdToken());
+        uint256 _transferAmount = 100 ether;
+
+        _borrowerOperations.musdTokenContract().mint(address(_multisig), _transferAmount);
+
+        _executeMultisigCall(
+            address(_musdToken), 0, abi.encodeCall(IERC20.transfer, (_operatingRecipient, _transferAmount))
+        );
+
+        assertEq(_musdToken.balanceOf(_operatingRecipient), _transferAmount);
+        assertEq(_musdToken.balanceOf(address(_multisig)), 0);
+    }
+
     function test_Constructor_InvalidOwnerConfigurationReverts() public {
         address[] memory _owners = new address[](0);
 

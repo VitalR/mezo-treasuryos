@@ -120,6 +120,16 @@ Current V1 sleeves:
 
 That keeps V1 additive to Mezo while still showing more than a single passive vault path.
 
+For demo reliability, MUSD Savings Rate remains the primary allocation sleeve. Tigris is a secondary sleeve that strengthens differentiation when testnet liquidity is healthy; if pool liquidity is poor, TreasuryOS can still prove the full governed treasury workflow with savings allocation and buffer restoration.
+
+The yield angle is intentionally treasury-native:
+
+- preserve the operating buffer first
+- allocate only surplus MUSD
+- enforce approved sleeves and caps
+- preview why an allocation is allowed or blocked
+- generate an AI-assisted treasury memo that remains advisory
+
 ---
 
 ## Automation Story
@@ -137,6 +147,22 @@ Examples:
 
 This is treasury automation, not black-box AI capital management.
 
+## AI Story
+
+AI is not the signer, policy engine, or executor.
+
+AI reads TreasuryOS state and generates an allocation memo:
+
+- current BTC-backed MUSD position
+- idle versus allocated MUSD
+- allocatable surplus above buffer
+- sleeve exposure and cap pressure
+- policy decisions and blocked actions
+- collateral-health notes
+- recommended next treasury step
+
+That makes TreasuryOS feel like an operations product without weakening onchain controls.
+
 ---
 
 ## Demo Story
@@ -151,7 +177,7 @@ The strongest demo is:
 6. Keep an operating buffer and allocate only surplus MUSD into approved sleeves
 7. Trigger a stress or liquidity event
 8. Show TreasuryOS restoring buffer or blocking a risky action
-9. Show the reporting view explaining what happened and why
+9. Show the Treasury Yield Console and AI memo explaining what happened and why
 
 Throughout the flow, show that live reads, monitoring, and transaction execution are running through **Spectrum Nodes** on Mezo testnet.
 

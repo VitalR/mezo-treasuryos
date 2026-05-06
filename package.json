@@ -5,6 +5,7 @@
   "scripts": {
     "contracts:build": "forge build --root contracts",
     "contracts:test": "forge test --root contracts",
-    "contracts:fmt": "forge fmt --root contracts"
+    "contracts:fmt": "forge fmt --root contracts",
+    "demo:yield-console": "node services/yield-console/render.mjs services/yield-console/sample-snapshot.json"
   }
 }

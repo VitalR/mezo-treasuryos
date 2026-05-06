@@ -492,6 +492,66 @@ contract TreasuryAccountTest is Test {
         assertFalse(_state.exposures[1].supportsSavingsRate);
     }
 
+    function test_PreviewAllocation_ReturnsAllowedDecisionForDeployableSurplus() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        TreasuryAccount.AllocationDecision memory _decision =
+            _account.previewAllocation(_OPERATOR, _SAVINGS_VAULT, 100 ether);
+
+        assertTrue(_decision.allowed);
+        assertEq(uint256(_decision.code), uint256(TreasuryAccount.AllocationDecisionCode.Allowed));
+        assertEq(_decision.actor, _OPERATOR);
+        assertEq(_decision.destination, _SAVINGS_VAULT);
+        assertEq(_decision.amount, 100 ether);
+        assertEq(_decision.idleMUSD, 600 ether);
+        assertEq(_decision.liquidityBuffer, 200 ether);
+        assertEq(_decision.deployableSurplus, 400 ether);
+        assertEq(_decision.approvalThreshold, 100 ether);
+        assertEq(_decision.currentAllocation, 0);
+        assertEq(_decision.allocationCap, 500 ether);
+        assertEq(_decision.remainingCapacity, 500 ether);
+        assertEq(_decision.nextIdleMUSD, 500 ether);
+        assertEq(_decision.nextAllocation, 100 ether);
+    }
+
+    function test_PreviewAllocation_ExplainsLiquidityBufferBreach() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 3 ether }(260 ether, _UPPER_HINT, _LOWER_HINT);
+
+        TreasuryAccount.AllocationDecision memory _decision =
+            _account.previewAllocation(_OPERATOR, _SAVINGS_VAULT, 100 ether);
+
+        assertFalse(_decision.allowed);
+        assertEq(uint256(_decision.code), uint256(TreasuryAccount.AllocationDecisionCode.LiquidityBufferBreached));
+        assertEq(_decision.deployableSurplus, 60 ether);
+        assertEq(_decision.nextIdleMUSD, 160 ether);
+    }
+
+    function test_PreviewAllocation_ExplainsAllocationCapBreach() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 8 ether }(800 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_APPROVER);
+        _account.allocate(_SAVINGS_VAULT, 480 ether);
+
+        TreasuryAccount.AllocationDecision memory _decision =
+            _account.previewAllocation(_OPERATOR, _SAVINGS_VAULT, 30 ether);
+
+        assertFalse(_decision.allowed);
+        assertEq(uint256(_decision.code), uint256(TreasuryAccount.AllocationDecisionCode.AllocationCapExceeded));
+        assertEq(_decision.currentAllocation, 480 ether);
+        assertEq(_decision.allocationCap, 500 ether);
+        assertEq(_decision.remainingCapacity, 20 ether);
+        assertEq(_decision.nextAllocation, 510 ether);
+    }
+
     function test_Allocate_OperatorCanAllocateWithinThresholdAndBuffer() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 
@@ -506,6 +566,20 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_account.idleMUSD(), 500 ether);
         assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 100 ether);
+    }
+
+    function test_Allocate_InsufficientIdleBalanceUsesPolicyError() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 3 ether }(100 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.InsufficientIdleBalance.selector, 120 ether, 100 ether)
+        );
+
+        vm.prank(_APPROVER);
+        _account.allocate(_SAVINGS_VAULT, 120 ether);
     }
 
     function test_Allocate_UnapprovedDestinationReverts() public {

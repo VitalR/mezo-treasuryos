@@ -471,6 +471,7 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(_amount > 0, InvalidAmount(_amount));
         require(_destination != address(0), InvalidDestination(_destination));
         require(approvedDestinations[_account][_destination], NotApprovedDestination(_destination));
+        require(_idleBalance >= _amount, InsufficientIdleBalance(_amount, _idleBalance));
 
         _requireMovementAuthority(policy, _account, _actor, _amount);
 

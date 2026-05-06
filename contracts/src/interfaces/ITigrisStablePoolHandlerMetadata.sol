@@ -9,4 +9,7 @@ interface ITigrisStablePoolHandlerMetadata {
 
     /// @notice Returns the Tigris router used by the handler.
     function router() external view returns (address);
+
+    /// @notice Returns the maximum accepted execution slippage in basis points.
+    function maxSlippageBps() external view returns (uint256);
 }
