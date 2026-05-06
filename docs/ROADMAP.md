@@ -190,6 +190,7 @@ If borrow origination or position ownership is weak or fake, the whole product b
 - `MUSDSavingsRateHandler`
 - `TigrisStablePoolHandler`
 - destination state tracking
+- admin-governed destination policy updates for adding or recapping future MUSD-denominated sleeves without redeploying Treasury Accounts
 - allocation decision preview for proposed sleeve actions
 - governed allocation UI flow
 - integration tests for deploy and withdraw behavior
@@ -211,6 +212,8 @@ If borrow origination or position ownership is weak or fake, the whole product b
 ### Notes
 
 Do not expand beyond the current sleeve set unless both sleeves are fully convincing.
+
+The contract spine can add another MUSD-denominated sleeve later through router handler registration plus destination policy/cap updates. Do not describe this as native BTC-principal allocation support until separate BTC sleeve accounting exists.
 
 For the final demo, keep **MUSD Savings Rate** as the primary guaranteed allocation sleeve. Treat Tigris `MUSD/mUSDC` as the secondary differentiating sleeve only when testnet pool liquidity and route behavior are healthy. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
 

@@ -38,6 +38,10 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     event AutomationCapabilitiesUpdated(
         address indexed account, bool allowAutoSavingsWithdraw, bool allowAutoDebtRepay
     );
+    /// @notice Emitted when a destination approval or allocation cap changes for an account.
+    event DestinationPolicyUpdated(
+        address indexed account, address indexed destination, address indexed actor, bool approved, uint256 cap
+    );
     /// @notice Emitted when the automation-enabled state changes for an account.
     event AutomationEnabledUpdated(address indexed account, bool automationEnabled);
     /// @notice Emitted when the paused state changes for an account.
@@ -311,6 +315,21 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         policy.allowAutoDebtRepay = _allowAutoDebtRepay;
 
         emit AutomationCapabilitiesUpdated(_account, _allowAutoSavingsWithdraw, _allowAutoDebtRepay);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function updateDestinationPolicy(address _account, address _destination, bool _approved, uint256 _cap) external {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+        require(_destination != address(0), InvalidDestination(_destination));
+
+        approvedDestinations[_account][_destination] = _approved;
+        destinationCaps[_account][_destination] = _approved ? _cap : 0;
+
+        emit DestinationPolicyUpdated(
+            _account, _destination, msg.sender, _approved, destinationCaps[_account][_destination]
+        );
     }
 
     /// @inheritdoc ITreasuryPolicyEngine

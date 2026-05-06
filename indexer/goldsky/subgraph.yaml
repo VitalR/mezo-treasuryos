@@ -50,6 +50,8 @@ dataSources:
           handler: handleAutomationExecutorUpdated
         - event: AutomationLimitsUpdated(indexed address,uint256,uint256)
           handler: handleAutomationLimitsUpdated
+        - event: DestinationPolicyUpdated(indexed address,indexed address,indexed address,bool,uint256)
+          handler: handleDestinationPolicyUpdated
       file: ./src/mapping.ts
   - kind: ethereum
     name: AllocationRouter

@@ -173,6 +173,10 @@ npm run state:probe
 
 The state reader loads the real `.env`, tests `SPECTRUM_MEZO_RPC_URL_1`, `_2`, `_3`, then the legacy `SPECTRUM_MEZO_RPC_URL`, and falls back to `MEZO_RPC_URL` only if no Spectrum candidate returns Mezo testnet chain ID `31611`. We should not claim Spectrum was active in a given run unless `make rpc-health` reports a Spectrum endpoint as `OK`.
 
+Sleeve extensibility:
+
+TreasuryOS can add another MUSD-denominated sleeve after deployment by deploying a handler, registering it in the client-owned `AllocationRouter`, and updating the account's destination policy/cap in `TreasuryPolicyEngine`. Native BTC-principal sleeve accounting is not part of V1.
+
 Goldsky indexing scaffold:
 
 ```sh

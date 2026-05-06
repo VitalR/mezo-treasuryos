@@ -155,6 +155,52 @@ contract MUSDSavingsRateHandlerTest is Test {
         assertEq(_mockSavingsVault.balanceOf(address(_treasuryAccount)), 150 ether);
     }
 
+    function test_AddSavingsSleeve_TreasuryAdminCanRouteNewSleeveWithoutRedeployingAccount() public {
+        MockMUSDSavingsRate _secondSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
+        MUSDSavingsRateHandler _secondHandler =
+            new MUSDSavingsRateHandler(_secondSavingsVault, address(_allocationRouter));
+
+        address _existingAccount = address(_treasuryAccount);
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateDestinationPolicy(address(_treasuryAccount), address(_secondSavingsVault), true, 120 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _allocationRouter.setHandler(address(_secondSavingsVault), _secondHandler);
+
+        vm.prank(_OPERATOR);
+        uint256 _shares = _allocationRouter.deposit(address(_treasuryAccount), address(_secondSavingsVault), 80 ether);
+
+        assertEq(address(_treasuryAccount), _existingAccount);
+        assertEq(_shares, 80 ether);
+        assertTrue(_policyEngine.isDestinationApproved(address(_treasuryAccount), address(_secondSavingsVault)));
+        assertEq(_policyEngine.allocationCap(address(_treasuryAccount), address(_secondSavingsVault)), 120 ether);
+        assertEq(_treasuryAccount.destinationAllocations(address(_secondSavingsVault)), 80 ether);
+        assertEq(_secondSavingsVault.balanceOf(address(_treasuryAccount)), 80 ether);
+        assertEq(_allocationRouter.handlers(address(_secondSavingsVault)), address(_secondHandler));
+    }
+
+    function test_UpdateDestinationPolicy_RevokedSleeveBlocksNewDepositsButAllowsWithdrawal() public {
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_mockSavingsVault), 80 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateDestinationPolicy(address(_treasuryAccount), address(_mockSavingsVault), false, 500 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.NotApprovedDestination.selector, address(_mockSavingsVault))
+        );
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_mockSavingsVault), 10 ether);
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.withdraw(address(_treasuryAccount), address(_mockSavingsVault), 30 ether);
+
+        assertEq(_treasuryAccount.destinationAllocations(address(_mockSavingsVault)), 50 ether);
+        assertEq(_mockSavingsVault.balanceOf(address(_treasuryAccount)), 50 ether);
+    }
+
     function test_Withdraw_RestoresIdleTreasuryBalance() public {
         vm.prank(_OPERATOR);
         _allocationRouter.deposit(address(_treasuryAccount), address(_mockSavingsVault), 100 ether);

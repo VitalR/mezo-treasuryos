@@ -16,6 +16,7 @@ contract TreasuryPolicyEngineTest is Test {
     address internal constant _APPROVER = address(0xCAFE);
     address internal constant _AUTOMATION_EXECUTOR = address(0xA700);
     address internal constant _SAVINGS_VAULT = address(0xD00D);
+    address internal constant _NEW_SLEEVE = address(0xF00D);
     address internal constant _STRANGER = address(0xBAD);
 
     TreasuryPolicyEngine internal _policyEngine;
@@ -80,6 +81,52 @@ contract TreasuryPolicyEngineTest is Test {
 
         assertTrue(_allowAutoSavingsWithdraw);
         assertTrue(_allowAutoDebtRepay);
+    }
+
+    function test_UpdateDestinationPolicy_TreasuryAdminApprovesAndRecapsSleeve() public {
+        vm.expectEmit(true, true, true, true);
+        emit TreasuryPolicyEngine.DestinationPolicyUpdated(
+            address(_account), _NEW_SLEEVE, _TREASURY_ADMIN, true, 250 ether
+        );
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateDestinationPolicy(address(_account), _NEW_SLEEVE, true, 250 ether);
+
+        assertTrue(_policyEngine.isDestinationApproved(address(_account), _NEW_SLEEVE));
+        assertEq(_policyEngine.allocationCap(address(_account), _NEW_SLEEVE), 250 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateDestinationPolicy(address(_account), _NEW_SLEEVE, true, 400 ether);
+
+        assertEq(_policyEngine.allocationCap(address(_account), _NEW_SLEEVE), 400 ether);
+    }
+
+    function test_UpdateDestinationPolicy_TreasuryAdminRevokesSleeveAndClearsCap() public {
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateDestinationPolicy(address(_account), _NEW_SLEEVE, true, 250 ether);
+
+        vm.expectEmit(true, true, true, true);
+        emit TreasuryPolicyEngine.DestinationPolicyUpdated(address(_account), _NEW_SLEEVE, _TREASURY_ADMIN, false, 0);
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateDestinationPolicy(address(_account), _NEW_SLEEVE, false, 250 ether);
+
+        assertFalse(_policyEngine.isDestinationApproved(address(_account), _NEW_SLEEVE));
+        assertEq(_policyEngine.allocationCap(address(_account), _NEW_SLEEVE), 0);
+    }
+
+    function test_UpdateDestinationPolicy_UnauthorizedCallerReverts() public {
+        vm.prank(_STRANGER);
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.UnauthorizedActor.selector, address(_account), _STRANGER)
+        );
+        _policyEngine.updateDestinationPolicy(address(_account), _NEW_SLEEVE, true, 250 ether);
+    }
+
+    function test_UpdateDestinationPolicy_InvalidDestinationReverts() public {
+        vm.prank(_TREASURY_ADMIN);
+        vm.expectRevert(abi.encodeWithSelector(TreasuryPolicyEngine.InvalidDestination.selector, address(0)));
+        _policyEngine.updateDestinationPolicy(address(_account), address(0), true, 250 ether);
     }
 
     function test_UpdateAutomationExecutor_UnauthorizedCallerReverts() public {

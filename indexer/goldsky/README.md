@@ -41,6 +41,7 @@ Core:
 - `TreasuryPolicyEngine.PauseUpdated`
 - `TreasuryPolicyEngine.AutomationExecutorUpdated`
 - `TreasuryPolicyEngine.AutomationLimitsUpdated`
+- `TreasuryPolicyEngine.DestinationPolicyUpdated`
 - `TreasuryAccount.PositionOpened`
 - `TreasuryAccount.TreasuryDisbursed`
 - `TreasuryAccount.AllocationExecuted`

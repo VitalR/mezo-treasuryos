@@ -217,7 +217,12 @@ Why this matters:
 
 - one Treasury Account can support multiple sleeves
 - sleeve-specific logic stays out of the account
-- the product can expand without rewriting the core treasury boundary
+- new MUSD-denominated sleeves can be added after deployment by registering a handler in the client-owned router and updating the account's destination policy/cap
+- the product can expand without rewriting or redeploying the core treasury boundary
+
+Boundary:
+
+- V1 allocation accounting is MUSD-denominated. A BTC-principal sleeve would require a new asset-accounting extension, not just a new handler.
 
 ### 6. MUSDSavingsRateHandler
 

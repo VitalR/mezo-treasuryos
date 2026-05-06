@@ -91,6 +91,14 @@ TIGRIS_MAX_SLIPPAGE_BPS=100
 
 `TIGRIS_MAX_SLIPPAGE_BPS` configures the Tigris handler's minimum-output and minimum-liquidity checks. The default is `100` basis points. Do not set it to a loose value for the final demo unless the pool route actually requires it and the tradeoff is explained.
 
+After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
+
+1. deploy a handler implementing `IAllocationHandler`
+2. register it in the client-owned `AllocationRouter`
+3. call `TreasuryPolicyEngine.updateDestinationPolicy(account, destination, true, cap)` from the client treasury admin path
+
+This does not add native BTC-principal accounting; that remains outside V1.
+
 ---
 
 ## Protocol Core Deployment

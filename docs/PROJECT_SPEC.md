@@ -188,6 +188,8 @@ Responsibilities:
 V1 expectation:
 
 - one router with two approved sleeves
+- additional MUSD-denominated sleeves can be onboarded later without redeploying the Treasury Account or policy engine by deploying a new handler, registering it in the client router, and updating destination approval/cap policy
+- native BTC-principal sleeve accounting is outside V1 unless a separate BTC allocation accounting path is added
 
 Current V1 sleeves:
 

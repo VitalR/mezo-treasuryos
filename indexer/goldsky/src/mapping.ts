@@ -7,6 +7,7 @@ import {
   AccountPolicyInitialized,
   AutomationExecutorUpdated,
   AutomationLimitsUpdated,
+  DestinationPolicyUpdated,
   PauseUpdated,
 } from "../generated/TreasuryPolicyEngine/TreasuryPolicyEngine";
 import { HandlerRegistered, HandlerRemoved } from "../generated/AllocationRouter/AllocationRouter";
@@ -132,6 +133,19 @@ export function handleAutomationLimitsUpdated(event: AutomationLimitsUpdated): v
     "AutomationLimitsUpdated",
     event.params.maxAutoBufferRestore,
     event.params.maxAutoDebtRepay,
+  );
+}
+
+export function handleDestinationPolicyUpdated(event: DestinationPolicyUpdated): void {
+  recordActivity(
+    event,
+    event.params.account,
+    event.params.actor,
+    event.params.destination,
+    "policy",
+    event.params.approved ? "DestinationApproved" : "DestinationRevoked",
+    event.params.cap,
+    null,
   );
 }
 

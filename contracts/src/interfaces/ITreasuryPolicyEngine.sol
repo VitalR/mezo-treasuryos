@@ -71,6 +71,13 @@ interface ITreasuryPolicyEngine {
     function updateAutomationCapabilities(address _account, bool _allowAutoSavingsWithdraw, bool _allowAutoDebtRepay)
         external;
 
+    /// @notice Updates whether a destination is approved for allocation and the amount it may receive.
+    /// @param _account Treasury Account whose destination policy is being updated.
+    /// @param _destination Sleeve destination being approved, capped, recapped, or revoked.
+    /// @param _approved Whether the destination may receive new allocations.
+    /// @param _cap Maximum MUSD allocation allowed for the destination while approved.
+    function updateDestinationPolicy(address _account, address _destination, bool _approved, uint256 _cap) external;
+
     /// @notice Enables or disables bounded automation for a Treasury Account.
     /// @param _account Treasury Account being updated.
     /// @param _automationEnabled New automation-enabled state.
