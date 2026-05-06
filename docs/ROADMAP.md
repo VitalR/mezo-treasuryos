@@ -286,6 +286,7 @@ Do not make AI the controlling authority for treasury actions.
 - Treasury Yield Console
 - AI Treasury Allocation Advisor memo output
 - Term Yield Planner view for simulated 7/30/60-day plans
+- deterministic treasury advisor service that recommends sleeve allocation and bounded automation actions from snapshot inputs
 - reviewer-facing treasury summary
 - documentation showing where Spectrum Nodes is used in the product architecture
 

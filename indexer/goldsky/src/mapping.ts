@@ -1,36 +1,69 @@
 import { Address, BigInt, Bytes, ethereum } from "@graphprotocol/graph-ts";
 
 import {
+  TreasuryAdminApprovalUpdated,
   TreasuryAccountDeployed,
 } from "../generated/TreasuryAccountFactory/TreasuryAccountFactory";
 import {
   AccountPolicyInitialized,
+  AutomationCapabilitiesUpdated,
+  AutomationEnabledUpdated,
   AutomationExecutorUpdated,
   AutomationLimitsUpdated,
+  AutomationThresholdsUpdated,
   DestinationPolicyUpdated,
   PauseUpdated,
+  TreasuryAdminUpdated,
 } from "../generated/TreasuryPolicyEngine/TreasuryPolicyEngine";
 import { HandlerRegistered, HandlerRemoved } from "../generated/AllocationRouter/AllocationRouter";
 import {
+  AutomationOperatorAuthorizationUpdated,
   BufferRestoreExecuted,
   DeRiskRepaymentExecuted,
 } from "../generated/TreasuryAutomationExecutor/TreasuryAutomationExecutor";
 import {
+  AllocationRouterUpdated,
   AllocationExecuted,
+  BorrowerOperationsUpdated,
+  CollateralDeposited,
+  CollateralWithdrawn,
+  DebtDrawn,
+  DebtRepaid,
+  IdleMUSDFunded,
   LiquidityBufferRestored,
+  PositionAdjusted,
+  PositionClosed,
   PositionOpened,
   SleeveUnwoundAndDebtRepaid,
+  TreasuryAdminSynced,
   TreasuryDisbursed,
   WithdrawalExecuted,
+  WithdrawalSettledFromDestination,
   YieldClaimedFromDestination,
 } from "../generated/templates/TreasuryAccount/TreasuryAccount";
 import {
+  BatchCancelled,
   BatchConfirmed,
+  BatchConfirmationRevoked,
   BatchExecuted,
   BatchProposed,
+  BatchRejected,
+  BatchRejectionRevoked,
+  ConfirmationRevoked,
+  NativeValueReceived,
+  OwnerAdded,
+  OwnerRemoved,
+  OwnerSwapped,
+  RejectionRevoked,
+  SensitiveSelectorUpdated,
+  ThresholdChanged,
+  TimingUpdated,
   TransactionConfirmed,
+  TransactionCancelled,
   TransactionExecuted,
   TransactionProposed,
+  TransactionRejected,
+  TreasuryMultisigInitialized,
 } from "../generated/templates/TreasuryMultisig/TreasuryMultisig";
 import {
   SavingsDepositRouted,
@@ -50,6 +83,19 @@ import {
   TreasuryAccount,
   TreasuryActivity,
 } from "../generated/schema";
+
+export function handleTreasuryAdminApprovalUpdated(event: TreasuryAdminApprovalUpdated): void {
+  recordActivity(
+    event,
+    null,
+    event.params.treasuryAdmin,
+    null,
+    "factory",
+    event.params.approved ? "TreasuryAdminApproved" : "TreasuryAdminRevoked",
+    null,
+    null,
+  );
+}
 
 export function handleTreasuryAccountDeployed(event: TreasuryAccountDeployed): void {
   TreasuryAccountTemplate.create(event.params.treasuryAccount);
@@ -123,6 +169,19 @@ export function handleAutomationExecutorUpdated(event: AutomationExecutorUpdated
   );
 }
 
+export function handleAutomationThresholdsUpdated(event: AutomationThresholdsUpdated): void {
+  recordActivity(
+    event,
+    event.params.account,
+    null,
+    null,
+    "policy",
+    "AutomationThresholdsUpdated",
+    event.params.warningCollateralRatioBps,
+    event.params.criticalCollateralRatioBps,
+  );
+}
+
 export function handleAutomationLimitsUpdated(event: AutomationLimitsUpdated): void {
   recordActivity(
     event,
@@ -133,6 +192,19 @@ export function handleAutomationLimitsUpdated(event: AutomationLimitsUpdated): v
     "AutomationLimitsUpdated",
     event.params.maxAutoBufferRestore,
     event.params.maxAutoDebtRepay,
+  );
+}
+
+export function handleAutomationCapabilitiesUpdated(event: AutomationCapabilitiesUpdated): void {
+  recordActivity(
+    event,
+    event.params.account,
+    null,
+    null,
+    "policy",
+    "AutomationCapabilitiesUpdated",
+    null,
+    null,
   );
 }
 
@@ -149,6 +221,83 @@ export function handleDestinationPolicyUpdated(event: DestinationPolicyUpdated):
   );
 }
 
+export function handleAutomationEnabledUpdated(event: AutomationEnabledUpdated): void {
+  const policy = loadPolicy(event.params.account);
+  policy.automationEnabled = event.params.automationEnabled;
+  policy.updatedAt = event.block.timestamp;
+  policy.updatedTx = event.transaction.hash;
+  policy.save();
+
+  recordActivity(
+    event,
+    event.params.account,
+    null,
+    null,
+    "policy",
+    event.params.automationEnabled ? "AutomationEnabled" : "AutomationDisabled",
+    null,
+    null,
+  );
+}
+
+export function handleTreasuryAdminUpdated(event: TreasuryAdminUpdated): void {
+  const policy = loadPolicy(event.params.account);
+  policy.treasuryAdmin = event.params.newTreasuryAdmin;
+  policy.updatedAt = event.block.timestamp;
+  policy.updatedTx = event.transaction.hash;
+  policy.save();
+
+  recordActivity(
+    event,
+    event.params.account,
+    event.params.newTreasuryAdmin,
+    event.params.previousTreasuryAdmin,
+    "policy",
+    "TreasuryAdminUpdated",
+    null,
+    null,
+  );
+}
+
+export function handleBorrowerOperationsUpdated(event: BorrowerOperationsUpdated): void {
+  recordActivity(
+    event,
+    event.address,
+    null,
+    event.params.borrowerOperations,
+    "account",
+    "BorrowerOperationsUpdated",
+    null,
+    null,
+  );
+}
+
+export function handleAllocationRouterUpdated(event: AllocationRouterUpdated): void {
+  recordActivity(
+    event,
+    event.address,
+    null,
+    event.params.allocationRouter,
+    "account",
+    "AllocationRouterUpdated",
+    null,
+    null,
+  );
+}
+
+export function handleTreasuryAdminSynced(event: TreasuryAdminSynced): void {
+  recordActivity(
+    event,
+    event.address,
+    event.params.newTreasuryAdmin,
+    event.params.previousTreasuryAdmin,
+    "account",
+    "TreasuryAdminSynced",
+    null,
+    null,
+  );
+}
+
 export function handlePositionOpened(event: PositionOpened): void {
   recordActivity(
     event,
@@ -159,6 +308,84 @@ export function handlePositionOpened(event: PositionOpened): void {
     "PositionOpened",
     event.params.musdBorrowed,
     event.params.collateralDeposited,
+  );
+}
+
+export function handleCollateralDeposited(event: CollateralDeposited): void {
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    null,
+    "borrow",
+    "CollateralDeposited",
+    event.params.amount,
+    event.params.positionCollateralAfter,
+  );
+}
+
+export function handleCollateralWithdrawn(event: CollateralWithdrawn): void {
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    null,
+    "borrow",
+    "CollateralWithdrawn",
+    event.params.amount,
+    event.params.idleBTCAfter,
+  );
+}
+
+export function handleDebtDrawn(event: DebtDrawn): void {
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    null,
+    "borrow",
+    "DebtDrawn",
+    event.params.amount,
+    event.params.idleMUSDAfter,
+  );
+}
+
+export function handleDebtRepaid(event: DebtRepaid): void {
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    null,
+    "borrow",
+    "DebtRepaid",
+    event.params.amount,
+    event.params.positionDebtAfter,
+  );
+}
+
+export function handlePositionAdjusted(event: PositionAdjusted): void {
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    null,
+    "borrow",
+    event.params.debtIncreased ? "PositionAdjustedDebtIncreased" : "PositionAdjustedDebtReduced",
+    event.params.debtChange,
+    event.params.positionDebtAfter,
+  );
+}
+
+export function handlePositionClosed(event: PositionClosed): void {
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    null,
+    "borrow",
+    "PositionClosed",
+    event.params.debtRepaidToClose,
+    event.params.collateralReleased,
   );
 }
 
@@ -216,6 +443,33 @@ export function handleYieldClaimedFromDestination(event: YieldClaimedFromDestina
   );
 }
 
+export function handleIdleMUSDFunded(event: IdleMUSDFunded): void {
+  recordActivity(
+    event,
+    event.address,
+    event.params.funder,
+    null,
+    "funding",
+    "IdleMUSDFunded",
+    event.params.amount,
+    event.params.idleBalanceAfter,
+  );
+}
+
+export function handleWithdrawalSettledFromDestination(event: WithdrawalSettledFromDestination): void {
+  updateSleeve(event.address, event.params.destination, event.params.allocationAfter, event);
+  recordActivity(
+    event,
+    event.address,
+    event.address,
+    event.params.destination,
+    "allocation",
+    "WithdrawalSettledFromDestination",
+    event.params.allocationAmount,
+    event.params.idleMUSDIncrease,
+  );
+}
+
 export function handleLiquidityBufferRestored(event: LiquidityBufferRestored): void {
   recordActivity(
     event,
@@ -263,6 +517,19 @@ export function handleHandlerRemoved(event: HandlerRemoved): void {
     event.params.destination,
     "router",
     "HandlerRemoved",
+    null,
+    null,
+  );
+}
+
+export function handleAutomationOperatorAuthorizationUpdated(event: AutomationOperatorAuthorizationUpdated): void {
+  recordActivity(
+    event,
+    null,
+    event.params.operator,
+    null,
+    "automation",
+    event.params.authorized ? "AutomationOperatorAuthorized" : "AutomationOperatorRevoked",
     null,
     null,
   );
@@ -357,6 +624,19 @@ export function handleStablePoolWithdrawalRouted(event: StablePoolWithdrawalRout
   );
 }
 
+export function handleTreasuryMultisigInitialized(event: TreasuryMultisigInitialized): void {
+  recordActivity(
+    event,
+    null,
+    event.address,
+    null,
+    "multisig",
+    "TreasuryMultisigInitialized",
+    event.params.threshold,
+    event.params.maxPending,
+  );
+}
+
 export function handleTransactionProposed(event: TransactionProposed): void {
   const proposal = new MultisigProposal(proposalId(event.address, "tx", event.params.txId));
   proposal.multisig = event.address;
@@ -372,6 +652,8 @@ export function handleTransactionProposed(event: TransactionProposed): void {
   proposal.executedAt = null;
   proposal.txHash = event.transaction.hash;
   proposal.save();
+
+  recordMultisigActivity(event, event.params.proposer, event.params.target, "TransactionProposed", event.params.txId);
 }
 
 export function handleTransactionConfirmed(event: TransactionConfirmed): void {
@@ -379,6 +661,8 @@ export function handleTransactionConfirmed(event: TransactionConfirmed): void {
   if (proposal == null) return;
   proposal.confirmations = event.params.confirmationCount;
   proposal.save();
+
+  recordMultisigActivity(event, event.params.signer, null, "TransactionConfirmed", event.params.txId);
 }
 
 export function handleTransactionExecuted(event: TransactionExecuted): void {
@@ -388,6 +672,24 @@ export function handleTransactionExecuted(event: TransactionExecuted): void {
   proposal.executedAt = event.block.timestamp;
   proposal.txHash = event.transaction.hash;
   proposal.save();
+
+  recordMultisigActivity(event, event.params.executor, event.params.target, "TransactionExecuted", event.params.txId);
+}
+
+export function handleConfirmationRevoked(event: ConfirmationRevoked): void {
+  recordMultisigActivity(event, event.params.signer, null, "ConfirmationRevoked", event.params.txId);
+}
+
+export function handleTransactionRejected(event: TransactionRejected): void {
+  recordMultisigActivity(event, event.params.signer, null, "TransactionRejected", event.params.txId);
+}
+
+export function handleRejectionRevoked(event: RejectionRevoked): void {
+  recordMultisigActivity(event, event.params.signer, null, "RejectionRevoked", event.params.txId);
+}
+
+export function handleTransactionCancelled(event: TransactionCancelled): void {
+  recordMultisigActivity(event, event.params.caller, null, "TransactionCancelled", event.params.txId);
 }
 
 export function handleBatchProposed(event: BatchProposed): void {
@@ -405,6 +707,8 @@ export function handleBatchProposed(event: BatchProposed): void {
   proposal.executedAt = null;
   proposal.txHash = event.transaction.hash;
   proposal.save();
+
+  recordMultisigActivity(event, event.params.proposer, null, "BatchProposed", event.params.batchId);
 }
 
 export function handleBatchConfirmed(event: BatchConfirmed): void {
@@ -412,6 +716,8 @@ export function handleBatchConfirmed(event: BatchConfirmed): void {
   if (proposal == null) return;
   proposal.confirmations = event.params.confirmationCount;
   proposal.save();
+
+  recordMultisigActivity(event, event.params.signer, null, "BatchConfirmed", event.params.batchId);
 }
 
 export function handleBatchExecuted(event: BatchExecuted): void {
@@ -421,6 +727,70 @@ export function handleBatchExecuted(event: BatchExecuted): void {
   proposal.executedAt = event.block.timestamp;
   proposal.txHash = event.transaction.hash;
   proposal.save();
+
+  recordMultisigActivity(event, event.params.executor, null, "BatchExecuted", event.params.batchId);
+}
+
+export function handleBatchConfirmationRevoked(event: BatchConfirmationRevoked): void {
+  recordMultisigActivity(event, event.params.signer, null, "BatchConfirmationRevoked", event.params.batchId);
+}
+
+export function handleBatchRejected(event: BatchRejected): void {
+  recordMultisigActivity(event, event.params.signer, null, "BatchRejected", event.params.batchId);
+}
+
+export function handleBatchRejectionRevoked(event: BatchRejectionRevoked): void {
+  recordMultisigActivity(event, event.params.signer, null, "BatchRejectionRevoked", event.params.batchId);
+}
+
+export function handleBatchCancelled(event: BatchCancelled): void {
+  recordMultisigActivity(event, event.params.caller, null, "BatchCancelled", event.params.batchId);
+}
+
+export function handleOwnerAdded(event: OwnerAdded): void {
+  recordActivity(event, null, event.params.owner, event.address, "multisig", "OwnerAdded", null, null);
+}
+
+export function handleOwnerRemoved(event: OwnerRemoved): void {
+  recordActivity(event, null, event.params.owner, event.address, "multisig", "OwnerRemoved", null, null);
+}
+
+export function handleOwnerSwapped(event: OwnerSwapped): void {
+  recordActivity(event, null, event.params.oldOwner, event.params.newOwner, "multisig", "OwnerSwapped", null, null);
+}
+
+export function handleThresholdChanged(event: ThresholdChanged): void {
+  recordActivity(event, null, event.address, null, "multisig", "ThresholdChanged", event.params.threshold, null);
+}
+
+export function handleTimingUpdated(event: TimingUpdated): void {
+  recordActivity(event, null, event.address, null, "multisig", "TimingUpdated", event.params.sigDelay, event.params.maxPending);
+}
+
+export function handleSensitiveSelectorUpdated(event: SensitiveSelectorUpdated): void {
+  recordActivity(
+    event,
+    null,
+    event.address,
+    event.params.target,
+    "multisig",
+    event.params.sensitive ? "SensitiveSelectorEnabled" : "SensitiveSelectorDisabled",
+    null,
+    null,
+  );
+}
+
+export function handleNativeValueReceived(event: NativeValueReceived): void {
+  recordActivity(
+    event,
+    null,
+    event.params.sender,
+    event.address,
+    "multisig",
+    "NativeValueReceived",
+    event.params.value,
+    null,
+  );
 }
 
 function loadPolicy(account: Address): PolicyConfig {
@@ -472,6 +842,16 @@ function recordAutomation(
   automation.save();
 
   recordActivity(event, account, operator, destination, "automation", action, actualAmount, requestedAmount);
+}
+
+function recordMultisigActivity(
+  event: ethereum.Event,
+  actor: Address | null,
+  destination: Address | null,
+  action: string,
+  internalId: BigInt,
+): void {
+  recordActivity(event, null, actor, destination, "multisig", action, internalId, null);
 }
 
 function recordActivity(

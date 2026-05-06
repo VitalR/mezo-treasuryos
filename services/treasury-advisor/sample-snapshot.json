@@ -1,0 +1,60 @@
+{
+  "treasuryName": "Demo BTC Operating Treasury",
+  "composition": {
+    "idleMUSD": "1250000",
+    "liquidityBufferMUSD": "500000",
+    "deployableSurplusMUSD": "750000"
+  },
+  "position": {
+    "totalDebtMUSD": "1800000"
+  },
+  "health": {
+    "collateralRatioBps": "24000",
+    "belowWarningRatio": false,
+    "belowCriticalRatio": false
+  },
+  "sleeves": [
+    {
+      "label": "MUSD Savings Rate",
+      "destination": "0x0000000000000000000000000000000000000001",
+      "approved": true,
+      "allocatedMUSD": "300000",
+      "capMUSD": "1000000",
+      "remainingCapacityMUSD": "700000",
+      "annualYieldBps": "420",
+      "riskTier": "low",
+      "unwindDays": "0",
+      "automationEligible": true
+    },
+    {
+      "label": "Tigris MUSD/mUSDC",
+      "destination": "0x0000000000000000000000000000000000000002",
+      "approved": true,
+      "allocatedMUSD": "190000",
+      "capMUSD": "200000",
+      "remainingCapacityMUSD": "10000",
+      "annualYieldBps": "760",
+      "riskTier": "medium",
+      "unwindDays": "1",
+      "automationEligible": true
+    },
+    {
+      "label": "MUSD 30-Day Treasury Sleeve",
+      "destination": "0x0000000000000000000000000000000000000003",
+      "approved": true,
+      "allocatedMUSD": "0",
+      "capMUSD": "300000",
+      "remainingCapacityMUSD": "300000",
+      "annualYieldBps": "620",
+      "riskTier": "medium",
+      "unwindDays": "7",
+      "automationEligible": false
+    }
+  ],
+  "allocationDecision": {
+    "allowed": true,
+    "code": "Allowed",
+    "destinationLabel": "MUSD Savings Rate",
+    "amountMUSD": "250000"
+  }
+}

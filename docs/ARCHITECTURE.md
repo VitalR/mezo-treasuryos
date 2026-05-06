@@ -336,6 +336,20 @@ Responsibilities:
 
 V1 should keep this reporting-oriented. It should not introduce a Pendle-style fixed-yield protocol or new onchain yield primitive.
 
+### 5. Treasury Advisor
+
+Responsibilities:
+
+- consume TreasuryOS snapshots, policy previews, sleeve capacity, and collateral-health state
+- rank approved MUSD-denominated sleeves by policy capacity, risk tier, assumed yield, and unwind constraints
+- recommend bounded automation actions such as buffer restoration or de-risk repayment
+- generate 7/30/60-day projection assumptions for reporting
+
+Boundary:
+
+- this service does not sign, broadcast, custody, or execute funds
+- every recommendation must map back to deterministic onchain policy and read-model state
+
 ---
 
 ## Product Interface Surfaces

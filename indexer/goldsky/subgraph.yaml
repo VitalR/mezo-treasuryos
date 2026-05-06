@@ -21,6 +21,8 @@ dataSources:
         - name: TreasuryAccountFactory
           file: ./abis/TreasuryAccountFactory.json
       eventHandlers:
+        - event: TreasuryAdminApprovalUpdated(indexed address,bool)
+          handler: handleTreasuryAdminApprovalUpdated
         - event: TreasuryAccountDeployed(indexed address,indexed address,indexed address,address,address)
           handler: handleTreasuryAccountDeployed
       file: ./src/mapping.ts
@@ -48,10 +50,18 @@ dataSources:
           handler: handlePauseUpdated
         - event: AutomationExecutorUpdated(indexed address,indexed address,indexed address)
           handler: handleAutomationExecutorUpdated
+        - event: AutomationThresholdsUpdated(indexed address,uint256,uint256)
+          handler: handleAutomationThresholdsUpdated
         - event: AutomationLimitsUpdated(indexed address,uint256,uint256)
           handler: handleAutomationLimitsUpdated
+        - event: AutomationCapabilitiesUpdated(indexed address,bool,bool)
+          handler: handleAutomationCapabilitiesUpdated
         - event: DestinationPolicyUpdated(indexed address,indexed address,indexed address,bool,uint256)
           handler: handleDestinationPolicyUpdated
+        - event: AutomationEnabledUpdated(indexed address,bool)
+          handler: handleAutomationEnabledUpdated
+        - event: TreasuryAdminUpdated(indexed address,indexed address,indexed address)
+          handler: handleTreasuryAdminUpdated
       file: ./src/mapping.ts
   - kind: ethereum
     name: AllocationRouter
@@ -93,6 +103,8 @@ dataSources:
         - name: TreasuryAutomationExecutor
           file: ./abis/TreasuryAutomationExecutor.json
       eventHandlers:
+        - event: AutomationOperatorAuthorizationUpdated(indexed address,bool)
+          handler: handleAutomationOperatorAuthorizationUpdated
         - event: BufferRestoreExecuted(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleBufferRestoreExecuted
         - event: DeRiskRepaymentExecuted(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256)
@@ -161,8 +173,26 @@ templates:
         - name: TreasuryAccount
           file: ./abis/TreasuryAccount.json
       eventHandlers:
+        - event: BorrowerOperationsUpdated(indexed address)
+          handler: handleBorrowerOperationsUpdated
+        - event: AllocationRouterUpdated(indexed address)
+          handler: handleAllocationRouterUpdated
+        - event: TreasuryAdminSynced(indexed address,indexed address)
+          handler: handleTreasuryAdminSynced
         - event: PositionOpened(uint256,uint256,uint256,uint256,uint256)
           handler: handlePositionOpened
+        - event: CollateralDeposited(uint256,uint256)
+          handler: handleCollateralDeposited
+        - event: CollateralWithdrawn(uint256,uint256,uint256)
+          handler: handleCollateralWithdrawn
+        - event: DebtDrawn(uint256,uint256,uint256)
+          handler: handleDebtDrawn
+        - event: DebtRepaid(uint256,uint256,uint256)
+          handler: handleDebtRepaid
+        - event: PositionAdjusted(uint256,uint256,uint256,bool,uint256,uint256,uint256,uint256)
+          handler: handlePositionAdjusted
+        - event: PositionClosed(uint256,uint256,uint256,uint256)
+          handler: handlePositionClosed
         - event: TreasuryDisbursed(indexed address,indexed address,uint256,uint256)
           handler: handleTreasuryDisbursed
         - event: AllocationExecuted(indexed address,uint256,uint256,uint256)
@@ -171,6 +201,10 @@ templates:
           handler: handleWithdrawalExecuted
         - event: YieldClaimedFromDestination(indexed address,uint256,uint256)
           handler: handleYieldClaimedFromDestination
+        - event: IdleMUSDFunded(indexed address,uint256,uint256)
+          handler: handleIdleMUSDFunded
+        - event: WithdrawalSettledFromDestination(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleWithdrawalSettledFromDestination
         - event: LiquidityBufferRestored(indexed address,indexed address,uint256,uint256,uint256,uint256)
           handler: handleLiquidityBufferRestored
         - event: SleeveUnwoundAndDebtRepaid(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256)
@@ -191,16 +225,48 @@ templates:
         - name: TreasuryMultisig
           file: ./abis/TreasuryMultisig.json
       eventHandlers:
+        - event: TreasuryMultisigInitialized(address[],uint256,uint64,uint64)
+          handler: handleTreasuryMultisigInitialized
         - event: TransactionProposed(indexed uint256,indexed address,indexed address,uint256,bytes4,bytes32,uint64,uint64)
           handler: handleTransactionProposed
         - event: TransactionConfirmed(indexed uint256,indexed address,uint256)
           handler: handleTransactionConfirmed
         - event: TransactionExecuted(indexed uint256,indexed address,indexed address,bytes32)
           handler: handleTransactionExecuted
+        - event: ConfirmationRevoked(indexed uint256,indexed address)
+          handler: handleConfirmationRevoked
+        - event: TransactionRejected(indexed uint256,indexed address,uint256)
+          handler: handleTransactionRejected
+        - event: RejectionRevoked(indexed uint256,indexed address)
+          handler: handleRejectionRevoked
+        - event: TransactionCancelled(indexed uint256,indexed address)
+          handler: handleTransactionCancelled
         - event: BatchProposed(indexed uint256,indexed address,bytes32,uint64,uint64)
           handler: handleBatchProposed
         - event: BatchConfirmed(indexed uint256,indexed address,uint256)
           handler: handleBatchConfirmed
         - event: BatchExecuted(indexed uint256,indexed address,bytes32)
           handler: handleBatchExecuted
+        - event: BatchConfirmationRevoked(indexed uint256,indexed address)
+          handler: handleBatchConfirmationRevoked
+        - event: BatchRejected(indexed uint256,indexed address,uint256)
+          handler: handleBatchRejected
+        - event: BatchRejectionRevoked(indexed uint256,indexed address)
+          handler: handleBatchRejectionRevoked
+        - event: BatchCancelled(indexed uint256,indexed address)
+          handler: handleBatchCancelled
+        - event: OwnerAdded(indexed address)
+          handler: handleOwnerAdded
+        - event: OwnerRemoved(indexed address)
+          handler: handleOwnerRemoved
+        - event: OwnerSwapped(indexed address,indexed address)
+          handler: handleOwnerSwapped
+        - event: ThresholdChanged(uint256)
+          handler: handleThresholdChanged
+        - event: TimingUpdated(uint64,uint64)
+          handler: handleTimingUpdated
+        - event: SensitiveSelectorUpdated(indexed address,indexed bytes4,bool)
+          handler: handleSensitiveSelectorUpdated
+        - event: NativeValueReceived(indexed address,uint256)
+          handler: handleNativeValueReceived
       file: ./src/mapping.ts

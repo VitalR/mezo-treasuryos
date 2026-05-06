@@ -248,6 +248,7 @@ Boundaries:
 - AI does not bypass `TreasuryPolicyEngine`
 - AI does not initiate arbitrary transactions
 - AI output is advisory reporting that must map back to deterministic policy state
+- AI can recommend MUSD sleeve allocation, buffer restoration, or debt repayment, but any execution must use existing policy-checked Treasury Account and Automation Executor paths
 
 ### 9. Term Yield Planner
 

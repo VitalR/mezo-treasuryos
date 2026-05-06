@@ -36,17 +36,33 @@ The `TreasuryAccount` template is created from `TreasuryAccountFactory.TreasuryA
 
 Core:
 
+- `TreasuryAccountFactory.TreasuryAdminApprovalUpdated`
 - `TreasuryAccountFactory.TreasuryAccountDeployed`
 - `TreasuryPolicyEngine.AccountPolicyInitialized`
 - `TreasuryPolicyEngine.PauseUpdated`
 - `TreasuryPolicyEngine.AutomationExecutorUpdated`
+- `TreasuryPolicyEngine.AutomationThresholdsUpdated`
 - `TreasuryPolicyEngine.AutomationLimitsUpdated`
+- `TreasuryPolicyEngine.AutomationCapabilitiesUpdated`
 - `TreasuryPolicyEngine.DestinationPolicyUpdated`
+- `TreasuryPolicyEngine.AutomationEnabledUpdated`
+- `TreasuryPolicyEngine.TreasuryAdminUpdated`
+- `TreasuryAccount.BorrowerOperationsUpdated`
+- `TreasuryAccount.AllocationRouterUpdated`
+- `TreasuryAccount.TreasuryAdminSynced`
 - `TreasuryAccount.PositionOpened`
+- `TreasuryAccount.CollateralDeposited`
+- `TreasuryAccount.CollateralWithdrawn`
+- `TreasuryAccount.DebtDrawn`
+- `TreasuryAccount.DebtRepaid`
+- `TreasuryAccount.PositionAdjusted`
+- `TreasuryAccount.PositionClosed`
 - `TreasuryAccount.TreasuryDisbursed`
 - `TreasuryAccount.AllocationExecuted`
 - `TreasuryAccount.WithdrawalExecuted`
 - `TreasuryAccount.YieldClaimedFromDestination`
+- `TreasuryAccount.IdleMUSDFunded`
+- `TreasuryAccount.WithdrawalSettledFromDestination`
 - `TreasuryAccount.LiquidityBufferRestored`
 - `TreasuryAccount.SleeveUnwoundAndDebtRepaid`
 
@@ -60,17 +76,34 @@ Sleeves:
 
 Automation:
 
+- `TreasuryAutomationExecutor.AutomationOperatorAuthorizationUpdated`
 - `TreasuryAutomationExecutor.BufferRestoreExecuted`
 - `TreasuryAutomationExecutor.DeRiskRepaymentExecuted`
 
 Multisig:
 
+- `TreasuryMultisig.TreasuryMultisigInitialized`
 - `TreasuryMultisig.TransactionProposed`
 - `TreasuryMultisig.TransactionConfirmed`
 - `TreasuryMultisig.TransactionExecuted`
+- `TreasuryMultisig.ConfirmationRevoked`
+- `TreasuryMultisig.TransactionRejected`
+- `TreasuryMultisig.RejectionRevoked`
+- `TreasuryMultisig.TransactionCancelled`
 - `TreasuryMultisig.BatchProposed`
 - `TreasuryMultisig.BatchConfirmed`
 - `TreasuryMultisig.BatchExecuted`
+- `TreasuryMultisig.BatchConfirmationRevoked`
+- `TreasuryMultisig.BatchRejected`
+- `TreasuryMultisig.BatchRejectionRevoked`
+- `TreasuryMultisig.BatchCancelled`
+- `TreasuryMultisig.OwnerAdded`
+- `TreasuryMultisig.OwnerRemoved`
+- `TreasuryMultisig.OwnerSwapped`
+- `TreasuryMultisig.ThresholdChanged`
+- `TreasuryMultisig.TimingUpdated`
+- `TreasuryMultisig.SensitiveSelectorUpdated`
+- `TreasuryMultisig.NativeValueReceived`
 
 ## Missing Events Worth Adding Later
 

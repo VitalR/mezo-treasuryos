@@ -162,6 +162,7 @@ Demo renderer:
 
 ```sh
 npm run demo:yield-console
+npm run advisor:demo
 ```
 
 Live RPC state probe:
@@ -176,6 +177,8 @@ The state reader loads the real `.env`, tests `SPECTRUM_MEZO_RPC_URL_1`, `_2`, `
 Sleeve extensibility:
 
 TreasuryOS can add another MUSD-denominated sleeve after deployment by deploying a handler, registering it in the client-owned `AllocationRouter`, and updating the account's destination policy/cap in `TreasuryPolicyEngine`. Native BTC-principal sleeve accounting is not part of V1.
+
+The deterministic advisor service consumes treasury snapshots and recommends allocation/automation actions across approved sleeves. It is a reporting layer only; it does not control funds or bypass policy checks.
 
 Goldsky indexing scaffold:
 
