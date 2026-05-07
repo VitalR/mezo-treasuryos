@@ -35,6 +35,7 @@ Build a live snapshot from an onboarding manifest:
 ```sh
 npm run state:snapshot -- --manifest deployments/mezo-testnet-client.json --out /tmp/treasuryos-snapshot.json
 node services/yield-console/render.mjs /tmp/treasuryos-snapshot.json
+node services/term-yield-planner/run.mjs /tmp/treasuryos-snapshot.json
 ```
 
 Or pass addresses directly:
@@ -44,6 +45,17 @@ node services/spectrum-state/snapshot.mjs \
   --treasury-account 0x... \
   --destinations 0x...,0x... \
   --actor 0x... \
+  --out /tmp/treasuryos-snapshot.json
+```
+
+If a deployed `BTCReservePolicy` address is present in the manifest, the snapshot also reads BTC reserve buckets and
+BTC policy config. To preview a BTC-correlated sleeve candidate:
+
+```sh
+node services/spectrum-state/snapshot.mjs \
+  --manifest deployments/mezo-testnet-client.json \
+  --proposed-btc-sleeve 0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E \
+  --proposed-btc-amount 0.05 \
   --out /tmp/treasuryos-snapshot.json
 ```
 
@@ -57,5 +69,6 @@ Reads currently covered:
 - policy buffer and approval threshold
 - sleeve allocation/cap/receipt balances
 - `previewAllocation(...)` policy decision result
+- optional `BTCReservePolicy` bucket, policy, sleeve, and preview reads
 
 This service is the bridge between Spectrum RPC and the Yield Console / AI memo layer.

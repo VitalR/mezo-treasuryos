@@ -165,6 +165,7 @@ Demo renderer:
 ```sh
 npm run demo:yield-console
 npm run advisor:demo
+npm run demo:term-planner
 ```
 
 Live RPC state probe:

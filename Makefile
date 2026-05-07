@@ -25,6 +25,7 @@ help:
 	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
 	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
+	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
@@ -101,6 +102,10 @@ rpc-health:
 .PHONY: yield-console-demo
 yield-console-demo:
 	npm run demo:yield-console
+
+.PHONY: term-planner-demo
+term-planner-demo:
+	npm run demo:term-planner
 
 .PHONY: anvil
 anvil:

@@ -1,0 +1,71 @@
+{
+  "treasuryName": "Mezo TreasuryOS Demo Treasury",
+  "termYieldPlanner": {
+    "asOfDate": "2026-05-08",
+    "windowsDays": [7, 30, 60],
+    "plannedOperatingDisbursementsMUSD": "75000",
+    "reserveAboveBufferMUSD": "25000"
+  },
+  "composition": {
+    "idleMUSD": "900000",
+    "idleBTC": "0.42",
+    "liquidityBufferMUSD": "500000",
+    "deployableSurplusMUSD": "400000",
+    "approvalThresholdMUSD": "100000"
+  },
+  "position": {
+    "collateralBTC": "12.5",
+    "totalDebtMUSD": "1800000"
+  },
+  "health": {
+    "collateralRatioBps": "23000",
+    "belowWarningRatio": false,
+    "belowCriticalRatio": false
+  },
+  "btcReserveBuckets": {
+    "idleBTCReserve": "0.42",
+    "collateralBTC": "12.5",
+    "emergencyBTCReserve": "0.25",
+    "yieldActiveBTC": "0",
+    "pendingWithdrawBTC": "0"
+  },
+  "sleeves": [
+    {
+      "label": "MUSD Savings Vault",
+      "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+      "approved": true,
+      "allocatedMUSD": "175000",
+      "capMUSD": "550000",
+      "remainingCapacityMUSD": "375000",
+      "annualYieldBps": "400",
+      "riskTier": "low",
+      "unwindDays": "0"
+    },
+    {
+      "label": "Tigris Basic Stable MUSD/mUSDC",
+      "destination": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+      "approved": true,
+      "allocatedMUSD": "50000",
+      "capMUSD": "150000",
+      "remainingCapacityMUSD": "100000",
+      "annualYieldBps": "800",
+      "riskTier": "medium",
+      "unwindDays": "7"
+    }
+  ],
+  "btcSleeves": [
+    {
+      "label": "Tigris mcbBTC/BTC stable pool candidate",
+      "destination": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
+      "approved": false,
+      "executable": false,
+      "riskClass": "BTC_CORRELATED"
+    },
+    {
+      "label": "BTC/MUSD directional LP candidate",
+      "approved": false,
+      "executable": false,
+      "riskClass": "BTC_DIRECTIONAL_LP"
+    }
+  ]
+}

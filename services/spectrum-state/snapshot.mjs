@@ -22,6 +22,10 @@ const SELECTORS = {
   positionCollateral: "0xe380420d",
   positionTotalDebt: "0x894dbd77",
   previewAllocation: "0xfc196068",
+  previewBTCAllocation: "0xc9acbc38",
+  reserveBuckets: "0xd419c296",
+  reservePolicies: "0xb4a917e2",
+  btcSleeves: "0x6b940904",
 };
 
 const DECISION_CODES = [
@@ -35,6 +39,32 @@ const DECISION_CODES = [
   "InsufficientIdleBalance",
   "LiquidityBufferBreached",
   "AllocationCapExceeded",
+];
+
+const BTC_DECISION_CODES = [
+  "Allowed",
+  "PolicyNotConfigured",
+  "YieldPaused",
+  "ZeroAmount",
+  "InvalidSleeve",
+  "SleeveDisabled",
+  "SpeculativeDisabled",
+  "EmergencyReserveShortfall",
+  "InsufficientIdleBTCReserve",
+  "NoAccountedBTC",
+  "TotalYieldCapExceeded",
+  "PerSleeveCapExceeded",
+  "DirectionalCapExceeded",
+  "AssetDepegExceeded",
+  "CollateralHealthWarning",
+];
+
+const BTC_RISK_CLASSES = [
+  "DISABLED",
+  "BTC_CORRELATED",
+  "BTC_DIRECTIONAL_LP",
+  "SPECULATIVE",
+  "EXTERNAL_VAULT",
 ];
 
 loadDotEnv();
@@ -64,7 +94,7 @@ if (!args.treasuryAccount && !args.manifest) {
 
 const manifest = args.manifest ? readJson(args.manifest) : {};
 const treasuryAccount = normalizeAddress(
-  args.treasuryAccount ?? valueAt(manifest, ["contracts", "treasuryAccount"]),
+  args.treasuryAccount ?? firstAddressAt(manifest, [["contracts", "treasuryAccount"]]),
   "treasury account",
 );
 
@@ -79,6 +109,20 @@ const fallbackDestination = destinations[0]?.address ?? ZERO_ADDRESS;
 const proposedDestination = normalizeAddress(args.proposedDestination ?? fallbackDestination, "proposed destination", {
   allowZero: true,
 });
+const btcReservePolicy = normalizeAddress(
+  args.btcReservePolicy ??
+    firstAddressAt(manifest, [
+      ["contracts", "btcReservePolicy"],
+      ["protocolCore", "btcReservePolicy"],
+    ]),
+  "BTC reserve policy",
+  { allowZero: true },
+);
+const proposedBTCSleeve = normalizeAddress(
+  args.proposedBtcSleeve ?? args.proposedBTCSleeve ?? defaultBTCSleeve(manifest),
+  "proposed BTC sleeve",
+  { allowZero: true },
+);
 
 const policyEngine = await readAddress(rpc.url, treasuryAccount, SELECTORS.policyEngine);
 const allocationRouter = await readAddress(rpc.url, treasuryAccount, SELECTORS.allocationRouter).catch(() => ZERO_ADDRESS);
@@ -100,6 +144,11 @@ const proposedAmountWei =
 const allocationDecision =
   actor !== ZERO_ADDRESS && proposedDestination !== ZERO_ADDRESS
     ? await readAllocationDecision(rpc.url, treasuryAccount, actor, proposedDestination, proposedAmountWei)
+    : null;
+const btcReserveState =
+  btcReservePolicy !== ZERO_ADDRESS
+    ? await readBTCReserveState(rpc.url, btcReservePolicy, treasuryAccount, proposedBTCSleeve, proposedBTCAmountWei(args))
+        .catch(() => null)
     : null;
 
 const blockNumber = await rpcRequest(rpc.url, "eth_blockNumber", []);
@@ -127,6 +176,7 @@ const snapshot = {
   },
   sleeves,
   allocationDecision,
+  ...(btcReserveState ?? {}),
 };
 
 emitResult(snapshot);
@@ -343,6 +393,118 @@ async function readAllocationDecision(url, treasuryAccount, actor, destination, 
   };
 }
 
+async function readBTCReserveState(url, btcReservePolicy, treasuryAccount, proposedSleeve, proposedAmountWei) {
+  const [buckets, policy] = await Promise.all([
+    readBTCReserveBuckets(url, btcReservePolicy, treasuryAccount),
+    readBTCReservePolicy(url, btcReservePolicy, treasuryAccount),
+  ]);
+
+  const state = {
+    btcReservePolicyAddress: btcReservePolicy,
+    btcReserveBuckets: buckets,
+    btcReservePolicy: policy,
+  };
+
+  if (proposedSleeve !== ZERO_ADDRESS && proposedAmountWei > 0n) {
+    const [sleeveConfig, preview] = await Promise.all([
+      readBTCSleeveConfig(url, btcReservePolicy, treasuryAccount, proposedSleeve).catch(() => null),
+      readBTCAllocationPreview(url, btcReservePolicy, treasuryAccount, proposedSleeve, proposedAmountWei),
+    ]);
+
+    state.btcAllocationPreview = preview;
+    state.btcSleeves = [
+      {
+        label: "BTC sleeve candidate",
+        destination: proposedSleeve,
+        approved: Boolean(sleeveConfig?.enabled),
+        executable: false,
+        status: "policy-preview",
+        allocatedBTC: "0",
+        capBTC: capBTCFromBps(buckets, sleeveConfig?.sleeveCapBps ?? "0"),
+        riskClass: sleeveConfig?.riskClass ?? "UNKNOWN",
+        withdrawalConstraint: sleeveConfig
+          ? `${sleeveConfig.withdrawalDelaySeconds}s configured withdrawal delay; execution path still external to snapshot`
+          : "sleeve config unavailable",
+      },
+    ];
+  }
+
+  return state;
+}
+
+async function readBTCReserveBuckets(url, btcReservePolicy, treasuryAccount) {
+  const data = await ethCall(url, btcReservePolicy, encodeCall(SELECTORS.reserveBuckets, [addressArg(treasuryAccount)]));
+
+  return {
+    idleBTCReserve: formatUnits(wordToUint(data, 0), 18),
+    collateralBTC: formatUnits(wordToUint(data, 1), 18),
+    emergencyBTCReserve: formatUnits(wordToUint(data, 2), 18),
+    yieldActiveBTC: formatUnits(wordToUint(data, 3), 18),
+    pendingWithdrawBTC: formatUnits(wordToUint(data, 4), 18),
+  };
+}
+
+async function readBTCReservePolicy(url, btcReservePolicy, treasuryAccount) {
+  const data = await ethCall(url, btcReservePolicy, encodeCall(SELECTORS.reservePolicies, [addressArg(treasuryAccount)]));
+
+  return {
+    minIdleBTCReserve: formatUnits(wordToUint(data, 0), 18),
+    emergencyBTCReserve: formatUnits(wordToUint(data, 1), 18),
+    maxYieldBTCBps: wordToUint(data, 2).toString(),
+    maxPerSleeveBTCBps: wordToUint(data, 3).toString(),
+    maxDirectionalBTCBps: wordToUint(data, 4).toString(),
+    maxBTCAssetDepegBps: wordToUint(data, 5).toString(),
+    collateralWarningCRBps: wordToUint(data, 6).toString(),
+    btcYieldPaused: wordToBool(data, 7),
+    initialized: wordToBool(data, 8),
+  };
+}
+
+async function readBTCSleeveConfig(url, btcReservePolicy, treasuryAccount, sleeve) {
+  const data = await ethCall(
+    url,
+    btcReservePolicy,
+    encodeCall(SELECTORS.btcSleeves, [addressArg(treasuryAccount), addressArg(sleeve)]),
+  );
+  const riskIndex = Number(wordToUint(data, 0));
+
+  return {
+    riskClass: BTC_RISK_CLASSES[riskIndex] ?? `UNKNOWN(${riskIndex})`,
+    enabled: wordToBool(data, 1),
+    sleeveCapBps: wordToUint(data, 2).toString(),
+    assetDepegBps: wordToUint(data, 3).toString(),
+    withdrawalDelaySeconds: wordToUint(data, 4).toString(),
+  };
+}
+
+async function readBTCAllocationPreview(url, btcReservePolicy, treasuryAccount, sleeve, amountWei) {
+  const data = await ethCall(
+    url,
+    btcReservePolicy,
+    encodeCall(SELECTORS.previewBTCAllocation, [addressArg(treasuryAccount), addressArg(sleeve), uintArg(amountWei)]),
+  );
+  const reasonIndex = Number(wordToUint(data, 1));
+
+  return {
+    allowed: wordToBool(data, 0),
+    reason: BTC_DECISION_CODES[reasonIndex] ?? `Unknown(${reasonIndex})`,
+    proposedAmountBTC: formatUnits(amountWei, 18),
+    availableBTC: formatUnits(wordToUint(data, 2), 18),
+    projectedYieldActiveBTC: formatUnits(wordToUint(data, 3), 18),
+    requiredApproval: wordToBool(data, 4),
+  };
+}
+
+function capBTCFromBps(buckets, capBps) {
+  const total =
+    parseUnits(buckets.idleBTCReserve, 18) +
+    parseUnits(buckets.collateralBTC, 18) +
+    parseUnits(buckets.emergencyBTCReserve, 18) +
+    parseUnits(buckets.yieldActiveBTC, 18) +
+    parseUnits(buckets.pendingWithdrawBTC, 18);
+  return formatUnits((total * BigInt(capBps)) / 10_000n, 18);
+}
+
 function defaultProposedAmount(deployableSurplusWei, proposedDestination, sleeves) {
   const sleeve = sleeves.find((candidate) => candidate.destination.toLowerCase() === proposedDestination.toLowerCase());
   if (!sleeve) return deployableSurplusWei;
@@ -373,6 +535,22 @@ function loadDestinations(parsedArgs, manifest) {
   }
 
   return destinations;
+}
+
+function defaultBTCSleeve(manifest) {
+  return firstAddressAt(manifest, [
+    ["references", "tigrisMcbtcBtcPool"],
+    ["references", "tigris", "mcbtcBtcPool"],
+    ["references", "tigris", "pools", "mcbtcBtc", "address"],
+  ]) ?? ZERO_ADDRESS;
+}
+
+function proposedBTCAmountWei(parsedArgs) {
+  if (parsedArgs.proposedBtcAmountWei != null) return BigInt(parsedArgs.proposedBtcAmountWei);
+  if (parsedArgs.proposedBTCAmountWei != null) return BigInt(parsedArgs.proposedBTCAmountWei);
+  if (parsedArgs.proposedBtcAmount != null) return parseUnits(parsedArgs.proposedBtcAmount, 18);
+  if (parsedArgs.proposedBTCAmount != null) return parseUnits(parsedArgs.proposedBTCAmount, 18);
+  return 0n;
 }
 
 function encodeCall(selector, args = []) {
@@ -480,6 +658,20 @@ function valueAt(object, path) {
   return current;
 }
 
+function firstAddressAt(object, paths) {
+  for (const path of paths) {
+    const value = coerceAddressValue(valueAt(object, path));
+    if (value && value !== ZERO_ADDRESS) return value;
+  }
+  return undefined;
+}
+
+function coerceAddressValue(value) {
+  if (value == null) return undefined;
+  if (typeof value === "object") return value.address;
+  return value;
+}
+
 function loadDotEnv() {
   try {
     const text = readFileSync(".env", "utf8");
@@ -505,6 +697,7 @@ function printHelp() {
   node services/spectrum-state/snapshot.mjs
   node services/spectrum-state/snapshot.mjs --manifest deployments/mezo-testnet-client.json --out /tmp/treasuryos-snapshot.json
   node services/spectrum-state/snapshot.mjs --treasury-account 0x... --destinations 0x...,0x... --actor 0x...
+  node services/spectrum-state/snapshot.mjs --manifest deployments/mezo-testnet-client.json --proposed-btc-sleeve 0x... --proposed-btc-amount 0.05
 
 RPC selection:
   1. SPECTRUM_MEZO_RPC_URL_1, if it returns Mezo testnet chain ID 31611

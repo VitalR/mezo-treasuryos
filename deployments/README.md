@@ -31,6 +31,7 @@ Each manifest should include:
 - `chainId`
 - `deployer`
 - `treasuryPolicyEngine`
+- `btcReservePolicy`
 - `treasuryAccountFactory`
 - `treasuryAutomationExecutor`
 - `allocationRouter`
@@ -65,6 +66,7 @@ Current testnet deployment planning assumes:
 - Spectrum Nodes as the primary RPC provider
 - Mezo MUSD borrow contracts from official docs
 - Tigris testnet router and `MUSD/mUSDC` stable pool from official docs
+- Tigris `mcbBTC/BTC` stable pool recorded as a BTC-correlated planning candidate
 
 The savings vault address is intentionally not pinned here yet unless it has been confirmed in the deployment environment.
 
@@ -117,6 +119,7 @@ forge script script/DeployTreasuryOS.s.sol:DeployTreasuryOS --root contracts --r
 The script:
 
 - deploys the core TreasuryOS contracts
+- deploys `BTCReservePolicy` for BTC reserve bucket reporting and preview-only BTC sleeve decisions
 - deploys a bounded `TreasuryAutomationExecutor`
 - optionally deploys `TreasuryMultisig` as the Treasury Account owner
 - optionally deploys `ExternalMUSDSavingsRateMock` when no official savings address is set

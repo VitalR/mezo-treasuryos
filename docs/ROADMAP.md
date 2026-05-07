@@ -295,6 +295,7 @@ Do not make AI the controlling authority for treasury actions.
 - Treasury Yield Console
 - AI Treasury Allocation Advisor memo output
 - Term Yield Planner view for simulated 7/30/60-day plans
+- deterministic term-yield planner service for review dates, projected MUSD sleeve yield, and unwind conditions
 - deterministic treasury advisor service that recommends sleeve allocation and bounded automation actions from snapshot inputs
 - BTC reserve strategy notes documenting V1/V1.5/V2 boundaries
 - reviewer-facing treasury summary

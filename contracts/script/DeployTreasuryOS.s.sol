@@ -315,28 +315,7 @@ contract DeployTreasuryOS is Script {
             artifacts.musdSavingsRateHandler = address(musdSavingsRateHandler);
         }
 
-        if (
-            config.tigrisRouter != address(0) && config.tigrisPoolFactory != address(0)
-                && config.tigrisMusdMusdcPool != address(0) && config.musdcToken != address(0)
-        ) {
-            TigrisStablePoolHandler tigrisStablePoolHandler = new TigrisStablePoolHandler(
-                artifacts.allocationRouter,
-                ITigrisBasicRouter(config.tigrisRouter),
-                config.tigrisMusdMusdcPool,
-                config.tigrisPoolFactory,
-                config.tigrisMusdMusdcStable,
-                IERC20(config.musdToken),
-                IERC20(config.musdcToken),
-                config.tigrisDeadlineWindow,
-                config.tigrisMaxSlippageBps
-            );
-
-            artifacts.tigrisStablePoolHandler = address(tigrisStablePoolHandler);
-        } else {
-            console2.log(
-                "Skipping TigrisStablePoolHandler deployment: missing router, pool factory, pool, or MEZO_MUSDC_TOKEN"
-            );
-        }
+        artifacts.tigrisStablePoolHandler = _deployTigrisStablePoolHandler(config, artifacts.allocationRouter);
 
         address[] memory approvedDestinations =
             _buildApprovedDestinations(artifacts.savingsDestination, artifacts.tigrisStablePoolHandler, config);
@@ -360,6 +339,39 @@ contract DeployTreasuryOS is Script {
         artifacts.treasuryAccount = treasuryAccountFactory.deployTreasuryAccount(treasuryOwner, policyConfig);
 
         vm.stopBroadcast();
+    }
+
+    /// @notice Deploys the optional Tigris MUSD/mUSDC handler when all live testnet references are configured.
+    /// @param config Demo deployment config.
+    /// @param allocationRouter Treasury allocation router.
+    /// @return Deployed Tigris handler address, or zero when not configured.
+    function _deployTigrisStablePoolHandler(DeploymentConfig memory config, address allocationRouter)
+        internal
+        returns (address)
+    {
+        if (
+            config.tigrisRouter == address(0) || config.tigrisPoolFactory == address(0)
+                || config.tigrisMusdMusdcPool == address(0) || config.musdcToken == address(0)
+        ) {
+            console2.log(
+                "Skipping TigrisStablePoolHandler deployment: missing router, pool factory, pool, or MEZO_MUSDC_TOKEN"
+            );
+            return address(0);
+        }
+
+        TigrisStablePoolHandler tigrisStablePoolHandler = new TigrisStablePoolHandler(
+            allocationRouter,
+            ITigrisBasicRouter(config.tigrisRouter),
+            config.tigrisMusdMusdcPool,
+            config.tigrisPoolFactory,
+            config.tigrisMusdMusdcStable,
+            IERC20(config.musdToken),
+            IERC20(config.musdcToken),
+            config.tigrisDeadlineWindow,
+            config.tigrisMaxSlippageBps
+        );
+
+        return address(tigrisStablePoolHandler);
     }
 
     function _configureOwnerControlledState(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
@@ -607,9 +619,11 @@ contract DeployTreasuryOS is Script {
 
     function _buildReferencesJson(DeploymentConfig memory config, DeploymentArtifacts memory artifacts)
         internal
-        pure
+        view
         returns (string memory)
     {
+        address tigrisMcbtcBtcPool = vm.envOr("MEZO_TIGRIS_MCBTC_BTC_POOL", address(0));
+
         return string.concat(
             '{"musdToken":"',
             vm.toString(config.musdToken),
@@ -623,6 +637,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(config.tigrisPoolFactory),
             '","tigrisMusdMusdcPool":"',
             vm.toString(config.tigrisMusdMusdcPool),
+            '","tigrisMcbtcBtcPool":"',
+            vm.toString(tigrisMcbtcBtcPool),
             '","musdcToken":"',
             vm.toString(config.musdcToken),
             '","tigrisMusdMusdcStable":',

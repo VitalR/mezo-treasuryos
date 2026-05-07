@@ -275,6 +275,7 @@ V1 expectation:
 - simulated or reporting-oriented only
 - no Pendle-style fixed-yield market in V1
 - no new proprietary yield primitive
+- implemented as `services/term-yield-planner`, a deterministic planner over approved MUSD sleeves with BTC candidates kept as notes only
 
 ---
 

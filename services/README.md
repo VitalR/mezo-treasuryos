@@ -20,5 +20,6 @@ Current runnable services:
 - `services/spectrum-state`: Spectrum-first Mezo testnet RPC state reader with `MEZO_RPC_URL` fallback
 - `services/yield-console`: console/reporting renderer for treasury yield allocation snapshots
 - `services/treasury-advisor`: deterministic policy-aware allocation, term-yield, and automation recommendation report
+- `services/term-yield-planner`: deterministic 7/30/60-day MUSD sleeve planning report with BTC sleeve notes
 
 The AI advisor is advisory only. It should consume deterministic onchain state and policy-decision previews, then generate recommendation memos for operators and reviewers. It must never control funds or bypass `TreasuryPolicyEngine`.

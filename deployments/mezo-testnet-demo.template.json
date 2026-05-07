@@ -30,6 +30,10 @@
       "address": "",
       "deploymentTxHash": ""
     },
+    "btcReservePolicy": {
+      "address": "",
+      "deploymentTxHash": ""
+    },
     "treasuryAccountFactory": {
       "address": "",
       "deploymentTxHash": ""
@@ -93,6 +97,7 @@
       "router": "0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9",
       "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
       "musdMusdcPool": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+      "mcbtcBtcPool": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
       "musdMusdtPool": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e",
       "musdBtcPool": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
       "maxSlippageBps": "100"

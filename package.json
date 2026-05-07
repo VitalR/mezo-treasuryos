@@ -9,6 +9,8 @@
     "advisor:demo": "node services/treasury-advisor/run.mjs services/treasury-advisor/sample-snapshot.json",
     "advisor:test": "node --test services/treasury-advisor/advisor.test.mjs",
     "demo:yield-console": "node services/yield-console/render.mjs services/yield-console/sample-snapshot.json",
+    "demo:term-planner": "node services/term-yield-planner/run.mjs services/term-yield-planner/sample-snapshot.json",
+    "planner:test": "node --test services/term-yield-planner/planner.test.mjs",
     "rpc-health": "node services/spectrum-state/rpc-health.mjs",
     "state:probe": "node services/spectrum-state/snapshot.mjs",
     "state:snapshot": "node services/spectrum-state/snapshot.mjs",

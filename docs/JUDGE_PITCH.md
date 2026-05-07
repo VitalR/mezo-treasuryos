@@ -135,6 +135,7 @@ The yield angle is intentionally treasury-native:
 - allocate only surplus MUSD
 - enforce approved sleeves and caps
 - preview why an allocation is allowed or blocked
+- model 7/30/60-day term plans with review dates, projected MUSD sleeve yield, and unwind conditions
 - report BTC reserve and BTC collateral separately from borrowed MUSD
 - treat BTC/stable LP as a directional planning candidate, not default treasury yield
 - generate an AI-assisted treasury memo that remains advisory

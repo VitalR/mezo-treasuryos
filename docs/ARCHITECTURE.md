@@ -375,6 +375,10 @@ Responsibilities:
 
 V1 should keep this reporting-oriented. It should not introduce a Pendle-style fixed-yield protocol or new onchain yield primitive.
 
+The implemented V1 service is `services/term-yield-planner`. It consumes the same snapshot shape as the Yield Console
+and Advisor, produces deterministic 7/30/60-day MUSD sleeve plans, and keeps BTC sleeve candidates in planning notes
+unless a verified BTC execution path exists.
+
 ### 5. Treasury Advisor
 
 Responsibilities:
