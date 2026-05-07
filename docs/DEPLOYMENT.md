@@ -116,6 +116,21 @@ make rpc-health
 make yield-targets
 ```
 
+Simulate the current Mezo yield integrations against a live Mezo testnet fork:
+
+```bash
+make mezo-yield-fork-test
+```
+
+This target reads `.env`, uses `ACTIVE_MEZO_RPC_URL` when set, otherwise falls back to `MEZO_RPC_URL`, and does not print raw RPC URLs or keys. It currently validates:
+
+- direct MUSD Savings Vault deposit and withdrawal;
+- TreasuryOS `MUSDSavingsRateHandler` deposit and withdrawal;
+- TreasuryOS `TigrisStablePoolHandler` deposit and withdrawal against `MUSD/mUSDC`;
+- `mcbBTC/BTC` metadata and router quote checks.
+
+The `mcbBTC/BTC` direct add/remove-liquidity execution test is allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Treat that as a tooling and BTC-sleeve-accounting blocker, not as support for executable BTC-principal allocation in V1.
+
 ---
 
 ## Protocol Core Deployment

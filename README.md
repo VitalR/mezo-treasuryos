@@ -100,7 +100,7 @@ The product now proves one allocation routing model with two concrete Mezo-nativ
 
 The yield angle is not a separate high-yield product. TreasuryOS preserves the required operating buffer first, calculates allocatable surplus, previews the policy decision for proposed sleeve allocations, and routes only approved surplus into capped Mezo-native sleeves.
 
-BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 reports idle BTC reserve and BTC collateral, and the advisor can discuss the real Tigris `mcbBTC/BTC` pool candidate, but executable BTC-principal allocation is deferred until a separate BTC accounting/policy path exists. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
+`MUSD/mUSDC` has a passing live-fork TreasuryOS deposit/withdraw simulation, but MUSD Savings remains the primary demo sleeve because testnet LP liquidity can move or become imbalanced. BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 reports idle BTC reserve and BTC collateral, and the advisor can discuss the real Tigris `mcbBTC/BTC` pool candidate, but executable BTC-principal allocation is deferred until a separate BTC accounting/policy path exists. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
 
 ---
 
@@ -172,6 +172,8 @@ Live RPC state probe:
 ```sh
 npm run rpc-health
 npm run state:probe
+npm run yield:targets
+make mezo-yield-fork-test
 ```
 
 The state reader loads the real `.env`, tests `SPECTRUM_MEZO_RPC_URL_1`, `_2`, `_3`, then the legacy `SPECTRUM_MEZO_RPC_URL`, and falls back to `MEZO_RPC_URL` only if no Spectrum candidate returns Mezo testnet chain ID `31611`. We should not claim Spectrum was active in a given run unless `make rpc-health` reports a Spectrum endpoint as `OK`.

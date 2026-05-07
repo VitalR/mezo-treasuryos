@@ -48,7 +48,9 @@ Live ABI inspection shows the vault supports the current `MUSDSavingsRateHandler
 - Stable flag: `true`
 - V1 role: optional stablecoin LP sleeve for surplus MUSD operating capital
 
-This is the primary Tigris V1 candidate. It belongs in the existing MUSD allocation path because the treasury contributes MUSD, keeps a MUSD buffer, accounts for a MUSD-denominated destination cap, and unwinds back to MUSD for buffer/debt workflows. It still needs live add/remove-liquidity validation before the final demo uses it with real testnet balances.
+This is the primary Tigris V1 candidate. It belongs in the existing MUSD allocation path because the treasury contributes MUSD, keeps a MUSD buffer, accounts for a MUSD-denominated destination cap, and unwinds back to MUSD for buffer/debt workflows.
+
+Current validation status: `make mezo-yield-fork-test` passes a live Mezo testnet fork simulation for TreasuryOS handler deposit and withdrawal against this pool. The handler uses router quotes for swap output, add-liquidity token minimums, remove-liquidity token minimums, and LP liquidity minted, which matters because testnet `mUSDC` has different decimals and the pool can be very imbalanced. This is not a broadcast transaction test. Re-check pool reserves before the final demo and keep MUSD Savings Vault as the reliable primary sleeve if Tigris liquidity is thin.
 
 ### Tigris Basic Stable mcbBTC/BTC
 
@@ -60,6 +62,8 @@ This is the primary Tigris V1 candidate. It belongs in the existing MUSD allocat
 - V1 role: BTC-denominated / BTC-correlated sleeve candidate
 
 This is the strongest testnet bridge to the Bitcoin Yield & Investment angle because it preserves BTC-correlated exposure better than a BTC/stable LP. It should not be routed through the MUSD `TigrisStablePoolHandler` because the accounting unit, reserve constraints, and approval posture are different. Treat it as V1 reporting/scaffold unless a separate BTC policy and handler are implemented and tested.
+
+Current validation status: live-fork metadata and router quote checks pass. Direct add/remove-liquidity execution is not V1-ready because Foundry cannot currently execute Mezo's ERC20 BTC precompile wrapper in the fork environment. A real BTC sleeve should wait for BTC-denominated policy, receipt accounting, and either a reliable Mezo-aware fork path or a controlled testnet broadcast validation.
 
 ## Risk Classification
 
@@ -73,14 +77,14 @@ This is the strongest testnet bridge to the Bitcoin Yield & Investment angle bec
 ### V1
 
 - MUSD Savings Vault as the primary allocation sleeve.
-- MUSD/mUSDC Basic Stable after dry-run or transaction validation.
+- MUSD/mUSDC Basic Stable after live-fork validation and a final liquidity sanity check.
 - BTC reserve and collateral fields in reporting/advisor output.
 - mcbBTC/BTC research/scaffold in docs and reporting, marked non-executable until BTC policy/accounting exists.
 - AI memo that distinguishes MUSD operating capital from BTC reserve/collateral.
 
 ### V1 If Time
 
-- mcbBTC/BTC handler only if the ERC20 BTC/mcbBTC path, approvals, receipt accounting, and BTC-denominated policy checks are simple and auditable.
+- mcbBTC/BTC handler only if the ERC20 BTC/mcbBTC path, approvals, receipt accounting, BTC-denominated policy checks, and test tooling are simple and auditable.
 - BTC sleeve reporting fields for principal asset, receipt token, current exposure, risk class, and withdrawal constraints.
 
 ### V1.5

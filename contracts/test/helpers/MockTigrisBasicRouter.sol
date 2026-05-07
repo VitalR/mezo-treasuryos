@@ -23,7 +23,9 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     MockTigrisLPToken public immutable lpToken;
 
     uint256 public addLiquidityUsageBps = 10_000;
+    uint256 public addLiquidityQuoteBps = 10_000;
     uint256 public removeLiquidityOutputBps = 10_000;
+    uint256 public swapQuoteBps = 10_000;
     uint256 public swapOutputBps = 10_000;
     uint256 public swapReturnPathLength = 2;
     uint256 public lastSwapAmountOutMin;
@@ -47,9 +49,19 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
         addLiquidityUsageBps = _addLiquidityUsageBps;
     }
 
+    function setAddLiquidityQuoteBps(uint256 _addLiquidityQuoteBps) external {
+        require(_addLiquidityQuoteBps <= 10_000, "invalid quote");
+        addLiquidityQuoteBps = _addLiquidityQuoteBps;
+    }
+
     function setRemoveLiquidityOutputBps(uint256 _removeLiquidityOutputBps) external {
         require(_removeLiquidityOutputBps <= 10_000, "invalid usage");
         removeLiquidityOutputBps = _removeLiquidityOutputBps;
+    }
+
+    function setSwapQuoteBps(uint256 _swapQuoteBps) external {
+        require(_swapQuoteBps <= 10_000, "invalid output");
+        swapQuoteBps = _swapQuoteBps;
     }
 
     function setSwapOutputBps(uint256 _swapOutputBps) external {
@@ -90,6 +102,35 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
         if (swapReturnPathLength > 1) {
             amounts[1] = amountOut;
         }
+    }
+
+    function getAmountsOut(uint256 _amountIn, Route[] memory _routes) external view returns (uint256[] memory amounts) {
+        if (_routes.length != 1) {
+            revert InvalidRouteLength(_routes.length);
+        }
+
+        amounts = new uint256[](2);
+        amounts[0] = _amountIn;
+        amounts[1] = (_amountIn * swapQuoteBps) / 10_000;
+    }
+
+    function quoteAddLiquidity(address, address, bool, address, uint256 _amountADesired, uint256 _amountBDesired)
+        external
+        view
+        returns (uint256 amountA, uint256 amountB, uint256 liquidity)
+    {
+        amountA = (_amountADesired * addLiquidityQuoteBps) / 10_000;
+        amountB = (_amountBDesired * addLiquidityQuoteBps) / 10_000;
+        liquidity = amountA + amountB;
+    }
+
+    function quoteRemoveLiquidity(address, address, bool, address, uint256 _liquidity)
+        external
+        pure
+        returns (uint256 amountA, uint256 amountB)
+    {
+        amountA = _liquidity / 2;
+        amountB = _liquidity - amountA;
     }
 
     function addLiquidity(

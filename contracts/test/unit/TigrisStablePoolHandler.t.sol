@@ -114,6 +114,15 @@ contract TigrisStablePoolHandlerTest is Test {
         _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
     }
 
+    function test_Deposit_RevertsWhenSwapQuoteIsZero() public {
+        _router.setSwapQuoteBps(0);
+
+        vm.expectRevert(abi.encodeWithSelector(TigrisStablePoolHandler.ZeroSwapQuote.selector, 50 ether));
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+    }
+
     function test_Deposit_RevertsWhenLiquidityUsedIsBelowMinimum() public {
         _router.setAddLiquidityUsageBps(9800);
 
@@ -123,6 +132,28 @@ contract TigrisStablePoolHandlerTest is Test {
 
         vm.prank(_OPERATOR);
         _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+    }
+
+    function test_Deposit_RevertsWhenLiquidityQuoteIsZero() public {
+        _router.setAddLiquidityQuoteBps(0);
+
+        vm.expectRevert(TigrisStablePoolHandler.ZeroLiquidity.selector);
+
+        vm.prank(_OPERATOR);
+        _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+    }
+
+    function test_Deposit_UsesRouterQuoteForSwapMinimums() public {
+        _router.setSwapQuoteBps(100);
+        _router.setSwapOutputBps(100);
+
+        vm.prank(_OPERATOR);
+        uint256 _liquidity = _allocationRouter.deposit(address(_treasuryAccount), address(_poolToken), 100 ether);
+
+        assertEq(_liquidity, 50.5 ether);
+        assertEq(_router.lastSwapAmountOutMin(), 0.495 ether);
+        assertEq(_router.lastAddAmountAMin(), 49.5 ether);
+        assertEq(_router.lastAddAmountBMin(), 0.495 ether);
     }
 
     function test_Deposit_UnexpectedSwapPathLengthReverts() public {

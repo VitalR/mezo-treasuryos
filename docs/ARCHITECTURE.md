@@ -268,6 +268,8 @@ Current V1 testnet target:
 
 The handler stores the Tigris pool factory and pool `stable` flag as immutable metadata. That keeps the current `MUSD/mUSDC` sleeve live-ABI-compatible while leaving room for separately approved MUSD/BTC directional sleeves if the policy model and demo liquidity justify them. It should not be reused for `mcbBTC/BTC` because that pool is BTC-denominated and needs BTC reserve accounting, not MUSD buffer accounting.
 
+The handler derives swap minimums, add-liquidity minimums, remove-liquidity minimums, and minimum LP minted from the live Tigris router quote functions. This avoids hard-coding token-decimal or price assumptions into TreasuryOS and is required for the current `MUSD/mUSDC` testnet pool shape.
+
 ### 8. ExternalMUSDSavingsRateMock
 
 Deployable external mock used for demo-grade savings interactions where controlled yield injection is needed.
@@ -525,6 +527,8 @@ Current official Mezo testnet targets:
 - `mcbBTC/BTC` pool: `0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E`
 
 These are the reference instances TreasuryOS should target for the current hackathon build. The Tigris router takes swap routes as `(from, to, stable, factory)` and liquidity actions include the same `stable` flag, so deployments must configure `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE=true`.
+
+Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks, while direct execution is deferred because Mezo's ERC20 BTC precompile wrapper is not reliably executable in the current Foundry fork environment.
 
 ### BTC reserve and BTC yield candidates
 

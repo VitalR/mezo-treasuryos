@@ -23,6 +23,7 @@ help:
 	@echo "  make rpc-health                   - test Spectrum Mezo RPC candidates and fallback"
 	@echo "  make state-probe                  - probe selected Mezo testnet RPC"
 	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
+	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
@@ -78,6 +79,20 @@ state-probe:
 .PHONY: yield-targets
 yield-targets:
 	npm run yield:targets
+
+.PHONY: mezo-yield-fork-test
+mezo-yield-fork-test:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		ACTIVE_MEZO_RPC_URL="$${ACTIVE_MEZO_RPC_URL:-$${MEZO_RPC_URL:-}}"; \
+		if [ -z "$$ACTIVE_MEZO_RPC_URL" ]; then \
+			echo "Missing MEZO_RPC_URL or ACTIVE_MEZO_RPC_URL in .env"; \
+			exit 1; \
+		fi; \
+		echo "Selected Mezo RPC provider: $${ACTIVE_MEZO_RPC_PROVIDER:-MEZO_RPC_URL}"; \
+		RUN_MEZO_FORK_TESTS=true ACTIVE_MEZO_RPC_URL="$$ACTIVE_MEZO_RPC_URL" \
+			forge test --root $(CONTRACTS_ROOT) --match-path test/fork/MezoYieldTargetsFork.t.sol \
+	'
 
 .PHONY: rpc-health
 rpc-health:

@@ -257,7 +257,7 @@ function loadDotEnv() {
       if (!match) continue;
 
       const [, key, rawValue] = match;
-      if (process.env[key] != null) continue;
+      if (process.env[key] != null && process.env[key].trim().length > 0) continue;
 
       process.env[key] = rawValue.trim().replace(/^['"]|['"]$/g, "");
     }

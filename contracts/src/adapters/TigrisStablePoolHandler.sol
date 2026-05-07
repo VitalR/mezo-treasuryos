@@ -29,6 +29,18 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         uint256 refundMUSD;
     }
 
+    struct LiquidityOutcome {
+        uint256 musdUsed;
+        uint256 pairedUsed;
+        uint256 liquidityMinted;
+    }
+
+    struct LiquidityQuote {
+        uint256 musdUsed;
+        uint256 pairedUsed;
+        uint256 liquidityMinted;
+    }
+
     // =============================================================
     // Events
     // =============================================================
@@ -63,6 +75,8 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     error InvalidTreasuryAccount(address treasuryAccount);
     error InvalidAmount(uint256 amount);
     error InvalidSlippageBps(uint256 maxSlippageBps);
+    error InsufficientLiquidityMinted(uint256 liquidityMinted, uint256 minLiquidityMinted);
+    error ZeroSwapQuote(uint256 amountIn);
     error ZeroLiquidity();
     error UnauthorizedCaller(address caller);
     error UnexpectedSwapPathLength(uint256 pathLength);
@@ -227,6 +241,29 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         TreasuryAccount(payable(_treasuryAccount))
             .forceApproveTokenFromHandler(address(pairedTokenAsset), address(tigrisRouter), outcome.pairedReceived);
 
+        LiquidityOutcome memory _liquidity =
+            _addLiquidityToStablePool(_treasuryAccount, _musdToPair, outcome.pairedReceived);
+
+        outcome.liquidityMinted = _liquidity.liquidityMinted;
+        outcome.refundMUSD = _musdToPair - _liquidity.musdUsed;
+
+        uint256 _pairedRefund = outcome.pairedReceived - _liquidity.pairedUsed;
+        if (_pairedRefund > 0) {
+            outcome.refundMUSD += _swapPairBackToMUSD(_treasuryAccount, _pairedRefund);
+        }
+    }
+
+    /// @notice Adds liquidity into the configured pool after quoting token and LP minimums.
+    /// @param _treasuryAccount Treasury Account forwarding the router call.
+    /// @param _musdToPair MUSD amount supplied as the MUSD side.
+    /// @param _pairedToPair Paired-token amount supplied as the other side.
+    /// @return outcome Token amounts consumed by the pool and LP liquidity minted.
+    function _addLiquidityToStablePool(address _treasuryAccount, uint256 _musdToPair, uint256 _pairedToPair)
+        internal
+        returns (LiquidityOutcome memory outcome)
+    {
+        LiquidityQuote memory _quote = _quoteAddLiquidity(_musdToPair, _pairedToPair);
+
         bytes memory _addLiquidityResult = _callTreasury(
             _treasuryAccount,
             address(tigrisRouter),
@@ -237,25 +274,33 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                     address(pairedTokenAsset),
                     poolStable,
                     _musdToPair,
-                    outcome.pairedReceived,
-                    _amountAfterSlippage(_musdToPair),
-                    _amountAfterSlippage(outcome.pairedReceived),
+                    _pairedToPair,
+                    _amountAfterSlippage(_quote.musdUsed),
+                    _amountAfterSlippage(_quote.pairedUsed),
                     _treasuryAccount,
                     block.timestamp + deadlineWindow
                 )
             )
         );
 
-        (uint256 _musdUsed, uint256 _pairedUsed, uint256 _liquidityMinted) =
+        (outcome.musdUsed, outcome.pairedUsed, outcome.liquidityMinted) =
             abi.decode(_addLiquidityResult, (uint256, uint256, uint256));
+        _requireMinimumLiquidityMinted(outcome.liquidityMinted, _quote.liquidityMinted);
+    }
 
-        outcome.liquidityMinted = _liquidityMinted;
-        outcome.refundMUSD = _musdToPair - _musdUsed;
-
-        uint256 _pairedRefund = outcome.pairedReceived - _pairedUsed;
-        if (_pairedRefund > 0) {
-            outcome.refundMUSD += _swapPairBackToMUSD(_treasuryAccount, _pairedRefund);
-        }
+    /// @notice Quotes token usage and LP liquidity for the configured pool.
+    /// @param _musdToPair MUSD amount supplied as the MUSD side.
+    /// @param _pairedToPair Paired-token amount supplied as the other side.
+    /// @return quote Expected token usage and LP liquidity.
+    function _quoteAddLiquidity(uint256 _musdToPair, uint256 _pairedToPair)
+        internal
+        view
+        returns (LiquidityQuote memory quote)
+    {
+        (quote.musdUsed, quote.pairedUsed, quote.liquidityMinted) = tigrisRouter.quoteAddLiquidity(
+            address(musdToken), address(pairedTokenAsset), poolStable, poolFactory, _musdToPair, _pairedToPair
+        );
+        require(quote.liquidityMinted > 0, ZeroLiquidity());
     }
 
     /// @notice Removes proportional LP exposure and converts any paired-token output back into MUSD.
@@ -280,7 +325,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
             .forceApproveTokenFromHandler(destination, address(tigrisRouter), liquidityBurned);
 
         uint256 _pairedReceived;
-        (musdReceived, _pairedReceived) = _removeLiquidityFromStablePool(_treasuryAccount, liquidityBurned, _amount);
+        (musdReceived, _pairedReceived) = _removeLiquidityFromStablePool(_treasuryAccount, liquidityBurned);
 
         if (_pairedReceived > 0) {
             musdReceived += _swapPairBackToMUSD(_treasuryAccount, _pairedReceived);
@@ -290,14 +335,17 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     /// @notice Calls Tigris removeLiquidity with configured pool metadata and slippage bounds.
     /// @param _treasuryAccount Treasury Account forwarding the router call.
     /// @param _liquidityToBurn LP token amount to remove.
-    /// @param _allocationAmount MUSD-denominated allocation amount being reduced.
     /// @return musdReceived MUSD side returned by the pool.
     /// @return pairedReceived Paired-token side returned by the pool.
-    function _removeLiquidityFromStablePool(
-        address _treasuryAccount,
-        uint256 _liquidityToBurn,
-        uint256 _allocationAmount
-    ) internal returns (uint256 musdReceived, uint256 pairedReceived) {
+    function _removeLiquidityFromStablePool(address _treasuryAccount, uint256 _liquidityToBurn)
+        internal
+        returns (uint256 musdReceived, uint256 pairedReceived)
+    {
+        (uint256 _quotedMUSDReceived, uint256 _quotedPairedReceived) = tigrisRouter.quoteRemoveLiquidity(
+            address(musdToken), address(pairedTokenAsset), poolStable, poolFactory, _liquidityToBurn
+        );
+        require(_quotedMUSDReceived > 0 || _quotedPairedReceived > 0, ZeroLiquidity());
+
         bytes memory _removeLiquidityResult = _callTreasury(
             _treasuryAccount,
             address(tigrisRouter),
@@ -308,8 +356,8 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                     address(pairedTokenAsset),
                     poolStable,
                     _liquidityToBurn,
-                    _amountAfterSlippage(_allocationAmount / 2),
-                    _amountAfterSlippage(_allocationAmount - (_allocationAmount / 2)),
+                    _amountAfterSlippage(_quotedMUSDReceived),
+                    _amountAfterSlippage(_quotedPairedReceived),
                     _treasuryAccount,
                     block.timestamp + deadlineWindow
                 )
@@ -333,6 +381,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
 
         uint256 _pairedBalanceBefore = pairedTokenAsset.balanceOf(_treasuryAccount);
         ITigrisBasicRouter.Route[] memory _routes = _buildRoute(address(musdToken), address(pairedTokenAsset));
+        uint256 _quotedPairedOut = _quoteSwapOutput(_musdToSwap, _routes);
 
         _callTreasury(
             _treasuryAccount,
@@ -341,7 +390,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                 ITigrisBasicRouter.swapExactTokensForTokens,
                 (
                     _musdToSwap,
-                    _amountAfterSlippage(_musdToSwap),
+                    _amountAfterSlippage(_quotedPairedOut),
                     _routes,
                     _treasuryAccount,
                     block.timestamp + deadlineWindow
@@ -364,6 +413,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
             .forceApproveTokenFromHandler(address(pairedTokenAsset), address(tigrisRouter), _pairedAmount);
 
         ITigrisBasicRouter.Route[] memory _routes = _buildRoute(address(pairedTokenAsset), address(musdToken));
+        uint256 _quotedMUSDOut = _quoteSwapOutput(_pairedAmount, _routes);
 
         bytes memory _swapResult = _callTreasury(
             _treasuryAccount,
@@ -372,7 +422,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                 ITigrisBasicRouter.swapExactTokensForTokens,
                 (
                     _pairedAmount,
-                    _amountAfterSlippage(_pairedAmount),
+                    _amountAfterSlippage(_quotedMUSDOut),
                     _routes,
                     _treasuryAccount,
                     block.timestamp + deadlineWindow
@@ -394,11 +444,36 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         routes[0] = ITigrisBasicRouter.Route({ from: _from, to: _to, stable: poolStable, factory: poolFactory });
     }
 
+    /// @notice Quotes the final token output for a Tigris route and validates the returned route length.
+    /// @param _amountIn Input token amount being quoted.
+    /// @param _routes Route used for the quote.
+    /// @return amountOut Final token output quoted by the router.
+    function _quoteSwapOutput(uint256 _amountIn, ITigrisBasicRouter.Route[] memory _routes)
+        internal
+        view
+        returns (uint256 amountOut)
+    {
+        uint256[] memory _amounts = tigrisRouter.getAmountsOut(_amountIn, _routes);
+        require(_amounts.length >= 2, UnexpectedSwapPathLength(_amounts.length));
+        amountOut = _amounts[_amounts.length - 1];
+        require(amountOut > 0, ZeroSwapQuote(_amountIn));
+    }
+
     /// @notice Converts an expected amount into a router minimum using the configured slippage limit.
     /// @param _amount Expected token or liquidity-side amount.
     /// @return Minimum acceptable amount after applying `maxSlippageBps`.
     function _amountAfterSlippage(uint256 _amount) internal view returns (uint256) {
         return (_amount * (BPS_DENOMINATOR - maxSlippageBps)) / BPS_DENOMINATOR;
+    }
+
+    /// @notice Ensures the router minted at least the quoted LP amount after slippage.
+    /// @param _liquidityMinted LP liquidity minted by the router.
+    /// @param _quotedLiquidity LP liquidity expected by `quoteAddLiquidity`.
+    function _requireMinimumLiquidityMinted(uint256 _liquidityMinted, uint256 _quotedLiquidity) internal view {
+        uint256 _minLiquidityMinted = _amountAfterSlippage(_quotedLiquidity);
+        require(
+            _liquidityMinted >= _minLiquidityMinted, InsufficientLiquidityMinted(_liquidityMinted, _minLiquidityMinted)
+        );
     }
 
     /// @notice Executes router calldata from the Treasury Account so assets and receipts stay account-owned.

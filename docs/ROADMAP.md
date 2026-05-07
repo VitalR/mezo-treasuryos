@@ -221,14 +221,14 @@ The contract spine can add another MUSD-denominated sleeve later through router 
 
 Tigris `mcbBTC/BTC` is the cleanest current BTC-correlated yield candidate because it preserves BTC-like exposure better than BTC/stable LP. It still belongs in reporting/planning until TreasuryOS has BTC-denominated caps, reserve floors, receipt accounting, and elevated approval rules. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story.
 
-For the final demo, keep **MUSD Savings Vault** as the primary guaranteed allocation sleeve. Treat Tigris `MUSD/mUSDC` as the secondary differentiating sleeve only when testnet pool liquidity and route behavior are healthy. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
+For the final demo, keep **MUSD Savings Vault** as the primary guaranteed allocation sleeve. Tigris `MUSD/mUSDC` now has a passing live-fork TreasuryOS deposit/withdraw simulation, but it remains the secondary differentiating sleeve because current testnet liquidity can be thin or imbalanced. Re-run `make yield-targets` and `make mezo-yield-fork-test` before the demo. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
 
 Before Tigris is used in the final demo allocation path, keep slippage/min-out controls enabled in `TigrisStablePoolHandler`.
 The required protection is standard AMM execution hygiene:
 
-- minimum paired token output when swapping MUSD into the paired stable
-- minimum liquidity minted when adding stable-pool liquidity
-- minimum MUSD returned when removing liquidity and swapping paired tokens back
+- minimum paired token output quoted from the router when swapping MUSD into the paired stable
+- minimum token amounts used and minimum LP liquidity minted when adding stable-pool liquidity
+- minimum token amounts returned when removing liquidity and minimum MUSD output when swapping paired tokens back
 
 ---
 

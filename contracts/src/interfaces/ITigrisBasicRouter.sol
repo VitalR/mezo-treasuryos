@@ -32,6 +32,44 @@ interface ITigrisBasicRouter {
         uint256 _deadline
     ) external returns (uint256[] memory amounts);
 
+    /// @notice Quotes chained swap outputs for the supplied route.
+    /// @param _amountIn Input token amount being quoted.
+    /// @param _routes Route legs used for the quote.
+    /// @return amounts Per-hop quoted amounts returned by the router.
+    function getAmountsOut(uint256 _amountIn, Route[] memory _routes) external view returns (uint256[] memory amounts);
+
+    /// @notice Quotes the token amounts and LP liquidity expected from adding liquidity.
+    /// @param _tokenA First pool token.
+    /// @param _tokenB Second pool token.
+    /// @param _stable Whether the target pool is stable.
+    /// @param _factory Pool factory that created the target pool.
+    /// @param _amountADesired Desired amount of token A contributed.
+    /// @param _amountBDesired Desired amount of token B contributed.
+    /// @return amountA Expected token A amount used.
+    /// @return amountB Expected token B amount used.
+    /// @return liquidity Expected LP liquidity minted.
+    function quoteAddLiquidity(
+        address _tokenA,
+        address _tokenB,
+        bool _stable,
+        address _factory,
+        uint256 _amountADesired,
+        uint256 _amountBDesired
+    ) external view returns (uint256 amountA, uint256 amountB, uint256 liquidity);
+
+    /// @notice Quotes the token amounts expected from removing liquidity.
+    /// @param _tokenA First pool token.
+    /// @param _tokenB Second pool token.
+    /// @param _stable Whether the target pool is stable.
+    /// @param _factory Pool factory that created the target pool.
+    /// @param _liquidity LP liquidity amount being removed.
+    /// @return amountA Expected token A amount returned.
+    /// @return amountB Expected token B amount returned.
+    function quoteRemoveLiquidity(address _tokenA, address _tokenB, bool _stable, address _factory, uint256 _liquidity)
+        external
+        view
+        returns (uint256 amountA, uint256 amountB);
+
     /// @notice Adds liquidity for a token pair and mints LP tokens to the recipient.
     /// @param _tokenA First pool token.
     /// @param _tokenB Second pool token.
