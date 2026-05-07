@@ -11,9 +11,9 @@ if (!inputPath) {
 
 const snapshot = JSON.parse(readFileSync(inputPath, "utf8"));
 
-function asNumber(value) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
+function asNumber(value, fallback = 0) {
+  const parsed = Number(value ?? fallback);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function musd(value) {
@@ -87,9 +87,13 @@ function recommendation(snapshot) {
 function btcRecommendation(snapshot) {
   const composition = snapshot.composition ?? {};
   const position = snapshot.position ?? {};
+  const buckets = snapshot.btcReserveBuckets ?? {};
   const btcSleeves = snapshot.btcSleeves ?? [];
-  const idleBTC = asNumber(composition.idleBTC);
-  const collateralBTC = asNumber(position.collateralBTC);
+  const idleBTC = asNumber(buckets.idleBTCReserve, asNumber(composition.idleBTC));
+  const collateralBTC = asNumber(buckets.collateralBTC, asNumber(position.collateralBTC));
+  const emergencyBTC = asNumber(buckets.emergencyBTCReserve);
+  const yieldActiveBTC = asNumber(buckets.yieldActiveBTC);
+  const pendingWithdrawBTC = asNumber(buckets.pendingWithdrawBTC);
   const executableSleeve = btcSleeves.find((sleeve) => sleeve.approved && sleeve.executable);
   const correlatedSleeve = btcSleeves.find((sleeve) => String(sleeve.riskClass ?? "").includes("correlated"));
   const directionalSleeve = btcSleeves.find((sleeve) =>
@@ -98,6 +102,16 @@ function btcRecommendation(snapshot) {
 
   if (idleBTC <= 0 && collateralBTC <= 0 && btcSleeves.length === 0) {
     return null;
+  }
+
+  if (yieldActiveBTC > 0 || pendingWithdrawBTC > 0) {
+    return `BTC reserve policy reports ${btc(yieldActiveBTC)} yield-active and ${btc(
+      pendingWithdrawBTC,
+    )} pending withdrawal. Pending BTC should not be counted as available reserve.`;
+  }
+
+  if (emergencyBTC > 0 && !executableSleeve) {
+    return `${btc(emergencyBTC)} is tagged as emergency BTC reserve. BTC sleeve candidates stay reporting-only until multisig-approved BTC policy execution is live.`;
   }
 
   if (!executableSleeve) {
@@ -122,8 +136,13 @@ lines.push("");
 lines.push(`Idle MUSD: ${musd(snapshot.composition.idleMUSD)}`);
 lines.push(`Required buffer: ${musd(snapshot.composition.liquidityBufferMUSD)}`);
 lines.push(`Allocatable surplus: ${musd(snapshot.composition.deployableSurplusMUSD)}`);
-lines.push(`Idle BTC reserve: ${btc(snapshot.composition.idleBTC)}`);
-lines.push(`BTC collateral: ${btc(snapshot.position?.collateralBTC)}`);
+lines.push(`Idle BTC reserve: ${btc(snapshot.btcReserveBuckets?.idleBTCReserve ?? snapshot.composition.idleBTC)}`);
+lines.push(`BTC collateral: ${btc(snapshot.btcReserveBuckets?.collateralBTC ?? snapshot.position?.collateralBTC)}`);
+if (snapshot.btcReserveBuckets) {
+  lines.push(`Emergency BTC reserve: ${btc(snapshot.btcReserveBuckets.emergencyBTCReserve)}`);
+  lines.push(`BTC yield-active exposure: ${btc(snapshot.btcReserveBuckets.yieldActiveBTC)}`);
+  lines.push(`Pending BTC withdrawals: ${btc(snapshot.btcReserveBuckets.pendingWithdrawBTC)}`);
+}
 lines.push(`Collateral ratio: ${bps(snapshot.health?.collateralRatioBps)}`);
 lines.push("");
 lines.push("Approved sleeves:");
@@ -143,9 +162,20 @@ if ((snapshot.btcSleeves ?? []).length > 0) {
     lines.push(
       `- ${sleeve.label}: ${sleeve.status ?? "candidate"}, allocated ${btc(
         sleeve.allocatedBTC,
-      )}, ${sleeve.executable ? "execution path live" : "reporting only"}`,
+      )}, ${sleeve.executable ? "execution path live" : "reporting only"}, risk ${
+        sleeve.riskClass ?? "unclassified"
+      }`,
     );
   }
+}
+
+if (snapshot.btcAllocationPreview) {
+  const preview = snapshot.btcAllocationPreview;
+  lines.push("");
+  lines.push(`BTC policy preview: ${preview.allowed ? "ALLOW" : "BLOCK"} (${preview.reason})`);
+  lines.push(`BTC available for yield: ${btc(preview.availableBTC)}`);
+  lines.push(`Projected yield-active BTC: ${btc(preview.projectedYieldActiveBTC)}`);
+  lines.push(`Requires multisig approval: ${preview.requiredApproval ? "yes" : "no"}`);
 }
 
 const decision = snapshot.allocationDecision ?? {};

@@ -144,6 +144,7 @@ make deploy-mezo-testnet-core
 This deploys:
 
 - `TreasuryPolicyEngine`
+- `BTCReservePolicy`
 - `TreasuryAccountFactory`
 
 The owner of `TreasuryAccountFactory` is the protocol admin derived from `DEPLOYER_PRIVATE_KEY`. For testnet this should be a deployer EOA. For production it can later be migrated to a protocol multisig.
@@ -152,8 +153,11 @@ After deployment, copy the core addresses from `CORE_DEPLOYMENT_MANIFEST_PATH` i
 
 ```bash
 TREASURY_POLICY_ENGINE=<deployed policy engine>
+BTC_RESERVE_POLICY=<deployed BTC reserve policy>
 TREASURY_ACCOUNT_FACTORY=<deployed factory>
 ```
+
+`BTCReservePolicy` is a preview/reporting scaffold. Configure it after onboarding only if you want the demo to show BTC reserve bucket accounting and `mcbBTC/BTC` policy previews. It does not execute BTC sleeve allocations.
 
 ---
 

@@ -9,6 +9,23 @@
   "position": {
     "collateralBTC": "18.5"
   },
+  "btcReserveBuckets": {
+    "idleBTCReserve": "0.42",
+    "collateralBTC": "18.5",
+    "emergencyBTCReserve": "0.25",
+    "yieldActiveBTC": "0",
+    "pendingWithdrawBTC": "0"
+  },
+  "btcReservePolicy": {
+    "minIdleBTCReserve": "0.25",
+    "emergencyBTCReserve": "0.25",
+    "maxYieldBTCBps": "3000",
+    "maxPerSleeveBTCBps": "1000",
+    "maxDirectionalBTCBps": "500",
+    "maxBTCAssetDepegBps": "100",
+    "collateralWarningCRBps": "18000",
+    "btcYieldPaused": false
+  },
   "health": {
     "collateralRatioBps": "24000",
     "belowWarningRatio": false,
@@ -38,7 +55,8 @@
       "executable": false,
       "status": "research",
       "allocatedBTC": "0",
-      "riskClass": "btc-correlated-lp"
+      "riskClass": "BTC_CORRELATED",
+      "withdrawalConstraint": "reporting-only until BTCReservePolicy execution path is verified"
     },
     {
       "label": "Tigris MUSD/BTC directional pool candidate",
@@ -47,9 +65,17 @@
       "executable": false,
       "status": "research",
       "allocatedBTC": "0",
-      "riskClass": "directional-btc-stable-lp"
+      "riskClass": "BTC_DIRECTIONAL_LP",
+      "withdrawalConstraint": "requires elevated approval because the sleeve changes pure BTC exposure"
     }
   ],
+  "btcAllocationPreview": {
+    "allowed": false,
+    "reason": "SleeveDisabled",
+    "availableBTC": "0.17",
+    "projectedYieldActiveBTC": "0.05",
+    "requiredApproval": true
+  },
   "allocationDecision": {
     "allowed": true,
     "code": "Allowed",

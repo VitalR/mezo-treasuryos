@@ -29,6 +29,29 @@ BTC sleeves:
 - require separate reporting for BTC principal, BTC receipt assets, BTC-correlated LP exposure, and withdrawal constraints;
 - need BTC reserve floors, collateral-health constraints, sleeve caps in BTC terms, and elevated approvals for directional LPs.
 
+## BTC Reserve Buckets
+
+`BTCReservePolicy` tracks BTC-denominated reporting buckets separately from MUSD allocation accounting:
+
+- `idleBTCReserve`: BTC held idle and potentially available only after reserve floors are met.
+- `collateralBTC`: BTC committed to the Mezo borrow position.
+- `emergencyBTCReserve`: BTC explicitly reserved for emergency liquidity and not available for yield allocation.
+- `yieldActiveBTC`: BTC principal already active in BTC-denominated sleeve exposure.
+- `pendingWithdrawBTC`: BTC requested for withdrawal but not yet returned to idle reserve.
+
+These buckets are accounting and policy inputs. They do not move BTC. They let TreasuryOS explain whether a proposed BTC sleeve allocation would be permitted before any future router/handler touches principal.
+
+## V1 BTC Policy Scaffold
+
+`BTCReservePolicy` is a V1 scaffold, not an execution router. It supports:
+
+- reserve policy configuration: `minIdleBTCReserve`, `emergencyBTCReserve`, `maxYieldBTCBps`, `maxPerSleeveBTCBps`, `maxDirectionalBTCBps`, `maxBTCAssetDepegBps`, `collateralWarningCRBps`, and `btcYieldPaused`;
+- sleeve risk classes: `BTC_CORRELATED`, `BTC_DIRECTIONAL_LP`, `SPECULATIVE`, `EXTERNAL_VAULT`, and `DISABLED`;
+- preview-only BTC allocation decisions with `allowed`, `reason`, `availableBTC`, `projectedYieldActiveBTC`, and `requiredApproval`;
+- indexable events for reserve policy, bucket updates, sleeve configuration, exposure updates, and allocation previews.
+
+The policy intentionally requires treasury-admin configuration and treats every positive BTC allocation preview as requiring approval. Automation must not move BTC principal in V1.
+
 ## V1 Testnet Targets
 
 ### MUSD Savings Vault
@@ -69,8 +92,9 @@ Current validation status: live-fork metadata and router quote checks pass. Dire
 
 - **MUSD Savings Vault:** conservative operating-capital yield. It is the reliable V1 sleeve for the demo, subject to policy caps and buffer checks.
 - **MUSD/mUSDC Basic Stable:** stablecoin LP operating-capital yield. It adds protocol differentiation but should be used only with min-out/slippage checks and healthy testnet liquidity.
-- **mcbBTC/BTC Basic Stable:** BTC-denominated / BTC-correlated yield candidate. It needs BTC reserve policy before executable support.
+- **mcbBTC/BTC Basic Stable:** BTC-denominated / BTC-correlated yield candidate. It maps to `BTC_CORRELATED` in the policy scaffold.
 - **BTC/MUSD or MUSD/BTC:** directional active treasury LP. This is not a conservative default sleeve; it may be useful for a treasury intentionally accepting partial stablecoin exposure or trying to accumulate BTC during downside moves.
+- **BTC/MEZO or similar pools:** speculative BTC exposure. These map to `SPECULATIVE` and are disabled by default.
 
 ## Roadmap Classification
 
@@ -78,18 +102,18 @@ Current validation status: live-fork metadata and router quote checks pass. Dire
 
 - MUSD Savings Vault as the primary allocation sleeve.
 - MUSD/mUSDC Basic Stable after live-fork validation and a final liquidity sanity check.
-- BTC reserve and collateral fields in reporting/advisor output.
-- mcbBTC/BTC research/scaffold in docs and reporting, marked non-executable until BTC policy/accounting exists.
+- BTC-denominated accounting and policy scaffold through `BTCReservePolicy`.
+- mcbBTC/BTC research/scaffold in docs and reporting, marked non-executable until the BTC token path and execution handler are verified.
 - AI memo that distinguishes MUSD operating capital from BTC reserve/collateral.
 
 ### V1 If Time
 
-- mcbBTC/BTC handler only if the ERC20 BTC/mcbBTC path, approvals, receipt accounting, BTC-denominated policy checks, and test tooling are simple and auditable.
+- mcbBTC/BTC preview flow wired into reviewer reporting through `BTCReservePolicy`.
 - BTC sleeve reporting fields for principal asset, receipt token, current exposure, risk class, and withdrawal constraints.
 
 ### V1.5
 
-- `BTCReservePolicy`.
+- mcbBTC/BTC guarded execution only after native BTC versus ERC20 BTC handling is verified.
 - `BTCYieldIntent` that creates multisig proposals rather than direct autonomous execution.
 - BTC treasury risk profiles: conservative, balanced, active.
 - BTC sleeve reporting and BTC-denominated exposure/PnL accounting.

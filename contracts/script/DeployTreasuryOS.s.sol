@@ -7,6 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AllocationRouter } from "../src/adapters/AllocationRouter.sol";
 import { MUSDSavingsRateHandler } from "../src/adapters/MUSDSavingsRateHandler.sol";
 import { TigrisStablePoolHandler } from "../src/adapters/TigrisStablePoolHandler.sol";
+import { BTCReservePolicy } from "../src/core/BTCReservePolicy.sol";
 import { TreasuryAccount } from "../src/core/TreasuryAccount.sol";
 import { TreasuryAutomationExecutor } from "../src/core/TreasuryAutomationExecutor.sol";
 import { TreasuryAccountFactory } from "../src/core/TreasuryAccountFactory.sol";
@@ -82,6 +83,7 @@ contract DeployTreasuryOS is Script {
 
     struct DeploymentArtifacts {
         address treasuryPolicyEngine;
+        address btcReservePolicy;
         address treasuryAccountFactory;
         address treasuryAutomationExecutor;
         address treasuryMultisig;
@@ -121,6 +123,7 @@ contract DeployTreasuryOS is Script {
         _writeManifest(config, artifacts);
 
         console2.log("TreasuryPolicyEngine:", artifacts.treasuryPolicyEngine);
+        console2.log("BTCReservePolicy:", artifacts.btcReservePolicy);
         console2.log("TreasuryAccountFactory:", artifacts.treasuryAccountFactory);
         console2.log("TreasuryAutomationExecutor:", artifacts.treasuryAutomationExecutor);
         console2.log("TreasuryMultisig:", artifacts.treasuryMultisig);
@@ -280,12 +283,14 @@ contract DeployTreasuryOS is Script {
         }
 
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
+        BTCReservePolicy btcReservePolicy = new BTCReservePolicy(treasuryPolicyEngine);
         TreasuryAccountFactory treasuryAccountFactory =
             new TreasuryAccountFactory(IERC20(config.musdToken), treasuryPolicyEngine);
         TreasuryAutomationExecutor treasuryAutomationExecutor = new TreasuryAutomationExecutor(treasuryOwner);
         AllocationRouter allocationRouter = new AllocationRouter(treasuryOwner);
 
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
+        artifacts.btcReservePolicy = address(btcReservePolicy);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
         artifacts.treasuryAutomationExecutor = address(treasuryAutomationExecutor);
         artifacts.allocationRouter = address(allocationRouter);
@@ -578,6 +583,8 @@ contract DeployTreasuryOS is Script {
         return string.concat(
             '{"treasuryPolicyEngine":"',
             vm.toString(artifacts.treasuryPolicyEngine),
+            '","btcReservePolicy":"',
+            vm.toString(artifacts.btcReservePolicy),
             '","treasuryAccountFactory":"',
             vm.toString(artifacts.treasuryAccountFactory),
             '","treasuryAutomationExecutor":"',

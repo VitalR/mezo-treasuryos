@@ -5,6 +5,7 @@ Copy verified ABI JSON files from `contracts/out/**` into this directory before 
 Expected files:
 
 - `AllocationRouter.json`
+- `BTCReservePolicy.json`
 - `MUSDSavingsRateHandler.json`
 - `TigrisStablePoolHandler.json`
 - `TreasuryAccount.json`

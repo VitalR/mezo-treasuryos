@@ -256,7 +256,7 @@ Boundaries:
 - AI does not initiate arbitrary transactions
 - AI output is advisory reporting that must map back to deterministic policy state
 - AI can recommend MUSD sleeve allocation, buffer restoration, or debt repayment, but any execution must use existing policy-checked Treasury Account and Automation Executor paths
-- AI can discuss BTC reserve and BTC-yield candidates, but must not imply BTC-principal execution is live before a BTC policy/router/handler path exists
+- AI can discuss BTC reserve and BTC-yield candidates, but must not imply BTC-principal execution is live before BTC policy, token handling, router, and handler paths are verified
 
 ### 9. Term Yield Planner
 

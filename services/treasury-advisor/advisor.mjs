@@ -69,7 +69,9 @@ export function formatAdvisorReport(report) {
   lines.push("BTC reserve view:");
   lines.push(`Idle BTC reserve: ${formatBTC(report.btc.idleBTC)}`);
   lines.push(`BTC collateral: ${formatBTC(report.btc.collateralBTC)}`);
-  lines.push(`BTC sleeve allocation: ${formatBTC(report.btc.allocatedBTC)}`);
+  lines.push(`Emergency BTC reserve: ${formatBTC(report.btc.emergencyBTCReserve)}`);
+  lines.push(`BTC yield-active exposure: ${formatBTC(report.btc.yieldActiveBTC)}`);
+  lines.push(`Pending BTC sleeve withdrawals: ${formatBTC(report.btc.pendingWithdrawBTC)}`);
   lines.push(`BTC accounted: ${formatBTC(report.btc.totalAccountedBTC)}`);
   if (report.btc.minIdleReserveBTC > 0) {
     lines.push(`Minimum idle BTC reserve: ${formatBTC(report.btc.minIdleReserveBTC)}`);
@@ -262,6 +264,18 @@ function buildBTCMemo({ btc, btcSleeves, riskState }) {
     notes.push(`Idle BTC reserve is below target by ${formatBTC(btc.reserveShortfallBTC)}.`);
   }
 
+  if (btc.emergencyBTCReserve > 0) {
+    notes.push(`${formatBTC(btc.emergencyBTCReserve)} is tagged as emergency BTC reserve and should not be allocated.`);
+  }
+
+  if (btc.yieldActiveBTC > 0 || btc.pendingWithdrawBTC > 0) {
+    notes.push(
+      `BTC yield accounting shows ${formatBTC(btc.yieldActiveBTC)} active and ${formatBTC(
+        btc.pendingWithdrawBTC,
+      )} pending withdrawal; do not treat pending withdrawals as available reserve.`,
+    );
+  }
+
   if (riskState !== "healthy") {
     notes.push("Collateral health is not healthy, so BTC yield deployment should be paused or escalated.");
   }
@@ -314,10 +328,14 @@ function normalizeBTC(snapshot, btcSleeves) {
   const composition = snapshot.composition ?? {};
   const position = snapshot.position ?? {};
   const policy = snapshot.btcReservePolicy ?? {};
-  const idleBTC = asNumber(composition.idleBTC);
-  const collateralBTC = asNumber(position.collateralBTC);
+  const buckets = snapshot.btcReserveBuckets ?? {};
   const allocatedBTC = btcSleeves.reduce((sum, sleeve) => sum + sleeve.allocatedBTC, 0);
-  const minIdleReserveBTC = asNumber(policy.minIdleReserveBTC);
+  const idleBTC = asNumber(buckets.idleBTCReserve, asNumber(composition.idleBTC));
+  const collateralBTC = asNumber(buckets.collateralBTC, asNumber(position.collateralBTC));
+  const emergencyBTCReserve = asNumber(buckets.emergencyBTCReserve);
+  const yieldActiveBTC = asNumber(buckets.yieldActiveBTC, allocatedBTC);
+  const pendingWithdrawBTC = asNumber(buckets.pendingWithdrawBTC);
+  const minIdleReserveBTC = asNumber(policy.minIdleBTCReserve, asNumber(policy.minIdleReserveBTC));
   const surplusReserveBTC = Math.max(0, idleBTC - minIdleReserveBTC);
   const reserveShortfallBTC = Math.max(0, minIdleReserveBTC - idleBTC);
 
@@ -325,7 +343,10 @@ function normalizeBTC(snapshot, btcSleeves) {
     idleBTC,
     collateralBTC,
     allocatedBTC,
-    totalAccountedBTC: idleBTC + collateralBTC + allocatedBTC,
+    emergencyBTCReserve,
+    yieldActiveBTC,
+    pendingWithdrawBTC,
+    totalAccountedBTC: idleBTC + collateralBTC + emergencyBTCReserve + yieldActiveBTC + pendingWithdrawBTC,
     minIdleReserveBTC,
     surplusReserveBTC,
     reserveShortfallBTC,

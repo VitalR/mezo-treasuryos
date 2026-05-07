@@ -22,6 +22,16 @@ import {
   DeRiskRepaymentExecuted,
 } from "../generated/TreasuryAutomationExecutor/TreasuryAutomationExecutor";
 import {
+  BTCAllocationPreviewed,
+  BTCDirectionalExposureUpdated,
+  BTCReserveBucketsUpdated,
+  BTCReservePolicyConfigured,
+  BTCSleeveConfigured,
+  BTCSleeveExposureUpdated,
+  BTCYieldAllocationApproved,
+  BTCYieldAllocationBlocked,
+} from "../generated/BTCReservePolicy/BTCReservePolicy";
+import {
   AllocationRouterUpdated,
   AllocationExecuted,
   BorrowerOperationsUpdated,
@@ -519,6 +529,110 @@ export function handleHandlerRemoved(event: HandlerRemoved): void {
     "HandlerRemoved",
     null,
     null,
+  );
+}
+
+export function handleBTCReservePolicyConfigured(event: BTCReservePolicyConfigured): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    event.params.actor,
+    null,
+    "btc-policy",
+    "BTCReservePolicyConfigured",
+    event.params.minIdleBTCReserve,
+    event.params.emergencyBTCReserve,
+  );
+}
+
+export function handleBTCReserveBucketsUpdated(event: BTCReserveBucketsUpdated): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    event.params.actor,
+    null,
+    "btc-policy",
+    "BTCReserveBucketsUpdated",
+    event.params.idleBTCReserve,
+    event.params.yieldActiveBTC,
+  );
+}
+
+export function handleBTCSleeveConfigured(event: BTCSleeveConfigured): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    event.params.actor,
+    event.params.sleeve,
+    "btc-policy",
+    event.params.enabled ? "BTCSleeveEnabled" : "BTCSleeveDisabled",
+    event.params.sleeveCapBps,
+    event.params.assetDepegBps,
+  );
+}
+
+export function handleBTCSleeveExposureUpdated(event: BTCSleeveExposureUpdated): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    event.params.actor,
+    event.params.sleeve,
+    "btc-policy",
+    "BTCSleeveExposureUpdated",
+    event.params.exposureBTC,
+    null,
+  );
+}
+
+export function handleBTCDirectionalExposureUpdated(event: BTCDirectionalExposureUpdated): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    event.params.actor,
+    null,
+    "btc-policy",
+    "BTCDirectionalExposureUpdated",
+    event.params.directionalExposureBTC,
+    null,
+  );
+}
+
+export function handleBTCAllocationPreviewed(event: BTCAllocationPreviewed): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    event.params.actor,
+    event.params.sleeve,
+    "btc-policy",
+    event.params.allowed ? "BTCAllocationPreviewAllowed" : "BTCAllocationPreviewBlocked",
+    event.params.btcAmount,
+    event.params.projectedYieldActiveBTC,
+  );
+}
+
+export function handleBTCYieldAllocationBlocked(event: BTCYieldAllocationBlocked): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    null,
+    event.params.sleeve,
+    "btc-policy",
+    "BTCYieldAllocationBlocked",
+    event.params.btcAmount,
+    event.params.availableBTC,
+  );
+}
+
+export function handleBTCYieldAllocationApproved(event: BTCYieldAllocationApproved): void {
+  recordActivity(
+    event,
+    event.params.treasury,
+    null,
+    event.params.sleeve,
+    "btc-policy",
+    "BTCYieldAllocationApproved",
+    event.params.btcAmount,
+    event.params.projectedYieldActiveBTC,
   );
 }
 

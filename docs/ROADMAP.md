@@ -192,9 +192,11 @@ If borrow origination or position ownership is weak or fake, the whole product b
 - `AllocationRouter`
 - `MUSDSavingsRateHandler`
 - `TigrisStablePoolHandler`
+- `BTCReservePolicy`
 - destination state tracking
 - admin-governed destination policy updates for adding or recapping future MUSD-denominated sleeves without redeploying Treasury Accounts
 - allocation decision preview for proposed sleeve actions
+- BTC-denominated reserve bucket accounting and preview-only BTC sleeve policy
 - governed allocation UI flow
 - integration tests for deploy and withdraw behavior
 - Spectrum-backed polling for sleeve and treasury balance state
@@ -215,11 +217,11 @@ If borrow origination or position ownership is weak or fake, the whole product b
 
 ### Notes
 
-Do not expand the executable MUSD sleeve set beyond MUSD Savings Vault and MUSD/mUSDC unless both are fully convincing. Keep mcbBTC/BTC as BTC-correlated reporting/scaffold until BTC policy is real.
+Do not expand the executable MUSD sleeve set beyond MUSD Savings Vault and MUSD/mUSDC unless both are fully convincing. Keep mcbBTC/BTC as BTC-correlated reporting/scaffold until BTC execution is real.
 
 The contract spine can add another MUSD-denominated sleeve later through router handler registration plus destination policy/cap updates. Do not describe this as native BTC-principal allocation support until separate BTC sleeve accounting exists.
 
-Tigris `mcbBTC/BTC` is the cleanest current BTC-correlated yield candidate because it preserves BTC-like exposure better than BTC/stable LP. It still belongs in reporting/planning until TreasuryOS has BTC-denominated caps, reserve floors, receipt accounting, and elevated approval rules. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story.
+Tigris `mcbBTC/BTC` is the cleanest current BTC-correlated yield candidate because it preserves BTC-like exposure better than BTC/stable LP. `BTCReservePolicy` now supplies BTC-denominated reserve floors, caps, risk classes, and preview events, but execution still belongs in V1.5 until TreasuryOS has verified native BTC/ERC20 BTC handling, receipt accounting, and elevated approval flow. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story.
 
 For the final demo, keep **MUSD Savings Vault** as the primary guaranteed allocation sleeve. Tigris `MUSD/mUSDC` now has a passing live-fork TreasuryOS deposit/withdraw simulation, but it remains the secondary differentiating sleeve because current testnet liquidity can be thin or imbalanced. Re-run `make yield-targets` and `make mezo-yield-fork-test` before the demo. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
 

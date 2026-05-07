@@ -15,6 +15,13 @@ const BASE_SNAPSHOT = {
     collateralBTC: "2",
     totalDebtMUSD: "1200",
   },
+  btcReserveBuckets: {
+    idleBTCReserve: "0.25",
+    collateralBTC: "2",
+    emergencyBTCReserve: "0.05",
+    yieldActiveBTC: "0",
+    pendingWithdrawBTC: "0",
+  },
   health: {
     belowWarningRatio: false,
     belowCriticalRatio: false,
@@ -108,12 +115,32 @@ test("buildTreasuryAdvisorReport separates BTC reserve and collateral from MUSD 
 
   assert.equal(report.btc.idleBTC, 0.25);
   assert.equal(report.btc.collateralBTC, 2);
+  assert.equal(report.btc.emergencyBTCReserve, 0.05);
+  assert.equal(report.btc.yieldActiveBTC, 0);
   assert.equal(report.btc.minIdleReserveBTC, 0.1);
   assert.equal(report.btc.surplusReserveBTC, 0.15);
   assert.equal(report.btcSleeves[0].executable, false);
   assert.match(report.btcMemo, /MUSD sleeve capacity does not make BTC reserve allocatable/);
+  assert.match(report.btcMemo, /emergency BTC reserve/);
   assert.match(report.btcMemo, /cleaner Bitcoin-yield direction/);
   assert.equal(report.allocationPlan[0].label, "MUSD Savings Vault");
+});
+
+test("buildTreasuryAdvisorReport keeps pending BTC withdrawals out of available reserve", () => {
+  const report = buildTreasuryAdvisorReport({
+    ...BASE_SNAPSHOT,
+    btcReserveBuckets: {
+      idleBTCReserve: "0.25",
+      collateralBTC: "2",
+      emergencyBTCReserve: "0.05",
+      yieldActiveBTC: "0.2",
+      pendingWithdrawBTC: "0.1",
+    },
+  });
+
+  assert.equal(report.btc.yieldActiveBTC, 0.2);
+  assert.equal(report.btc.pendingWithdrawBTC, 0.1);
+  assert.match(report.btcMemo, /pending withdrawal/);
 });
 
 test("buildTreasuryAdvisorReport flags directional BTC stable LP candidates", () => {

@@ -52,6 +52,7 @@ contract OnboardTreasuryClient is Script {
         uint256 clientMultisigProposerPrivateKey;
         address protocolAdmin;
         address treasuryPolicyEngine;
+        address btcReservePolicy;
         address treasuryAccountFactory;
         address clientTreasuryOwner;
         address treasuryApprover;
@@ -175,6 +176,7 @@ contract OnboardTreasuryClient is Script {
         config.deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         config.protocolAdmin = vm.addr(config.deployerPrivateKey);
         config.treasuryPolicyEngine = vm.envAddress("TREASURY_POLICY_ENGINE");
+        config.btcReservePolicy = vm.envOr("BTC_RESERVE_POLICY", address(0));
         config.treasuryAccountFactory = vm.envAddress("TREASURY_ACCOUNT_FACTORY");
         config.deployClientMultisig =
             vm.envOr("DEPLOY_CLIENT_TREASURY_MULTISIG", vm.envOr("DEPLOY_TREASURY_MULTISIG", true));
@@ -674,6 +676,8 @@ contract OnboardTreasuryClient is Script {
         return string.concat(
             '{"treasuryPolicyEngine":"',
             vm.toString(config.treasuryPolicyEngine),
+            '","btcReservePolicy":"',
+            vm.toString(config.btcReservePolicy),
             '","treasuryAccountFactory":"',
             vm.toString(config.treasuryAccountFactory),
             '"}'

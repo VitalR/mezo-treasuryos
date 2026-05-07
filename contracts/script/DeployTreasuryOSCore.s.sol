@@ -4,6 +4,7 @@ pragma solidity 0.8.34;
 import { Script, console2 } from "@forge-std/Script.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import { BTCReservePolicy } from "../src/core/BTCReservePolicy.sol";
 import { TreasuryAccountFactory } from "../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../src/core/TreasuryPolicyEngine.sol";
 
@@ -28,6 +29,7 @@ contract DeployTreasuryOSCore is Script {
     /// @notice Protocol deployment outputs.
     struct CoreArtifacts {
         address treasuryPolicyEngine;
+        address btcReservePolicy;
         address treasuryAccountFactory;
     }
 
@@ -54,10 +56,12 @@ contract DeployTreasuryOSCore is Script {
         vm.startBroadcast(config.deployerPrivateKey);
 
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
+        BTCReservePolicy btcReservePolicy = new BTCReservePolicy(treasuryPolicyEngine);
         TreasuryAccountFactory treasuryAccountFactory =
             new TreasuryAccountFactory(IERC20(config.musdToken), treasuryPolicyEngine);
 
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
+        artifacts.btcReservePolicy = address(btcReservePolicy);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
 
         vm.stopBroadcast();
@@ -65,6 +69,7 @@ contract DeployTreasuryOSCore is Script {
         _writeManifest(config, artifacts);
 
         console2.log("TreasuryPolicyEngine:", artifacts.treasuryPolicyEngine);
+        console2.log("BTCReservePolicy:", artifacts.btcReservePolicy);
         console2.log("TreasuryAccountFactory:", artifacts.treasuryAccountFactory);
         console2.log("Manifest:", config.manifestPath);
     }
@@ -104,6 +109,8 @@ contract DeployTreasuryOSCore is Script {
             '"},',
             '"contracts":{"treasuryPolicyEngine":"',
             vm.toString(artifacts.treasuryPolicyEngine),
+            '","btcReservePolicy":"',
+            vm.toString(artifacts.btcReservePolicy),
             '","treasuryAccountFactory":"',
             vm.toString(artifacts.treasuryAccountFactory),
             '"},',

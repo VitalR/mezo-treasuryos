@@ -86,6 +86,40 @@ dataSources:
           handler: handleHandlerRemoved
       file: ./src/mapping.ts
   - kind: ethereum
+    name: BTCReservePolicy
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: BTCReservePolicy
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+      abis:
+        - name: BTCReservePolicy
+          file: ./abis/BTCReservePolicy.json
+      eventHandlers:
+        - event: BTCReservePolicyConfigured(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,bool)
+          handler: handleBTCReservePolicyConfigured
+        - event: BTCReserveBucketsUpdated(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256)
+          handler: handleBTCReserveBucketsUpdated
+        - event: BTCSleeveConfigured(indexed address,indexed address,indexed address,uint8,bool,uint256,uint256,uint256)
+          handler: handleBTCSleeveConfigured
+        - event: BTCSleeveExposureUpdated(indexed address,indexed address,indexed address,uint256)
+          handler: handleBTCSleeveExposureUpdated
+        - event: BTCDirectionalExposureUpdated(indexed address,indexed address,uint256)
+          handler: handleBTCDirectionalExposureUpdated
+        - event: BTCAllocationPreviewed(indexed address,indexed address,indexed address,uint256,bool,uint8,uint256,uint256,bool)
+          handler: handleBTCAllocationPreviewed
+        - event: BTCYieldAllocationBlocked(indexed address,indexed address,uint256,uint8,uint256)
+          handler: handleBTCYieldAllocationBlocked
+        - event: BTCYieldAllocationApproved(indexed address,indexed address,uint256,uint256,bool)
+          handler: handleBTCYieldAllocationApproved
+      file: ./src/mapping.ts
+  - kind: ethereum
     name: TreasuryAutomationExecutor
     network: mezo-testnet
     source:

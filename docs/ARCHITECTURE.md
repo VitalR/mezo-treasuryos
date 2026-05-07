@@ -237,6 +237,26 @@ The reason is accounting clarity:
 
 The future router should therefore be a separate BTC reserve allocation path, not an overload of the current MUSD `AllocationRouter`.
 
+### BTCReservePolicy
+
+`BTCReservePolicy` is the minimal V1 BTC-denominated accounting and policy scaffold.
+
+Responsibilities:
+
+- track BTC reserve buckets: idle reserve, collateral, emergency reserve, yield-active exposure, and pending withdrawals
+- classify BTC sleeve candidates as `BTC_CORRELATED`, `BTC_DIRECTIONAL_LP`, `SPECULATIVE`, `EXTERNAL_VAULT`, or `DISABLED`
+- preview proposed BTC allocations against reserve floors, aggregate yield caps, per-sleeve caps, directional exposure caps, asset-depeg tolerance, and collateral-health warning policy
+- emit indexable policy, sleeve, exposure, and preview events for reporting
+
+Non-responsibilities:
+
+- it does not custody BTC
+- it does not call Tigris or any vault
+- it does not let automation move BTC principal
+- it does not make `mcbBTC/BTC` executable until the native BTC versus ERC20 BTC path is verified
+
+This keeps `mcbBTC/BTC` strategically visible as the `BTC_CORRELATED` candidate without pushing BTC principal through the MUSD allocation router.
+
 ### 6. MUSDSavingsRateHandler
 
 Primary treasury savings sleeve handler.
@@ -369,7 +389,7 @@ Boundary:
 
 - this service does not sign, broadcast, custody, or execute funds
 - every recommendation must map back to deterministic onchain policy and read-model state
-- BTC-denominated sleeve recommendations remain reporting-only until a separate BTC policy/accounting path is implemented
+- BTC-denominated sleeve recommendations remain reporting-only until BTC token handling and executable sleeve routing are verified
 
 ---
 

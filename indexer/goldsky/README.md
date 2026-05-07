@@ -47,6 +47,14 @@ Core:
 - `TreasuryPolicyEngine.DestinationPolicyUpdated`
 - `TreasuryPolicyEngine.AutomationEnabledUpdated`
 - `TreasuryPolicyEngine.TreasuryAdminUpdated`
+- `BTCReservePolicy.BTCReservePolicyConfigured`
+- `BTCReservePolicy.BTCReserveBucketsUpdated`
+- `BTCReservePolicy.BTCSleeveConfigured`
+- `BTCReservePolicy.BTCSleeveExposureUpdated`
+- `BTCReservePolicy.BTCDirectionalExposureUpdated`
+- `BTCReservePolicy.BTCAllocationPreviewed`
+- `BTCReservePolicy.BTCYieldAllocationBlocked`
+- `BTCReservePolicy.BTCYieldAllocationApproved`
 - `TreasuryAccount.BorrowerOperationsUpdated`
 - `TreasuryAccount.AllocationRouterUpdated`
 - `TreasuryAccount.TreasuryAdminSynced`
@@ -112,5 +120,6 @@ Do not add these unless they materially improve the final reporting demo:
 - deterministic `PolicyDecisionPreviewed` is not appropriate onchain because previews are reads
 - explicit blocked-action events would require catchable execution wrappers or offchain logging
 - term-plan events should remain offchain/reporting in V1
+- executable BTC sleeve events should wait until native BTC/ERC20 BTC handling and BTC receipt accounting are implemented
 
 For V1, the reporting layer can combine onchain events with read-model snapshots from `services/spectrum-state`.

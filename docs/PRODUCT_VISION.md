@@ -170,7 +170,7 @@ It should not support in V1:
 - a proprietary fixed-yield protocol
 - autonomous AI capital management
 - an unbounded strategy marketplace
-- executable BTC-principal allocation unless a separate BTC policy/accounting path exists
+- executable BTC-principal allocation unless BTC policy, accounting, token handling, and execution paths are verified
 
 ---
 

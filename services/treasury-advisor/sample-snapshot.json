@@ -10,6 +10,13 @@
     "collateralBTC": "18.5",
     "totalDebtMUSD": "1800000"
   },
+  "btcReserveBuckets": {
+    "idleBTCReserve": "0.42",
+    "collateralBTC": "18.5",
+    "emergencyBTCReserve": "0.25",
+    "yieldActiveBTC": "0",
+    "pendingWithdrawBTC": "0"
+  },
   "health": {
     "collateralRatioBps": "24000",
     "belowWarningRatio": false,
@@ -54,7 +61,14 @@
     }
   ],
   "btcReservePolicy": {
-    "minIdleReserveBTC": "0.25"
+    "minIdleBTCReserve": "0.25",
+    "emergencyBTCReserve": "0.25",
+    "maxYieldBTCBps": "3000",
+    "maxPerSleeveBTCBps": "1000",
+    "maxDirectionalBTCBps": "500",
+    "maxBTCAssetDepegBps": "100",
+    "collateralWarningCRBps": "18000",
+    "btcYieldPaused": false
   },
   "btcSleeves": [
     {
@@ -67,7 +81,7 @@
       "status": "research",
       "allocatedBTC": "0",
       "capBTC": "0",
-      "riskClass": "btc-correlated",
+      "riskClass": "BTC_CORRELATED",
       "withdrawalConstraint": "ERC20 pool path is visible, but execution requires BTCReservePolicy and BTC-denominated accounting"
     },
     {
@@ -80,7 +94,7 @@
       "status": "research",
       "allocatedBTC": "0",
       "capBTC": "0",
-      "riskClass": "directional-btc-stable-lp",
+      "riskClass": "BTC_DIRECTIONAL_LP",
       "withdrawalConstraint": "requires elevated approval because the sleeve changes pure BTC exposure"
     }
   ],
