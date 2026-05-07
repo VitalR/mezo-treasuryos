@@ -21,7 +21,7 @@ const BASE_SNAPSHOT = {
   },
   sleeves: [
     {
-      label: "Savings",
+      label: "MUSD Savings Vault",
       destination: "0x1",
       approved: true,
       allocatedMUSD: "100",
@@ -33,7 +33,7 @@ const BASE_SNAPSHOT = {
       automationEligible: true,
     },
     {
-      label: "Term Sleeve",
+      label: "Tigris Basic Stable MUSD/mUSDC",
       destination: "0x2",
       approved: true,
       allocatedMUSD: "0",
@@ -50,7 +50,7 @@ const BASE_SNAPSHOT = {
   },
   btcSleeves: [
     {
-      label: "BTC/wrapperBTC candidate",
+      label: "Tigris mcbBTC/BTC stable pool candidate",
       approved: false,
       executable: false,
       status: "research",
@@ -66,9 +66,10 @@ test("buildTreasuryAdvisorReport allocates surplus across approved sleeves withi
 
   assert.equal(report.summary.riskState, "healthy");
   assert.equal(report.allocationPlan.length, 1);
-  assert.equal(report.allocationPlan[0].label, "Savings");
+  assert.equal(report.allocationPlan[0].label, "MUSD Savings Vault");
   assert.equal(report.allocationPlan[0].amountMUSD, 500);
   assert.equal(report.automationAction.action, "NO_AUTOMATION_NEEDED");
+  assert.match(report.memo, /primary conservative MUSD sleeve/);
 });
 
 test("buildTreasuryAdvisorReport recommends buffer restoration during shortfall", () => {
@@ -84,7 +85,7 @@ test("buildTreasuryAdvisorReport recommends buffer restoration during shortfall"
   assert.equal(report.summary.bufferShortfallMUSD, 200);
   assert.equal(report.allocationPlan.length, 0);
   assert.equal(report.automationAction.action, "RESTORE_BUFFER_FROM_SLEEVE");
-  assert.equal(report.automationAction.sleeve, "Savings");
+  assert.equal(report.automationAction.sleeve, "MUSD Savings Vault");
   assert.equal(report.automationAction.amountMUSD, 100);
 });
 
@@ -111,7 +112,8 @@ test("buildTreasuryAdvisorReport separates BTC reserve and collateral from MUSD 
   assert.equal(report.btc.surplusReserveBTC, 0.15);
   assert.equal(report.btcSleeves[0].executable, false);
   assert.match(report.btcMemo, /MUSD sleeve capacity does not make BTC reserve allocatable/);
-  assert.equal(report.allocationPlan[0].label, "Savings");
+  assert.match(report.btcMemo, /cleaner Bitcoin-yield direction/);
+  assert.equal(report.allocationPlan[0].label, "MUSD Savings Vault");
 });
 
 test("buildTreasuryAdvisorReport flags directional BTC stable LP candidates", () => {
@@ -119,7 +121,7 @@ test("buildTreasuryAdvisorReport flags directional BTC stable LP candidates", ()
     ...BASE_SNAPSHOT,
     btcSleeves: [
       {
-        label: "Tigris MUSD/BTC pool candidate",
+        label: "Tigris MUSD/BTC directional pool candidate",
         approved: false,
         executable: false,
         status: "research",

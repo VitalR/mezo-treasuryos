@@ -89,8 +89,8 @@ It aims to prove:
 
 ### V1 sleeve set
 
-- **MUSD Savings Rate**
-- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
+- **MUSD Savings Vault** at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
+- **Tigris Basic Stable `MUSD/mUSDC` pool** at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
 The point of V1 is still discipline.
 The product now proves one allocation routing model with two concrete Mezo-native sleeves:
@@ -100,7 +100,7 @@ The product now proves one allocation routing model with two concrete Mezo-nativ
 
 The yield angle is not a separate high-yield product. TreasuryOS preserves the required operating buffer first, calculates allocatable surplus, previews the policy decision for proposed sleeve allocations, and routes only approved surplus into capped Mezo-native sleeves.
 
-BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 reports idle BTC reserve and BTC collateral, and the advisor can discuss BTC sleeve candidates, but executable BTC-principal allocation is deferred until a separate BTC accounting/policy path and verified Mezo testnet sleeve target exist. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
+BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 reports idle BTC reserve and BTC collateral, and the advisor can discuss the real Tigris `mcbBTC/BTC` pool candidate, but executable BTC-principal allocation is deferred until a separate BTC accounting/policy path exists. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
 
 ---
 

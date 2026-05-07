@@ -28,13 +28,10 @@ The checked-in config includes the currently confirmed public Mezo testnet addre
 - MUSD token
 - Tigris router and pool factory
 - Tigris `MUSD/mUSDC` stable pool
+- MUSD Savings Vault
+- Tigris `mcbBTC/BTC` BTC-correlated pool candidate
 
-It intentionally does **not** hardcode an official Mezo testnet savings-vault address yet, because that address has not been pinned from an official public source in this repo workflow.
-
-Until that address is confirmed, TreasuryOS should use one of these approaches:
-
-- set `MEZO_MUSD_SAVINGS_RATE` in `.env` to the official testnet deployment once confirmed
-- deploy `ExternalMUSDSavingsRateMock` for demo and local integration scenarios
+The checked-in savings address is the confirmed Mezo testnet MUSD Savings Vault. `ExternalMUSDSavingsRateMock` remains available only for local deterministic demo scenarios where controlled yield injection is needed.
 
 ---
 
@@ -57,6 +54,10 @@ The most important variables are:
 - `MEZO_TIGRIS_POOL_FACTORY`
 - `MEZO_TIGRIS_MUSD_MUSDC_POOL`
 - `MEZO_TIGRIS_MUSD_MUSDC_STABLE`
+- `MEZO_BTC_TOKEN`
+- `MEZO_MCBTC_TOKEN`
+- `MEZO_TIGRIS_MCBTC_BTC_POOL`
+- `MEZO_TIGRIS_MCBTC_BTC_STABLE`
 
 TreasuryOS-specific deployment and scenario variables are also defined there for:
 
@@ -92,6 +93,7 @@ Use `.env` for:
 - private keys
 - deployment overrides
 - unresolved or environment-local addresses
+- private local overrides
 
 If a checked-in config value and `.env` override disagree, runtime should prefer `.env`.
 
@@ -104,3 +106,4 @@ Current checked-in addresses were taken from the official Mezo documentation:
 - Mezo Pools: `https://mezo.org/docs/developers/features/mezo-pools/`
 - MUSD Redemptions / contract addresses: `https://mezo.org/docs/developers/musd/musd-redemptions/`
 - Borrow & Mint MUSD: `https://mezo.org/docs/users/musd/mint-musd/`
+- Mezo Testnet Savings Vault UI: `https://testnet.mezo.org/earn/vaults/0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`

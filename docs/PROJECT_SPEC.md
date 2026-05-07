@@ -195,8 +195,12 @@ V1 expectation:
 
 Current V1 sleeves:
 
-- **MUSD Savings Rate**
-- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
+- **MUSD Savings Vault** at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
+- **Tigris Basic Stable `MUSD/mUSDC` pool** at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
+
+BTC-correlated planning target:
+
+- **Tigris Basic Stable `mcbBTC/BTC` pool** at `0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E`
 
 ### 6. Treasury Operations Engine
 

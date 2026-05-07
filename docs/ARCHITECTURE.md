@@ -243,10 +243,12 @@ Primary treasury savings sleeve handler.
 
 Responsibilities:
 
-- route idle MUSD into Mezo's `MUSDSavingsRate`
+- route idle MUSD into Mezo's testnet MUSD Savings Vault at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
 - ensure the Treasury Account remains the holder of `sMUSD`
 - claim yield back into Treasury Account idle MUSD
 - expose savings-specific reporting metadata
+
+The live vault ABI matches the current handler surface: `deposit(uint256)`, `withdraw(uint256)`, `claimYield()`, `yieldToken()`, ERC20 receipt balance, and claimable-yield views.
 
 ### 7. TigrisStablePoolHandler
 
@@ -262,9 +264,9 @@ Responsibilities:
 
 Current V1 testnet target:
 
-- Tigris `MUSD/mUSDC` stable pool on Mezo testnet
+- Tigris Basic Stable `MUSD/mUSDC` pool on Mezo testnet at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
-The handler stores the Tigris pool factory and pool `stable` flag as immutable metadata. That keeps the current `MUSD/mUSDC` sleeve live-ABI-compatible while leaving room for a separately approved MUSD/BTC directional sleeve handler if the policy model and demo liquidity justify it.
+The handler stores the Tigris pool factory and pool `stable` flag as immutable metadata. That keeps the current `MUSD/mUSDC` sleeve live-ABI-compatible while leaving room for separately approved MUSD/BTC directional sleeves if the policy model and demo liquidity justify them. It should not be reused for `mcbBTC/BTC` because that pool is BTC-denominated and needs BTC reserve accounting, not MUSD buffer accounting.
 
 ### 8. ExternalMUSDSavingsRateMock
 
@@ -520,16 +522,17 @@ Current official Mezo testnet targets:
 - Router: `0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9`
 - PoolFactory: `0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A`
 - `MUSD/mUSDC` pool: `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
+- `mcbBTC/BTC` pool: `0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E`
 
 These are the reference instances TreasuryOS should target for the current hackathon build. The Tigris router takes swap routes as `(from, to, stable, factory)` and liquidity actions include the same `stable` flag, so deployments must configure `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE=true`.
 
 ### BTC reserve and BTC yield candidates
 
-Current official docs also expose Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity surfaces. TreasuryOS should treat these as BTC/stable directional strategies, not as pure BTC reserve yield.
+Current testnet inspection also exposes a Basic Stable `mcbBTC/BTC` pool. TreasuryOS should treat it as the BTC-correlated yield candidate, but not as a V1 MUSD sleeve. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity surfaces remain directional BTC/stable strategies, not pure BTC reserve yield.
 
 V1 reporting may show them as candidates, but executable support should wait for:
 
-- a verified handler target and route shape;
+- BTC-denominated handler and route shape;
 - BTC-denominated policy caps and reserve floors;
 - elevated approval for BTC/stable LP exposure;
 - explicit receipt-token and unwind reporting.

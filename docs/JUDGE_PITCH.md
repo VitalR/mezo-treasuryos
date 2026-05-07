@@ -120,13 +120,13 @@ V1 proves one serious workflow:
 
 Current V1 sleeves:
 
-- **MUSD Savings Rate**
-- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
+- **MUSD Savings Vault** at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
+- **Tigris Basic Stable `MUSD/mUSDC` pool** at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
 That keeps V1 additive to Mezo while still showing more than a single passive vault path.
 The contract setup is sleeve-extensible for future MUSD-denominated Mezo-native destinations: a client admin can register a new handler and update destination approval/cap policy without redeploying the Treasury Account.
 
-For demo reliability, MUSD Savings Rate remains the primary allocation sleeve. Tigris is a secondary sleeve that strengthens differentiation when testnet liquidity is healthy; if pool liquidity is poor, TreasuryOS can still prove the full governed treasury workflow with savings allocation and buffer restoration.
+For demo reliability, MUSD Savings Vault remains the primary allocation sleeve. Tigris `MUSD/mUSDC` is a secondary sleeve that strengthens differentiation when testnet liquidity is healthy; if pool liquidity is poor, TreasuryOS can still prove the full governed treasury workflow with savings allocation and buffer restoration. The real Tigris `mcbBTC/BTC` stable pool is reported as the BTC-correlated yield candidate, not routed through MUSD accounting.
 
 The yield angle is intentionally treasury-native:
 

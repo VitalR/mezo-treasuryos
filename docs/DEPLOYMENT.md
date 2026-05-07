@@ -81,17 +81,25 @@ MEZO_BORROWER_OPERATIONS=<Mezo BorrowerOperations>
 Optional sleeve integrations:
 
 ```bash
-MEZO_MUSD_SAVINGS_RATE=<official savings vault if available>
-DEPLOY_EXTERNAL_SAVINGS_MOCK=true
-MEZO_TIGRIS_ROUTER=<Tigris router>
-MEZO_TIGRIS_POOL_FACTORY=<Tigris pool factory>
-MEZO_TIGRIS_MUSD_MUSDC_POOL=<Tigris MUSD/mUSDC pool>
+MEZO_MUSD_SAVINGS_RATE=0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16
+DEPLOY_EXTERNAL_SAVINGS_MOCK=false
+MEZO_TIGRIS_ROUTER=0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9
+MEZO_TIGRIS_POOL_FACTORY=0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A
+MEZO_TIGRIS_MUSD_MUSDC_POOL=0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e
 MEZO_TIGRIS_MUSD_MUSDC_STABLE=true
-MEZO_MUSDC_TOKEN=<mUSDC token>
+MEZO_MUSDC_TOKEN=0xe1a26db653708A2AD8F824E92Db9852410e33A59
+MEZO_BTC_TOKEN=0x7b7C000000000000000000000000000000000000
+MEZO_MCBTC_TOKEN=0x2278cAAe0009E8A325A346FeA573eF23C5756dbF
+MEZO_TIGRIS_MCBTC_BTC_POOL=0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E
+MEZO_TIGRIS_MCBTC_BTC_STABLE=true
 TIGRIS_MAX_SLIPPAGE_BPS=100
 ```
 
+`MEZO_MUSD_SAVINGS_RATE` is the confirmed Mezo testnet MUSD Savings Vault. The displayed testnet APR is demo/testnet data, not a production guarantee. Set `DEPLOY_EXTERNAL_SAVINGS_MOCK=true` only for local deterministic scenarios.
+
 `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE` are required for the deployed Tigris router ABI. Swaps use a `Route[]` leg with the factory and stable flag; liquidity add/remove calls also include the stable flag. `TIGRIS_MAX_SLIPPAGE_BPS` configures the Tigris handler's minimum-output and minimum-liquidity checks. The default is `100` basis points. Do not set it to a loose value for the final demo unless the pool route actually requires it and the tradeoff is explained.
+
+`MEZO_TIGRIS_MCBTC_BTC_POOL` is a real BTC-correlated Tigris pool target for reporting and V1.5 planning. Do not wire it into the MUSD `AllocationRouter`; executable BTC allocation requires BTC-denominated policy, receipt accounting, and separate approval rules.
 
 After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
 
@@ -100,6 +108,13 @@ After a client is onboarded, another MUSD-denominated sleeve can be added withou
 3. call `TreasuryPolicyEngine.updateDestinationPolicy(account, destination, true, cap)` from the client treasury admin path
 
 This does not add native BTC-principal accounting; that remains outside V1.
+
+Inspect RPC selection and yield target metadata before deployment:
+
+```bash
+make rpc-health
+make yield-targets
+```
 
 ---
 

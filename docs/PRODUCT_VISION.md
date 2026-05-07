@@ -157,7 +157,7 @@ The product should support:
 
 - a required liquid MUSD operating buffer
 - allocatable-surplus calculation
-- approved Mezo-native sleeves such as MUSD Savings Rate and Tigris `MUSD/mUSDC`
+- approved Mezo-native sleeves such as MUSD Savings Vault and Tigris Basic Stable `MUSD/mUSDC`
 - per-sleeve caps and exposure reporting
 - policy decision previews
 - AI-assisted treasury memos
@@ -344,8 +344,8 @@ This is the right shape for treasury software because it keeps:
 
 Current V1 sleeves:
 
-- **MUSD Savings Rate**
-- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
+- **MUSD Savings Vault** at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
+- **Tigris Basic Stable `MUSD/mUSDC` pool** at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
 ### 6. Treasury Operations Engine
 
@@ -394,8 +394,9 @@ The cleanest V1 model is:
 
 Start with a router model but keep the sleeve set disciplined:
 
-- **MUSD Savings Rate** as the primary treasury savings sleeve
-- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet** as the approved secondary sleeve
+- **MUSD Savings Vault** as the primary treasury savings sleeve
+- **Tigris Basic Stable `MUSD/mUSDC` pool** as the approved secondary sleeve
+- **Tigris Basic Stable `mcbBTC/BTC` pool** as a BTC-correlated reporting/scaffold candidate, not a MUSD sleeve
 
 That gives TreasuryOS both:
 

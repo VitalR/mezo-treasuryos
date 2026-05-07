@@ -91,6 +91,7 @@ function btcRecommendation(snapshot) {
   const idleBTC = asNumber(composition.idleBTC);
   const collateralBTC = asNumber(position.collateralBTC);
   const executableSleeve = btcSleeves.find((sleeve) => sleeve.approved && sleeve.executable);
+  const correlatedSleeve = btcSleeves.find((sleeve) => String(sleeve.riskClass ?? "").includes("correlated"));
   const directionalSleeve = btcSleeves.find((sleeve) =>
     String(sleeve.riskClass ?? "").includes("stable") || String(sleeve.riskClass ?? "").includes("directional"),
   );
@@ -100,6 +101,10 @@ function btcRecommendation(snapshot) {
   }
 
   if (!executableSleeve) {
+    if (correlatedSleeve) {
+      return `${correlatedSleeve.label} preserves BTC-correlated exposure better than BTC/MUSD, but stays reporting-only until BTC policy and accounting are live.`;
+    }
+
     if (directionalSleeve) {
       return `${directionalSleeve.label} is a planning-only BTC/stable LP candidate; it changes pure BTC exposure and should require elevated approval.`;
     }

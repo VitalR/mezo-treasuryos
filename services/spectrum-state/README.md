@@ -24,6 +24,12 @@ Probe the selected RPC:
 npm run state:probe
 ```
 
+Inspect the configured Mezo yield targets through the selected RPC:
+
+```sh
+make yield-targets
+```
+
 Build a live snapshot from an onboarding manifest:
 
 ```sh
@@ -44,6 +50,7 @@ node services/spectrum-state/snapshot.mjs \
 Reads currently covered:
 
 - RPC chain and block probe
+- MUSD Savings Vault and Tigris yield target metadata
 - idle MUSD and idle BTC
 - Treasury Account position debt/collateral
 - collateral-health state

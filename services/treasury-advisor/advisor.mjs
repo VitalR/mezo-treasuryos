@@ -225,7 +225,18 @@ function buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan
     return "Surplus exists, but no approved sleeve has remaining capacity. Treasury admin should add or recap a destination before allocation.";
   }
 
-  return `Idle MUSD exceeds buffer by ${formatMUSD(surplusMUSD)}. Allocate across approved sleeves according to caps and risk ranking.`;
+  const savings = sleeves.find((sleeve) => /savings|vault/i.test(sleeve.label));
+  const stableLp = sleeves.find((sleeve) => /musdc|stable/i.test(sleeve.label));
+  const sleeveNotes = [];
+
+  if (savings) sleeveNotes.push(`${savings.label} is the primary conservative MUSD sleeve`);
+  if (stableLp) sleeveNotes.push(`${stableLp.label} is optional stablecoin LP capacity within policy caps`);
+
+  const suffix = sleeveNotes.length > 0 ? ` ${sleeveNotes.join("; ")}.` : "";
+
+  return `Idle MUSD exceeds buffer by ${formatMUSD(
+    surplusMUSD,
+  )}. Allocate across approved sleeves according to caps and risk ranking.${suffix}`;
 }
 
 function buildBTCMemo({ btc, btcSleeves, riskState }) {
@@ -262,7 +273,9 @@ function buildBTCMemo({ btc, btcSleeves, riskState }) {
     );
   }
 
-  const directional = btcSleeves.find((sleeve) => sleeve.riskClass.includes("stable") || sleeve.riskClass.includes("directional"));
+  const directional = btcSleeves.find(
+    (sleeve) => sleeve.riskClass.includes("stable") || sleeve.riskClass.includes("directional"),
+  );
   if (directional) {
     notes.push(
       `${directional.label} changes pure BTC exposure and should require higher approval than BTC-correlated or wrapper-BTC sleeves.`,

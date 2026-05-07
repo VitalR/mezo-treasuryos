@@ -17,8 +17,8 @@
   },
   "sleeves": [
     {
-      "label": "MUSD Savings Rate",
-      "destination": "0x0000000000000000000000000000000000000001",
+      "label": "MUSD Savings Vault",
+      "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
       "approved": true,
       "allocatedMUSD": "300000",
       "capMUSD": "1000000",
@@ -29,8 +29,8 @@
       "automationEligible": true
     },
     {
-      "label": "Tigris MUSD/mUSDC",
-      "destination": "0x0000000000000000000000000000000000000002",
+      "label": "Tigris Basic Stable MUSD/mUSDC",
+      "destination": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
       "approved": true,
       "allocatedMUSD": "190000",
       "capMUSD": "200000",
@@ -58,21 +58,23 @@
   },
   "btcSleeves": [
     {
-      "label": "BTC/wrapperBTC sleeve candidate",
-      "principalAsset": "BTC",
-      "receiptAsset": "BTC-correlated LP or vault receipt",
+      "label": "Tigris mcbBTC/BTC stable pool candidate",
+      "destination": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
+      "principalAsset": "mcbBTC plus ERC20 BTC",
+      "receiptAsset": "sAMM-mcbBTC/BTC",
       "approved": false,
       "executable": false,
       "status": "research",
       "allocatedBTC": "0",
       "capBTC": "0",
       "riskClass": "btc-correlated",
-      "withdrawalConstraint": "requires verified Mezo testnet sleeve target and separate BTC accounting path"
+      "withdrawalConstraint": "ERC20 pool path is visible, but execution requires BTCReservePolicy and BTC-denominated accounting"
     },
     {
-      "label": "Tigris MUSD/BTC pool candidate",
-      "principalAsset": "BTC plus MUSD",
+      "label": "Tigris MUSD/BTC directional pool candidate",
+      "principalAsset": "MUSD plus ERC20 BTC",
       "receiptAsset": "Tigris MUSD/BTC LP",
+      "destination": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
       "approved": false,
       "executable": false,
       "status": "research",
@@ -85,7 +87,7 @@
   "allocationDecision": {
     "allowed": true,
     "code": "Allowed",
-    "destinationLabel": "MUSD Savings Rate",
+    "destinationLabel": "MUSD Savings Vault",
     "amountMUSD": "250000"
   }
 }

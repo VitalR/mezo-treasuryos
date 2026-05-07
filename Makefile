@@ -22,6 +22,7 @@ help:
 	@echo "  make clean                        - clean Foundry artifacts"
 	@echo "  make rpc-health                   - test Spectrum Mezo RPC candidates and fallback"
 	@echo "  make state-probe                  - probe selected Mezo testnet RPC"
+	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
@@ -73,6 +74,10 @@ clean:
 .PHONY: state-probe
 state-probe:
 	npm run state:probe
+
+.PHONY: yield-targets
+yield-targets:
+	npm run yield:targets
 
 .PHONY: rpc-health
 rpc-health:

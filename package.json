@@ -11,6 +11,7 @@
     "demo:yield-console": "node services/yield-console/render.mjs services/yield-console/sample-snapshot.json",
     "rpc-health": "node services/spectrum-state/rpc-health.mjs",
     "state:probe": "node services/spectrum-state/snapshot.mjs",
-    "state:snapshot": "node services/spectrum-state/snapshot.mjs"
+    "state:snapshot": "node services/spectrum-state/snapshot.mjs",
+    "yield:targets": "node services/spectrum-state/yield-targets.mjs"
   }
 }

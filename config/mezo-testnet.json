@@ -29,10 +29,12 @@
     "sortedTroves": "0x722E4D24FD6Ff8b0AC679450F3D91294607268fA",
     "priceFeed": "0x86bCF0841622a5dAC14A313a15f96A95421b9366",
     "savingsRate": {
-      "address": "",
+      "address": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
       "addressEnv": "MEZO_MUSD_SAVINGS_RATE",
-      "status": "unresolved_public_testnet_address",
-      "fallback": "deploy ExternalMUSDSavingsRateMock for demo scenarios"
+      "receiptSymbol": "sMUSD",
+      "status": "confirmed_testnet_vault",
+      "note": "Primary V1 MUSD operating-capital sleeve. Testnet APR is demo data, not a production guarantee.",
+      "fallback": "deploy ExternalMUSDSavingsRateMock only for local deterministic demo scenarios"
     }
   },
   "tigris": {
@@ -41,7 +43,9 @@
     "maxSlippageBpsEnv": "TIGRIS_MAX_SLIPPAGE_BPS",
     "defaultMaxSlippageBps": 100,
     "tokens": {
+      "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
       "btc": "0x7b7C000000000000000000000000000000000000",
+      "mcbtc": "0x2278cAAe0009E8A325A346FeA573eF23C5756dbF",
       "musdc": "0xe1a26db653708A2AD8F824E92Db9852410e33A59",
       "musdt": "0x629320719a6190bd145c277226fd45e7648f950a"
     },
@@ -49,17 +53,31 @@
       "musdBtc": {
         "address": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
         "stable": false,
-        "status": "directional_musd_btc_candidate"
+        "status": "directional_musd_btc_candidate",
+        "token0": "musd",
+        "token1": "btc"
       },
       "musdMusdc": {
         "address": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
         "stable": true,
-        "status": "v1_secondary_sleeve"
+        "status": "v1_secondary_sleeve",
+        "token0": "musd",
+        "token1": "musdc"
+      },
+      "mcbtcBtc": {
+        "address": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
+        "stable": true,
+        "status": "v1_5_btc_correlated_candidate",
+        "token0": "mcbtc",
+        "token1": "btc",
+        "note": "Real ERC20 BTC-correlated pool; execution should wait for BTC-denominated policy/accounting."
       },
       "musdMusdt": {
         "address": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e",
         "stable": true,
-        "status": "future_stable_sleeve_candidate"
+        "status": "future_stable_sleeve_candidate",
+        "token0": "musd",
+        "token1": "musdt"
       }
     }
   },

@@ -365,11 +365,11 @@ function loadDestinations(parsedArgs, manifest) {
     valueAt(manifest, ["references", "tigris", "musdMusdcPool"]);
 
   if (savings && savings !== ZERO_ADDRESS) {
-    destinations.push({ address: normalizeAddress(savings, "savings destination"), label: "MUSD Savings Rate" });
+    destinations.push({ address: normalizeAddress(savings, "savings destination"), label: "MUSD Savings Vault" });
   }
 
   if (tigris && tigris !== ZERO_ADDRESS) {
-    destinations.push({ address: normalizeAddress(tigris, "Tigris destination"), label: "Tigris MUSD/mUSDC" });
+    destinations.push({ address: normalizeAddress(tigris, "Tigris destination"), label: "Tigris Basic Stable MUSD/mUSDC" });
   }
 
   return destinations;

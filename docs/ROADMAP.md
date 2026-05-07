@@ -201,8 +201,9 @@ If borrow origination or position ownership is weak or fake, the whole product b
 
 ### Current V1 sleeves
 
-- **MUSD Savings Rate**
-- **Tigris `MUSD/mUSDC` stable pool on Mezo testnet**
+- **MUSD Savings Vault** at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
+- **Tigris Basic Stable `MUSD/mUSDC` pool** at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
+- **Tigris Basic Stable `mcbBTC/BTC` pool** at `0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E` as a BTC-correlated reporting/scaffold candidate
 
 ### Success criteria
 
@@ -214,13 +215,13 @@ If borrow origination or position ownership is weak or fake, the whole product b
 
 ### Notes
 
-Do not expand beyond the current sleeve set unless both sleeves are fully convincing.
+Do not expand the executable MUSD sleeve set beyond MUSD Savings Vault and MUSD/mUSDC unless both are fully convincing. Keep mcbBTC/BTC as BTC-correlated reporting/scaffold until BTC policy is real.
 
 The contract spine can add another MUSD-denominated sleeve later through router handler registration plus destination policy/cap updates. Do not describe this as native BTC-principal allocation support until separate BTC sleeve accounting exists.
 
-Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story. They belong in reporting/planning until TreasuryOS has BTC-denominated caps, reserve floors, receipt accounting, and elevated approval rules.
+Tigris `mcbBTC/BTC` is the cleanest current BTC-correlated yield candidate because it preserves BTC-like exposure better than BTC/stable LP. It still belongs in reporting/planning until TreasuryOS has BTC-denominated caps, reserve floors, receipt accounting, and elevated approval rules. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story.
 
-For the final demo, keep **MUSD Savings Rate** as the primary guaranteed allocation sleeve. Treat Tigris `MUSD/mUSDC` as the secondary differentiating sleeve only when testnet pool liquidity and route behavior are healthy. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
+For the final demo, keep **MUSD Savings Vault** as the primary guaranteed allocation sleeve. Treat Tigris `MUSD/mUSDC` as the secondary differentiating sleeve only when testnet pool liquidity and route behavior are healthy. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
 
 Before Tigris is used in the final demo allocation path, keep slippage/min-out controls enabled in `TigrisStablePoolHandler`.
 The required protection is standard AMM execution hygiene:
