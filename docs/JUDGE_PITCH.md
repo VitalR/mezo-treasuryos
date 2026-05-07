@@ -114,6 +114,7 @@ V1 proves one serious workflow:
 - MUSD lands into an isolated Treasury Account
 - policy-governed buffer management
 - router-based multi-sleeve allocation
+- BTC reserve and collateral reporting separate from MUSD operating capital
 - one automated treasury response flow
 - one reviewer-facing treasury report
 
@@ -133,6 +134,8 @@ The yield angle is intentionally treasury-native:
 - allocate only surplus MUSD
 - enforce approved sleeves and caps
 - preview why an allocation is allowed or blocked
+- report BTC reserve and BTC collateral separately from borrowed MUSD
+- treat BTC/stable LP as a directional planning candidate, not default treasury yield
 - generate an AI-assisted treasury memo that remains advisory
 
 ---
@@ -160,6 +163,8 @@ AI reads TreasuryOS state and generates an allocation memo:
 
 - current BTC-backed MUSD position
 - idle versus allocated MUSD
+- idle BTC reserve and BTC collateral
+- BTC-denominated sleeve candidates and whether they are execution-ready or planning-only
 - allocatable surplus above buffer
 - sleeve exposure and cap pressure
 - policy decisions and blocked actions

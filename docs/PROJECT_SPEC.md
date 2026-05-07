@@ -29,6 +29,7 @@ V1 succeeds if a reviewer can clearly see:
 
 - where the BTC-backed debt position lives
 - where treasury-controlled MUSD lives
+- which BTC is collateral, which BTC is idle reserve, and which BTC sleeve ideas are only planning candidates
 - what policies govern treasury actions
 - how idle MUSD is disbursed and allocated under constraints
 - how automated treasury operations work
@@ -190,6 +191,7 @@ V1 expectation:
 - one router with two approved sleeves
 - additional MUSD-denominated sleeves can be onboarded later without redeploying the Treasury Account or policy engine by deploying a new handler, registering it in the client router, and updating destination approval/cap policy
 - native BTC-principal sleeve accounting is outside V1 unless a separate BTC allocation accounting path is added
+- BTC/stable or BTC/wrapperBTC sleeves must not be shoehorned into MUSD allocation accounting
 
 Current V1 sleeves:
 
@@ -241,6 +243,7 @@ Responsibilities:
 - generate recommendation memos and risk notes
 - explain why capital is or is not allocatable
 - map recommendations to allowed sleeves, buffer constraints, caps, and unwind conditions
+- distinguish MUSD operating capital from BTC reserve, BTC collateral, and BTC-denominated sleeve candidates
 
 Boundaries:
 
@@ -249,6 +252,7 @@ Boundaries:
 - AI does not initiate arbitrary transactions
 - AI output is advisory reporting that must map back to deterministic policy state
 - AI can recommend MUSD sleeve allocation, buffer restoration, or debt repayment, but any execution must use existing policy-checked Treasury Account and Automation Executor paths
+- AI can discuss BTC reserve and BTC-yield candidates, but must not imply BTC-principal execution is live before a BTC policy/router/handler path exists
 
 ### 9. Term Yield Planner
 
@@ -421,6 +425,7 @@ The product must be able to:
 - show a treasury state summary
 - show idle vs allocated capital
 - show sleeve exposures and receipt assets
+- show idle BTC reserve, BTC collateral, and any BTC-denominated sleeve candidates separately from MUSD operating capital
 - show policy decisions and action history
 - show a Treasury Yield Console with buffer, surplus, caps, exposure, and policy decision result
 - generate an AI-assisted treasury memo that explains current position, idle versus allocated MUSD, sleeve exposure, policy decisions, automation actions, and recommended next step

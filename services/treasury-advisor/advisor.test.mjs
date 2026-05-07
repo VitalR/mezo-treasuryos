@@ -7,10 +7,12 @@ const BASE_SNAPSHOT = {
   treasuryName: "Test Treasury",
   composition: {
     idleMUSD: "1000",
+    idleBTC: "0.25",
     liquidityBufferMUSD: "500",
     deployableSurplusMUSD: "500",
   },
   position: {
+    collateralBTC: "2",
     totalDebtMUSD: "1200",
   },
   health: {
@@ -41,6 +43,20 @@ const BASE_SNAPSHOT = {
       riskTier: "medium",
       unwindDays: "7",
       automationEligible: false,
+    },
+  ],
+  btcReservePolicy: {
+    minIdleReserveBTC: "0.1",
+  },
+  btcSleeves: [
+    {
+      label: "BTC/wrapperBTC candidate",
+      approved: false,
+      executable: false,
+      status: "research",
+      allocatedBTC: "0",
+      riskClass: "btc-correlated",
+      withdrawalConstraint: "requires verified Mezo testnet handler",
     },
   ],
 };
@@ -84,4 +100,36 @@ test("buildTreasuryAdvisorReport blocks new allocation when collateral health we
   assert.equal(report.summary.riskState, "warning");
   assert.equal(report.allocationPlan.length, 0);
   assert.equal(report.automationAction.action, "PREPARE_DE_RISK_REPAYMENT");
+});
+
+test("buildTreasuryAdvisorReport separates BTC reserve and collateral from MUSD allocation", () => {
+  const report = buildTreasuryAdvisorReport(BASE_SNAPSHOT);
+
+  assert.equal(report.btc.idleBTC, 0.25);
+  assert.equal(report.btc.collateralBTC, 2);
+  assert.equal(report.btc.minIdleReserveBTC, 0.1);
+  assert.equal(report.btc.surplusReserveBTC, 0.15);
+  assert.equal(report.btcSleeves[0].executable, false);
+  assert.match(report.btcMemo, /MUSD sleeve capacity does not make BTC reserve allocatable/);
+  assert.equal(report.allocationPlan[0].label, "Savings");
+});
+
+test("buildTreasuryAdvisorReport flags directional BTC stable LP candidates", () => {
+  const report = buildTreasuryAdvisorReport({
+    ...BASE_SNAPSHOT,
+    btcSleeves: [
+      {
+        label: "Tigris MUSD/BTC pool candidate",
+        approved: false,
+        executable: false,
+        status: "research",
+        allocatedBTC: "0",
+        riskClass: "directional-btc-stable-lp",
+        withdrawalConstraint: "requires separate BTC sleeve accounting and elevated approval",
+      },
+    ],
+  });
+
+  assert.match(report.btcMemo, /changes pure BTC exposure/);
+  assert.equal(report.btcSleeves[0].status, "research");
 });

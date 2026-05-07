@@ -63,6 +63,8 @@ V1 should add:
 - a Treasury Yield Console that shows idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, and the policy decision for a proposed allocation
 - AI-assisted treasury allocation memos that explain the policy-aware recommendation but never control funds
 - a lightweight Term Yield Planner for 7/30/60-day treasury planning, using projected assumptions, review dates, buffer constraints, and unwind conditions
+- BTC reserve and collateral reporting that distinguishes retained BTC-denominated exposure from borrowed MUSD operating capital
+- BTC-denominated sleeve candidates marked as planning-only unless a separate BTC accounting/policy path and verified handler target exist
 
 V1 should not build:
 
@@ -70,8 +72,9 @@ V1 should not build:
 - a general strategy marketplace
 - a Pendle-style fixed-yield protocol
 - autonomous AI execution
+- executable BTC-principal allocation through the MUSD `AllocationRouter`
 
-The right posture is: TreasuryOS helps a treasury decide, approve, execute, and explain approved Mezo-native allocation of surplus MUSD.
+The right posture is: TreasuryOS helps a treasury decide, approve, execute, and explain approved Mezo-native allocation of surplus MUSD, while accounting for BTC reserve and BTC collateral separately.
 
 ---
 
@@ -215,6 +218,8 @@ Do not expand beyond the current sleeve set unless both sleeves are fully convin
 
 The contract spine can add another MUSD-denominated sleeve later through router handler registration plus destination policy/cap updates. Do not describe this as native BTC-principal allocation support until separate BTC sleeve accounting exists.
 
+Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story. They belong in reporting/planning until TreasuryOS has BTC-denominated caps, reserve floors, receipt accounting, and elevated approval rules.
+
 For the final demo, keep **MUSD Savings Rate** as the primary guaranteed allocation sleeve. Treat Tigris `MUSD/mUSDC` as the secondary differentiating sleeve only when testnet pool liquidity and route behavior are healthy. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
 
 Before Tigris is used in the final demo allocation path, keep slippage/min-out controls enabled in `TigrisStablePoolHandler`.
@@ -281,12 +286,14 @@ Do not make AI the controlling authority for treasury actions.
 - treasury activity timeline
 - idle vs allocated summary
 - sleeve exposure summary
+- BTC reserve, BTC collateral, and BTC sleeve-candidate summary
 - policy decision log
 - Goldsky-powered event history for account, policy, sleeve, automation, and multisig activity
 - Treasury Yield Console
 - AI Treasury Allocation Advisor memo output
 - Term Yield Planner view for simulated 7/30/60-day plans
 - deterministic treasury advisor service that recommends sleeve allocation and bounded automation actions from snapshot inputs
+- BTC reserve strategy notes documenting V1/V1.5/V2 boundaries
 - reviewer-facing treasury summary
 - documentation showing where Spectrum Nodes is used in the product architecture
 
@@ -295,6 +302,7 @@ Do not make AI the controlling authority for treasury actions.
 - a finance or reviewer stakeholder can understand what happened without reading raw transactions
 - reporting reflects real state changes and policy outcomes
 - recommendations stay advisory and map back to policy state, buffer state, sleeve caps, exposure, and collateral health
+- reporting does not imply that BTC-principal allocation is live unless a BTC handler has been implemented and deployed
 
 ### Notes
 

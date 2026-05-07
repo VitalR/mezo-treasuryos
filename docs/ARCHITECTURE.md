@@ -224,6 +224,19 @@ Boundary:
 
 - V1 allocation accounting is MUSD-denominated. A BTC-principal sleeve would require a new asset-accounting extension, not just a new handler.
 
+### BTC Reserve Boundary
+
+TreasuryOS V1 reports BTC reserve and collateral state, but does not route BTC principal into yield sleeves.
+
+The reason is accounting clarity:
+
+- MUSD sleeves manage borrowed operating capital and are constrained by the MUSD operating buffer.
+- BTC collateral is part of the Mezo borrow risk surface and must be governed by collateral-health policy.
+- idle BTC reserve is a treasury reserve asset, not surplus MUSD.
+- BTC/wrapperBTC or BTC/stable LP sleeves need BTC-denominated caps, reserve floors, receipt accounting, and elevated approval rules.
+
+The future router should therefore be a separate BTC reserve allocation path, not an overload of the current MUSD `AllocationRouter`.
+
 ### 6. MUSDSavingsRateHandler
 
 Primary treasury savings sleeve handler.
@@ -342,6 +355,7 @@ Responsibilities:
 
 - consume TreasuryOS snapshots, policy previews, sleeve capacity, and collateral-health state
 - rank approved MUSD-denominated sleeves by policy capacity, risk tier, assumed yield, and unwind constraints
+- report idle BTC reserve, BTC collateral, and BTC-denominated sleeve candidates separately from MUSD operating capital
 - recommend bounded automation actions such as buffer restoration or de-risk repayment
 - generate 7/30/60-day projection assumptions for reporting
 
@@ -349,6 +363,7 @@ Boundary:
 
 - this service does not sign, broadcast, custody, or execute funds
 - every recommendation must map back to deterministic onchain policy and read-model state
+- BTC-denominated sleeve recommendations remain reporting-only until a separate BTC policy/accounting path is implemented
 
 ---
 
@@ -422,6 +437,7 @@ Shows:
 - reviewer-facing output
 - AI-assisted treasury allocation memo
 - Term Yield Planner output
+- BTC reserve and collateral view, with BTC sleeve candidates marked as execution-ready or planning-only
 
 ---
 
@@ -504,3 +520,16 @@ Current official Mezo testnet targets:
 - `MUSD/mUSDC` pool: `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
 These are the reference instances TreasuryOS should target for the current hackathon build.
+
+### BTC reserve and BTC yield candidates
+
+Current official docs also expose Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity surfaces. TreasuryOS should treat these as BTC/stable directional strategies, not as pure BTC reserve yield.
+
+V1 reporting may show them as candidates, but executable support should wait for:
+
+- a verified handler target and route shape;
+- BTC-denominated policy caps and reserve floors;
+- elevated approval for BTC/stable LP exposure;
+- explicit receipt-token and unwind reporting.
+
+See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.

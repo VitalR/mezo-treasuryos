@@ -2,10 +2,12 @@
   "treasuryName": "Demo BTC Operating Treasury",
   "composition": {
     "idleMUSD": "1250000",
+    "idleBTC": "0.42",
     "liquidityBufferMUSD": "500000",
     "deployableSurplusMUSD": "750000"
   },
   "position": {
+    "collateralBTC": "18.5",
     "totalDebtMUSD": "1800000"
   },
   "health": {
@@ -49,6 +51,35 @@
       "riskTier": "medium",
       "unwindDays": "7",
       "automationEligible": false
+    }
+  ],
+  "btcReservePolicy": {
+    "minIdleReserveBTC": "0.25"
+  },
+  "btcSleeves": [
+    {
+      "label": "BTC/wrapperBTC sleeve candidate",
+      "principalAsset": "BTC",
+      "receiptAsset": "BTC-correlated LP or vault receipt",
+      "approved": false,
+      "executable": false,
+      "status": "research",
+      "allocatedBTC": "0",
+      "capBTC": "0",
+      "riskClass": "btc-correlated",
+      "withdrawalConstraint": "requires verified Mezo testnet sleeve target and separate BTC accounting path"
+    },
+    {
+      "label": "Tigris MUSD/BTC pool candidate",
+      "principalAsset": "BTC plus MUSD",
+      "receiptAsset": "Tigris MUSD/BTC LP",
+      "approved": false,
+      "executable": false,
+      "status": "research",
+      "allocatedBTC": "0",
+      "capBTC": "0",
+      "riskClass": "directional-btc-stable-lp",
+      "withdrawalConstraint": "requires elevated approval because the sleeve changes pure BTC exposure"
     }
   ],
   "allocationDecision": {

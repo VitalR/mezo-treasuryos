@@ -8,6 +8,8 @@ It consumes a treasury snapshot shaped like the onchain read model:
 - required operating buffer
 - allocatable surplus
 - sleeve exposure and caps
+- idle BTC reserve and BTC collateral
+- BTC-denominated sleeve candidates, marked reporting-only unless executable
 - collateral health
 - allocation policy decision
 
@@ -17,4 +19,4 @@ Run from the repo root:
 node services/yield-console/render.mjs services/yield-console/sample-snapshot.json
 ```
 
-This is not an autonomous allocator. The memo is a deterministic, policy-aware advisor scaffold for the demo and should later be backed by live reads plus an AI summarization step.
+This is not an autonomous allocator. The memo is a deterministic, policy-aware advisor scaffold for the demo and should later be backed by live reads plus an AI summarization step. BTC sleeve notes are reporting context only unless a separate BTC policy/router/handler path is live.

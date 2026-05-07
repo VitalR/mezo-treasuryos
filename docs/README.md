@@ -22,6 +22,7 @@ These documents reflect the current product direction:
 - `DEPLOYMENT.md` — testnet deployment modes, ownership paths, and Makefile commands
 - `ROADMAP.md` — build sequence and scope discipline for a 6-week implementation
 - `JUDGE_PITCH.md` — compressed hackathon-facing narrative
+- `BTC_RESERVE_AND_YIELD_SLEEVES.md` — BTC reserve, BTC-denominated sleeve boundaries, and future yield roadmap
 
 ---
 
@@ -44,6 +45,7 @@ That archive preserves the earlier thinking without mixing it into the primary p
 - **Operations layer:** Treasury Operations Engine
 - **Destination layer:** Allocation Router + Sleeve Handlers
 - **Reporting layer:** Treasury Reporting Layer
+- **BTC reserve model:** BTC reserve and BTC-denominated sleeves, kept separate from MUSD operating-capital sleeves
 
 ---
 

@@ -10,11 +10,13 @@ export function buildTreasuryAdvisorReport(snapshot) {
   const composition = snapshot.composition ?? {};
   const health = snapshot.health ?? {};
   const sleeves = normalizeSleeves(snapshot.sleeves ?? []);
+  const btcSleeves = normalizeBTCSleeves(snapshot.btcSleeves ?? []);
   const idleMUSD = asNumber(composition.idleMUSD);
   const requiredBufferMUSD = asNumber(composition.liquidityBufferMUSD);
   const surplusMUSD = Math.max(0, asNumber(composition.deployableSurplusMUSD, idleMUSD - requiredBufferMUSD));
   const bufferShortfallMUSD = Math.max(0, requiredBufferMUSD - idleMUSD);
   const totalAllocatedMUSD = sleeves.reduce((sum, sleeve) => sum + sleeve.allocatedMUSD, 0);
+  const btc = normalizeBTC(snapshot, btcSleeves);
   const riskState = health.belowCriticalRatio ? "critical" : health.belowWarningRatio ? "warning" : "healthy";
   const allocationCandidates = sleeves
     .filter((sleeve) => sleeve.approved && sleeve.remainingCapacityMUSD > 0)
@@ -38,13 +40,17 @@ export function buildTreasuryAdvisorReport(snapshot) {
       totalAllocatedMUSD,
       riskState,
     },
+    btc,
     sleeves,
+    btcSleeves,
     allocationPlan,
     automationAction,
     memo: buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan, automationAction, sleeves }),
+    btcMemo: buildBTCMemo({ btc, btcSleeves, riskState }),
     guardrails: [
       "Advisor output is reporting only and does not control funds.",
       "Every allocation still requires TreasuryPolicyEngine checks.",
+      "BTC-denominated sleeve recommendations are reporting-only until a separate BTC policy/accounting path is live.",
       "Automation may only execute bounded restore/de-risk workflows already approved onchain.",
     ],
   };
@@ -60,6 +66,17 @@ export function formatAdvisorReport(report) {
   lines.push(`Allocatable surplus: ${formatMUSD(report.summary.surplusMUSD)}`);
   lines.push(`Buffer shortfall: ${formatMUSD(report.summary.bufferShortfallMUSD)}`);
   lines.push("");
+  lines.push("BTC reserve view:");
+  lines.push(`Idle BTC reserve: ${formatBTC(report.btc.idleBTC)}`);
+  lines.push(`BTC collateral: ${formatBTC(report.btc.collateralBTC)}`);
+  lines.push(`BTC sleeve allocation: ${formatBTC(report.btc.allocatedBTC)}`);
+  lines.push(`BTC accounted: ${formatBTC(report.btc.totalAccountedBTC)}`);
+  if (report.btc.minIdleReserveBTC > 0) {
+    lines.push(`Minimum idle BTC reserve: ${formatBTC(report.btc.minIdleReserveBTC)}`);
+    lines.push(`Idle BTC reserve surplus: ${formatBTC(report.btc.surplusReserveBTC)}`);
+    lines.push(`Idle BTC reserve shortfall: ${formatBTC(report.btc.reserveShortfallBTC)}`);
+  }
+  lines.push("");
   lines.push("Sleeves:");
 
   for (const sleeve of report.sleeves) {
@@ -68,6 +85,18 @@ export function formatAdvisorReport(report) {
         sleeve.allocatedMUSD,
       )} allocated, ${formatMUSD(sleeve.remainingCapacityMUSD)} capacity, ${formatBps(sleeve.annualYieldBps)} assumed APY`,
     );
+  }
+
+  if (report.btcSleeves.length > 0) {
+    lines.push("");
+    lines.push("BTC sleeve candidates:");
+    for (const sleeve of report.btcSleeves) {
+      lines.push(
+        `- ${sleeve.label}: ${sleeve.status}, ${formatBTC(sleeve.allocatedBTC)} allocated, ${
+          sleeve.executable ? "execution path live" : "reporting only"
+        }, risk ${sleeve.riskClass}, ${sleeve.withdrawalConstraint}`,
+      );
+    }
   }
 
   lines.push("");
@@ -90,6 +119,9 @@ export function formatAdvisorReport(report) {
   lines.push("");
   lines.push("Advisor memo:");
   lines.push(report.memo);
+  lines.push("");
+  lines.push("BTC memo:");
+  lines.push(report.btcMemo);
   lines.push("");
   lines.push("Guardrails:");
   for (const guardrail of report.guardrails) lines.push(`- ${guardrail}`);
@@ -196,6 +228,57 @@ function buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan
   return `Idle MUSD exceeds buffer by ${formatMUSD(surplusMUSD)}. Allocate across approved sleeves according to caps and risk ranking.`;
 }
 
+function buildBTCMemo({ btc, btcSleeves, riskState }) {
+  const notes = [];
+
+  if (btc.totalAccountedBTC <= 0 && btcSleeves.length === 0) {
+    return "No BTC reserve or BTC-denominated sleeve data is present in this snapshot.";
+  }
+
+  if (btc.collateralBTC > 0) {
+    notes.push(
+      `Keep ${formatBTC(btc.collateralBTC)} of BTC collateral governed by collateral-health policy before chasing yield.`,
+    );
+  }
+
+  if (btc.idleBTC > 0) {
+    notes.push(
+      `Keep idle BTC reserve accounting separate from MUSD surplus allocation; MUSD sleeve capacity does not make BTC reserve allocatable.`,
+    );
+  }
+
+  if (btc.reserveShortfallBTC > 0) {
+    notes.push(`Idle BTC reserve is below target by ${formatBTC(btc.reserveShortfallBTC)}.`);
+  }
+
+  if (riskState !== "healthy") {
+    notes.push("Collateral health is not healthy, so BTC yield deployment should be paused or escalated.");
+  }
+
+  const executable = btcSleeves.filter((sleeve) => sleeve.executable && sleeve.approved);
+  if (executable.length === 0) {
+    notes.push(
+      "No approved BTC-denominated sleeve has a live execution path in this V1 snapshot; treat BTC sleeve ideas as planning inputs only.",
+    );
+  }
+
+  const directional = btcSleeves.find((sleeve) => sleeve.riskClass.includes("stable") || sleeve.riskClass.includes("directional"));
+  if (directional) {
+    notes.push(
+      `${directional.label} changes pure BTC exposure and should require higher approval than BTC-correlated or wrapper-BTC sleeves.`,
+    );
+  }
+
+  const wrapperCandidate = btcSleeves.find((sleeve) => sleeve.riskClass.includes("correlated"));
+  if (wrapperCandidate) {
+    notes.push(
+      `${wrapperCandidate.label} is the cleaner Bitcoin-yield direction because it preserves BTC-denominated exposure better than BTC/stable LP.`,
+    );
+  }
+
+  return notes.join(" ");
+}
+
 function compareSleevesForAllocation(left, right) {
   const leftScore = allocationScore(left);
   const rightScore = allocationScore(right);
@@ -212,6 +295,50 @@ function allocationReason(sleeve) {
   if (sleeve.capPressure >= 0.75) return "approved but capacity-constrained";
   if (sleeve.riskTier === "low") return "lowest-risk approved sleeve with available cap";
   return "approved sleeve with available cap and higher yield assumption";
+}
+
+function normalizeBTC(snapshot, btcSleeves) {
+  const composition = snapshot.composition ?? {};
+  const position = snapshot.position ?? {};
+  const policy = snapshot.btcReservePolicy ?? {};
+  const idleBTC = asNumber(composition.idleBTC);
+  const collateralBTC = asNumber(position.collateralBTC);
+  const allocatedBTC = btcSleeves.reduce((sum, sleeve) => sum + sleeve.allocatedBTC, 0);
+  const minIdleReserveBTC = asNumber(policy.minIdleReserveBTC);
+  const surplusReserveBTC = Math.max(0, idleBTC - minIdleReserveBTC);
+  const reserveShortfallBTC = Math.max(0, minIdleReserveBTC - idleBTC);
+
+  return {
+    idleBTC,
+    collateralBTC,
+    allocatedBTC,
+    totalAccountedBTC: idleBTC + collateralBTC + allocatedBTC,
+    minIdleReserveBTC,
+    surplusReserveBTC,
+    reserveShortfallBTC,
+  };
+}
+
+function normalizeBTCSleeves(sleeves) {
+  return sleeves.map((sleeve, index) => {
+    const approved = Boolean(sleeve.approved ?? false);
+    const executable = Boolean(sleeve.executable ?? false);
+    const status = String(sleeve.status ?? (approved ? "approved" : "candidate")).toLowerCase();
+
+    return {
+      label: sleeve.label ?? `BTC sleeve ${index + 1}`,
+      destination: sleeve.destination ?? null,
+      principalAsset: sleeve.principalAsset ?? "BTC",
+      receiptAsset: sleeve.receiptAsset ?? null,
+      approved,
+      executable,
+      status,
+      allocatedBTC: asNumber(sleeve.allocatedBTC),
+      capBTC: asNumber(sleeve.capBTC),
+      riskClass: String(sleeve.riskClass ?? "btc-denominated").toLowerCase(),
+      withdrawalConstraint: sleeve.withdrawalConstraint ?? "requires separate BTC accounting and approval path",
+    };
+  });
 }
 
 function normalizeSleeves(sleeves) {
@@ -258,6 +385,10 @@ function asNumber(value, fallback = 0) {
 
 function formatMUSD(value) {
   return `${asNumber(value).toLocaleString("en-US", { maximumFractionDigits: 2 })} MUSD`;
+}
+
+function formatBTC(value) {
+  return `${asNumber(value).toLocaleString("en-US", { maximumFractionDigits: 8 })} BTC`;
 }
 
 function formatBps(value) {

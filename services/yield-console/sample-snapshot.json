@@ -2,8 +2,12 @@
   "treasuryName": "Demo BTC Operating Treasury",
   "composition": {
     "idleMUSD": "1250000",
+    "idleBTC": "0.42",
     "liquidityBufferMUSD": "500000",
     "deployableSurplusMUSD": "750000"
+  },
+  "position": {
+    "collateralBTC": "18.5"
   },
   "health": {
     "collateralRatioBps": "24000",
@@ -22,6 +26,16 @@
       "allocatedMUSD": "190000",
       "capMUSD": "200000",
       "remainingCapacityMUSD": "10000"
+    }
+  ],
+  "btcSleeves": [
+    {
+      "label": "Tigris MUSD/BTC pool candidate",
+      "approved": false,
+      "executable": false,
+      "status": "research",
+      "allocatedBTC": "0",
+      "riskClass": "directional-btc-stable-lp"
     }
   ],
   "allocationDecision": {

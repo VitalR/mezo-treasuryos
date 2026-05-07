@@ -100,6 +100,8 @@ The product now proves one allocation routing model with two concrete Mezo-nativ
 
 The yield angle is not a separate high-yield product. TreasuryOS preserves the required operating buffer first, calculates allocatable surplus, previews the policy decision for proposed sleeve allocations, and routes only approved surplus into capped Mezo-native sleeves.
 
+BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 reports idle BTC reserve and BTC collateral, and the advisor can discuss BTC sleeve candidates, but executable BTC-principal allocation is deferred until a separate BTC accounting/policy path and verified Mezo testnet sleeve target exist. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
+
 ---
 
 ## Deployment Modes
@@ -154,7 +156,7 @@ Treasury state, activity, policy, sleeve exposure, and reviewer-facing reporting
 
 ### Treasury Yield Console And AI Memo
 
-Planned product/reporting surface for idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, policy decision results, and advisory treasury memos.
+Product/reporting surface for idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, BTC reserve/collateral context, policy decision results, and advisory treasury memos.
 
 AI can explain and recommend. It cannot sign, bypass policy, or control funds.
 
@@ -178,7 +180,7 @@ Sleeve extensibility:
 
 TreasuryOS can add another MUSD-denominated sleeve after deployment by deploying a handler, registering it in the client-owned `AllocationRouter`, and updating the account's destination policy/cap in `TreasuryPolicyEngine`. Native BTC-principal sleeve accounting is not part of V1.
 
-The deterministic advisor service consumes treasury snapshots and recommends allocation/automation actions across approved sleeves. It is a reporting layer only; it does not control funds or bypass policy checks.
+The deterministic advisor service consumes treasury snapshots and recommends allocation/automation actions across approved MUSD sleeves while reporting BTC reserve and BTC-denominated sleeve candidates separately. It is a reporting layer only; it does not control funds or bypass policy checks.
 
 Goldsky indexing scaffold:
 

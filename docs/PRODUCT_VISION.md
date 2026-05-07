@@ -162,12 +162,15 @@ The product should support:
 - policy decision previews
 - AI-assisted treasury memos
 - term planning for review windows and unwind conditions
+- BTC reserve and BTC collateral reporting that is separate from MUSD sleeve allocation
+- BTC-denominated sleeve planning notes where the execution path is not yet live
 
 It should not support in V1:
 
 - a proprietary fixed-yield protocol
 - autonomous AI capital management
 - an unbounded strategy marketplace
+- executable BTC-principal allocation unless a separate BTC policy/accounting path exists
 
 ---
 
@@ -213,7 +216,7 @@ TreasuryOS should own one full treasury workflow from start to finish:
    - how much can be allocated per sleeve
 7. Treasury may disburse idle MUSD for approved operating use through the required control path
 8. Excess idle MUSD may be routed into approved Mezo-native sleeves
-9. TreasuryOS monitors collateral state, liquidity buffer, allocation exposure, and policy conditions
+9. TreasuryOS monitors collateral state, idle BTC reserve, liquidity buffer, allocation exposure, and policy conditions
 10. TreasuryOS proposes or executes bounded automated actions
 11. TreasuryOS produces treasury-grade activity and reviewer reports
 
@@ -367,6 +370,7 @@ It should include:
 
 - treasury position visibility
 - idle vs deployed capital composition
+- idle BTC reserve and BTC collateral composition
 - sleeve-level exposure reporting
 - action and decision logs
 - reviewer-facing summaries
@@ -383,6 +387,7 @@ The cleanest V1 model is:
 - preserve liquidity buffer
 - allow policy-checked operating disbursement from idle MUSD
 - route approved idle MUSD into existing Mezo-native sleeves
+- report idle BTC reserve and BTC collateral as BTC-denominated exposure, not MUSD surplus
 - report what was deployed, where, and under what rules
 
 ### Strongest V1 sleeve strategy
