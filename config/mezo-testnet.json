@@ -40,10 +40,27 @@
     "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
     "maxSlippageBpsEnv": "TIGRIS_MAX_SLIPPAGE_BPS",
     "defaultMaxSlippageBps": 100,
+    "tokens": {
+      "btc": "0x7b7C000000000000000000000000000000000000",
+      "musdc": "0xe1a26db653708A2AD8F824E92Db9852410e33A59",
+      "musdt": "0x629320719a6190bd145c277226fd45e7648f950a"
+    },
     "pools": {
-      "musdBtc": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
-      "musdMusdc": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
-      "musdMusdt": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e"
+      "musdBtc": {
+        "address": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
+        "stable": false,
+        "status": "directional_musd_btc_candidate"
+      },
+      "musdMusdc": {
+        "address": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+        "stable": true,
+        "status": "v1_secondary_sleeve"
+      },
+      "musdMusdt": {
+        "address": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e",
+        "stable": true,
+        "status": "future_stable_sleeve_candidate"
+      }
     }
   },
   "sources": {

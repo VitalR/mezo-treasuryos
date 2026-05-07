@@ -9,9 +9,9 @@ import { ITigrisBasicRouter } from "../interfaces/ITigrisBasicRouter.sol";
 import { ITigrisStablePoolHandlerMetadata } from "../interfaces/ITigrisStablePoolHandlerMetadata.sol";
 
 /// @title TigrisStablePoolHandler
-/// @notice Handler that routes idle MUSD into a Tigris stable pool by swapping part of the deposit into the paired
-/// token, then adding liquidity through the Tigris router. LP tokens remain owned by the Treasury Account.
-/// @dev Router function signatures follow Mezo developer documentation examples for swap and add-liquidity flows.
+/// @notice Handler that routes idle MUSD into a configured Tigris basic pool by swapping part of the deposit into the
+/// paired token, then adding liquidity through the Tigris router. LP tokens remain owned by the Treasury Account.
+/// @dev The deployed Tigris router uses Route[] for swaps and an explicit stable flag for liquidity actions.
 contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandlerMetadata {
     // =============================================================
     // Constants
@@ -57,6 +57,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
 
     error InvalidAllocationRouter(address allocationRouter);
     error InvalidDestination(address destination);
+    error InvalidPoolFactory(address poolFactory);
     error InvalidRouter(address router);
     error InvalidToken(address token);
     error InvalidTreasuryAccount(address treasuryAccount);
@@ -74,7 +75,9 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     ITigrisBasicRouter internal immutable tigrisRouter;
     address public immutable override destination;
     IERC20 public immutable musdToken;
-    IERC20 internal immutable pairedStableToken;
+    IERC20 internal immutable pairedTokenAsset;
+    address public immutable override poolFactory;
+    bool public immutable override poolStable;
     uint256 public immutable deadlineWindow;
     uint256 public immutable override maxSlippageBps;
 
@@ -85,14 +88,18 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
     /// @param _allocationRouter Router allowed to dispatch calls to this handler.
     /// @param _router Tigris router used for swap and liquidity actions.
     /// @param _destination LP token / pool destination reported to TreasuryOS policy and accounting.
+    /// @param _poolFactory Tigris pool factory used for route and liquidity execution.
+    /// @param _poolStable Whether the target Tigris pool is stable.
     /// @param _musdToken MUSD token contributed by the treasury.
-    /// @param _pairedToken Stable paired token combined with MUSD in the target pool.
+    /// @param _pairedToken Paired token combined with MUSD in the target pool.
     /// @param _deadlineWindow Number of seconds added to `block.timestamp` for router deadlines.
     /// @param _maxSlippageBps Maximum accepted execution slippage in basis points.
     constructor(
         address _allocationRouter,
         ITigrisBasicRouter _router,
         address _destination,
+        address _poolFactory,
+        bool _poolStable,
         IERC20 _musdToken,
         IERC20 _pairedToken,
         uint256 _deadlineWindow,
@@ -101,6 +108,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         require(_allocationRouter != address(0), InvalidAllocationRouter(_allocationRouter));
         require(address(_router) != address(0), InvalidRouter(address(_router)));
         require(_destination != address(0), InvalidDestination(_destination));
+        require(_poolFactory != address(0), InvalidPoolFactory(_poolFactory));
         require(address(_musdToken) != address(0), InvalidToken(address(_musdToken)));
         require(address(_pairedToken) != address(0), InvalidToken(address(_pairedToken)));
         require(_maxSlippageBps < BPS_DENOMINATOR, InvalidSlippageBps(_maxSlippageBps));
@@ -108,8 +116,10 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         allocationRouter = _allocationRouter;
         tigrisRouter = _router;
         destination = _destination;
+        poolFactory = _poolFactory;
+        poolStable = _poolStable;
         musdToken = _musdToken;
-        pairedStableToken = _pairedToken;
+        pairedTokenAsset = _pairedToken;
         deadlineWindow = _deadlineWindow;
         maxSlippageBps = _maxSlippageBps;
     }
@@ -120,7 +130,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
 
     /// @inheritdoc ITigrisStablePoolHandlerMetadata
     function pairedToken() external view returns (address) {
-        return address(pairedStableToken);
+        return address(pairedTokenAsset);
     }
 
     /// @inheritdoc ITigrisStablePoolHandlerMetadata
@@ -167,47 +177,13 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         require(_treasuryAccount != address(0), InvalidTreasuryAccount(_treasuryAccount));
         require(_amount > 0, InvalidAmount(_amount));
 
-        uint256 _lpBalance = IERC20(destination).balanceOf(_treasuryAccount);
-        require(_lpBalance > 0, ZeroLiquidity());
-
-        uint256 _currentAllocation = TreasuryAccount(payable(_treasuryAccount)).destinationAllocations(destination);
-        require(_currentAllocation >= _amount, InvalidAmount(_amount));
-
-        uint256 _liquidityToBurn = (_lpBalance * _amount) / _currentAllocation;
-        require(_liquidityToBurn > 0, ZeroLiquidity());
-
-        TreasuryAccount(payable(_treasuryAccount))
-            .forceApproveTokenFromHandler(destination, address(tigrisRouter), _liquidityToBurn);
-
-        bytes memory _removeLiquidityResult = _callTreasury(
-            _treasuryAccount,
-            address(tigrisRouter),
-            abi.encodeCall(
-                ITigrisBasicRouter.removeLiquidity,
-                (
-                    address(musdToken),
-                    address(pairedStableToken),
-                    _liquidityToBurn,
-                    _amountAfterSlippage(_amount / 2),
-                    _amountAfterSlippage(_amount - (_amount / 2)),
-                    _treasuryAccount,
-                    block.timestamp + deadlineWindow
-                )
-            )
-        );
-
-        (uint256 _musdReceived, uint256 _pairedReceived) = abi.decode(_removeLiquidityResult, (uint256, uint256));
-
-        if (_pairedReceived > 0) {
-            _musdReceived += _swapPairBackToMUSD(_treasuryAccount, _pairedReceived);
-        }
+        uint256 _musdReceived;
+        (result, _musdReceived) = _withdrawFromStablePool(_treasuryAccount, _amount);
 
         TreasuryAccount(payable(_treasuryAccount))
             .settleWithdrawalFromHandler(_actor, destination, _amount, _musdReceived);
 
-        result = _liquidityToBurn;
-
-        emit StablePoolWithdrawalRouted(_treasuryAccount, _actor, destination, _amount, _liquidityToBurn, _musdReceived);
+        emit StablePoolWithdrawalRouted(_treasuryAccount, _actor, destination, _amount, result, _musdReceived);
     }
 
     /// @inheritdoc IAllocationHandler
@@ -219,47 +195,13 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         require(_treasuryAccount != address(0), InvalidTreasuryAccount(_treasuryAccount));
         require(_amount > 0, InvalidAmount(_amount));
 
-        uint256 _lpBalance = IERC20(destination).balanceOf(_treasuryAccount);
-        require(_lpBalance > 0, ZeroLiquidity());
-
-        uint256 _currentAllocation = TreasuryAccount(payable(_treasuryAccount)).destinationAllocations(destination);
-        require(_currentAllocation >= _amount, InvalidAmount(_amount));
-
-        uint256 _liquidityToBurn = (_lpBalance * _amount) / _currentAllocation;
-        require(_liquidityToBurn > 0, ZeroLiquidity());
-
-        TreasuryAccount(payable(_treasuryAccount))
-            .forceApproveTokenFromHandler(destination, address(tigrisRouter), _liquidityToBurn);
-
-        bytes memory _removeLiquidityResult = _callTreasury(
-            _treasuryAccount,
-            address(tigrisRouter),
-            abi.encodeCall(
-                ITigrisBasicRouter.removeLiquidity,
-                (
-                    address(musdToken),
-                    address(pairedStableToken),
-                    _liquidityToBurn,
-                    _amountAfterSlippage(_amount / 2),
-                    _amountAfterSlippage(_amount - (_amount / 2)),
-                    _treasuryAccount,
-                    block.timestamp + deadlineWindow
-                )
-            )
-        );
-
-        (uint256 _musdReceived, uint256 _pairedReceived) = abi.decode(_removeLiquidityResult, (uint256, uint256));
-
-        if (_pairedReceived > 0) {
-            _musdReceived += _swapPairBackToMUSD(_treasuryAccount, _pairedReceived);
-        }
+        uint256 _musdReceived;
+        (result, _musdReceived) = _withdrawFromStablePool(_treasuryAccount, _amount);
 
         TreasuryAccount(payable(_treasuryAccount))
             .settleWorkflowWithdrawalFromHandler(_actor, destination, _amount, _musdReceived);
 
-        result = _liquidityToBurn;
-
-        emit StablePoolWithdrawalRouted(_treasuryAccount, _actor, destination, _amount, _liquidityToBurn, _musdReceived);
+        emit StablePoolWithdrawalRouted(_treasuryAccount, _actor, destination, _amount, result, _musdReceived);
     }
 
     /// @inheritdoc IAllocationHandler
@@ -283,7 +225,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         outcome.pairedReceived = _swapMUSDToPaired(_treasuryAccount, _musdToSwap);
 
         TreasuryAccount(payable(_treasuryAccount))
-            .forceApproveTokenFromHandler(address(pairedStableToken), address(tigrisRouter), outcome.pairedReceived);
+            .forceApproveTokenFromHandler(address(pairedTokenAsset), address(tigrisRouter), outcome.pairedReceived);
 
         bytes memory _addLiquidityResult = _callTreasury(
             _treasuryAccount,
@@ -292,7 +234,8 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                 ITigrisBasicRouter.addLiquidity,
                 (
                     address(musdToken),
-                    address(pairedStableToken),
+                    address(pairedTokenAsset),
+                    poolStable,
                     _musdToPair,
                     outcome.pairedReceived,
                     _amountAfterSlippage(_musdToPair),
@@ -315,7 +258,68 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         }
     }
 
-    /// @notice Swaps MUSD into the paired stable token through the Treasury Account execution boundary.
+    /// @notice Removes proportional LP exposure and converts any paired-token output back into MUSD.
+    /// @param _treasuryAccount Treasury Account that owns the LP receipt tokens and receives MUSD.
+    /// @param _amount MUSD-denominated allocation amount to reduce.
+    /// @return liquidityBurned LP token amount burned through the Tigris router.
+    /// @return musdReceived Total MUSD returned after liquidity removal and paired-token swap-back.
+    function _withdrawFromStablePool(address _treasuryAccount, uint256 _amount)
+        internal
+        returns (uint256 liquidityBurned, uint256 musdReceived)
+    {
+        uint256 _lpBalance = IERC20(destination).balanceOf(_treasuryAccount);
+        require(_lpBalance > 0, ZeroLiquidity());
+
+        uint256 _currentAllocation = TreasuryAccount(payable(_treasuryAccount)).destinationAllocations(destination);
+        require(_currentAllocation >= _amount, InvalidAmount(_amount));
+
+        liquidityBurned = (_lpBalance * _amount) / _currentAllocation;
+        require(liquidityBurned > 0, ZeroLiquidity());
+
+        TreasuryAccount(payable(_treasuryAccount))
+            .forceApproveTokenFromHandler(destination, address(tigrisRouter), liquidityBurned);
+
+        uint256 _pairedReceived;
+        (musdReceived, _pairedReceived) = _removeLiquidityFromStablePool(_treasuryAccount, liquidityBurned, _amount);
+
+        if (_pairedReceived > 0) {
+            musdReceived += _swapPairBackToMUSD(_treasuryAccount, _pairedReceived);
+        }
+    }
+
+    /// @notice Calls Tigris removeLiquidity with configured pool metadata and slippage bounds.
+    /// @param _treasuryAccount Treasury Account forwarding the router call.
+    /// @param _liquidityToBurn LP token amount to remove.
+    /// @param _allocationAmount MUSD-denominated allocation amount being reduced.
+    /// @return musdReceived MUSD side returned by the pool.
+    /// @return pairedReceived Paired-token side returned by the pool.
+    function _removeLiquidityFromStablePool(
+        address _treasuryAccount,
+        uint256 _liquidityToBurn,
+        uint256 _allocationAmount
+    ) internal returns (uint256 musdReceived, uint256 pairedReceived) {
+        bytes memory _removeLiquidityResult = _callTreasury(
+            _treasuryAccount,
+            address(tigrisRouter),
+            abi.encodeCall(
+                ITigrisBasicRouter.removeLiquidity,
+                (
+                    address(musdToken),
+                    address(pairedTokenAsset),
+                    poolStable,
+                    _liquidityToBurn,
+                    _amountAfterSlippage(_allocationAmount / 2),
+                    _amountAfterSlippage(_allocationAmount - (_allocationAmount / 2)),
+                    _treasuryAccount,
+                    block.timestamp + deadlineWindow
+                )
+            )
+        );
+
+        (musdReceived, pairedReceived) = abi.decode(_removeLiquidityResult, (uint256, uint256));
+    }
+
+    /// @notice Swaps MUSD into the paired token through the Treasury Account execution boundary.
     /// @param _treasuryAccount Treasury Account that owns the input and receives the paired token.
     /// @param _musdToSwap MUSD amount to swap.
     /// @return pairedReceived Paired stable token amount received by the Treasury Account.
@@ -327,10 +331,8 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
             return 0;
         }
 
-        uint256 _pairedBalanceBefore = pairedStableToken.balanceOf(_treasuryAccount);
-        address[] memory _path = new address[](2);
-        _path[0] = address(musdToken);
-        _path[1] = address(pairedStableToken);
+        uint256 _pairedBalanceBefore = pairedTokenAsset.balanceOf(_treasuryAccount);
+        ITigrisBasicRouter.Route[] memory _routes = _buildRoute(address(musdToken), address(pairedTokenAsset));
 
         _callTreasury(
             _treasuryAccount,
@@ -340,30 +342,28 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                 (
                     _musdToSwap,
                     _amountAfterSlippage(_musdToSwap),
-                    _path,
+                    _routes,
                     _treasuryAccount,
                     block.timestamp + deadlineWindow
                 )
             )
         );
 
-        pairedReceived = pairedStableToken.balanceOf(_treasuryAccount) - _pairedBalanceBefore;
+        pairedReceived = pairedTokenAsset.balanceOf(_treasuryAccount) - _pairedBalanceBefore;
     }
 
-    /// @notice Swaps paired stable tokens back into MUSD through the Treasury Account execution boundary.
+    /// @notice Swaps paired tokens back into MUSD through the Treasury Account execution boundary.
     /// @param _treasuryAccount Treasury Account that owns the paired token and receives MUSD.
-    /// @param _pairedAmount Paired stable token amount to swap.
+    /// @param _pairedAmount Paired token amount to swap.
     /// @return musdReturned MUSD amount returned by the router.
     function _swapPairBackToMUSD(address _treasuryAccount, uint256 _pairedAmount)
         internal
         returns (uint256 musdReturned)
     {
         TreasuryAccount(payable(_treasuryAccount))
-            .forceApproveTokenFromHandler(address(pairedStableToken), address(tigrisRouter), _pairedAmount);
+            .forceApproveTokenFromHandler(address(pairedTokenAsset), address(tigrisRouter), _pairedAmount);
 
-        address[] memory _path = new address[](2);
-        _path[0] = address(pairedStableToken);
-        _path[1] = address(musdToken);
+        ITigrisBasicRouter.Route[] memory _routes = _buildRoute(address(pairedTokenAsset), address(musdToken));
 
         bytes memory _swapResult = _callTreasury(
             _treasuryAccount,
@@ -373,7 +373,7 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
                 (
                     _pairedAmount,
                     _amountAfterSlippage(_pairedAmount),
-                    _path,
+                    _routes,
                     _treasuryAccount,
                     block.timestamp + deadlineWindow
                 )
@@ -383,6 +383,15 @@ contract TigrisStablePoolHandler is IAllocationHandler, ITigrisStablePoolHandler
         uint256[] memory _amounts = abi.decode(_swapResult, (uint256[]));
         require(_amounts.length >= 2, UnexpectedSwapPathLength(_amounts.length));
         musdReturned = _amounts[_amounts.length - 1];
+    }
+
+    /// @notice Builds a one-hop Tigris route for the configured pool.
+    /// @param _from Input token for the swap.
+    /// @param _to Output token for the swap.
+    /// @return routes Single-hop route array accepted by the deployed Tigris router.
+    function _buildRoute(address _from, address _to) internal view returns (ITigrisBasicRouter.Route[] memory routes) {
+        routes = new ITigrisBasicRouter.Route[](1);
+        routes[0] = ITigrisBasicRouter.Route({ from: _from, to: _to, stable: poolStable, factory: poolFactory });
     }
 
     /// @notice Converts an expected amount into a router minimum using the configured slippage limit.

@@ -21,6 +21,7 @@ contract TigrisStablePoolHandlerTest is Test {
     address internal constant _APPROVER = address(0xCAFE);
     address internal constant _UPPER_HINT = address(0xAAA1);
     address internal constant _LOWER_HINT = address(0xAAA2);
+    address internal constant _POOL_FACTORY = address(0xFACADE);
 
     TreasuryPolicyEngine internal _policyEngine;
     TreasuryAccountFactory internal _factory;
@@ -45,6 +46,8 @@ contract TigrisStablePoolHandlerTest is Test {
             address(_allocationRouter),
             _router,
             address(_poolToken),
+            _POOL_FACTORY,
+            true,
             IERC20(_borrowerOperations.musdToken()),
             IERC20(address(_pairedStable)),
             1 hours,
@@ -80,8 +83,11 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_poolToken.balanceOf(address(_treasuryAccount)), 100 ether);
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
         assertEq(_router.lastSwapAmountOutMin(), 49.5 ether);
+        assertTrue(_router.lastSwapRouteStable());
+        assertEq(_router.lastSwapRouteFactory(), _POOL_FACTORY);
         assertEq(_router.lastAddAmountAMin(), 49.5 ether);
         assertEq(_router.lastAddAmountBMin(), 49.5 ether);
+        assertTrue(_router.lastAddStable());
     }
 
     function test_Deposit_RefundsUnusedMUSDWhenPoolUsesPartialLiquidity() public {
@@ -143,7 +149,10 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_pairedStable.balanceOf(address(_treasuryAccount)), 0);
         assertEq(_router.lastRemoveAmountAMin(), 19.8 ether);
         assertEq(_router.lastRemoveAmountBMin(), 19.8 ether);
+        assertTrue(_router.lastRemoveStable());
         assertEq(_router.lastSwapAmountOutMin(), 19.8 ether);
+        assertTrue(_router.lastSwapRouteStable());
+        assertEq(_router.lastSwapRouteFactory(), _POOL_FACTORY);
     }
 
     function test_Withdraw_RevertsWhenRemoveLiquidityOutputIsBelowMinimum() public {
@@ -214,6 +223,8 @@ contract TigrisStablePoolHandlerTest is Test {
         assertEq(_handler.router(), address(_router));
         assertEq(_handler.pairedToken(), address(_pairedStable));
         assertEq(_handler.destination(), address(_poolToken));
+        assertEq(_handler.poolFactory(), _POOL_FACTORY);
+        assertTrue(_handler.poolStable());
         assertEq(_handler.maxSlippageBps(), 100);
     }
 

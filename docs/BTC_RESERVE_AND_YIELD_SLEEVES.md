@@ -23,6 +23,8 @@ Current Mezo documentation gives us enough to support V1 MUSD/stable allocation 
 - Tigris concentrated liquidity includes BTC/MUSD.
 - Mezo token references include several BTC-correlated bridged assets on mainnet-style docs, including BTC/tBTC and wrapped BTC variants.
 
+Live testnet inspection of the Tigris basic pools shows `MUSD/mUSDC` as a stable pool and `MUSD/BTC` as a non-stable pool paired with the ERC-20 BTC token at `0x7b7C000000000000000000000000000000000000`. That is useful for a future directional BTC/stable sleeve, but it is not the same as native BTC reserve yield.
+
 What is not yet clean enough for TreasuryOS V1:
 
 - a verified BTC/wrapperBTC testnet pool target with the exact handler requirements;

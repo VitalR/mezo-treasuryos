@@ -56,6 +56,7 @@ The most important variables are:
 - `MEZO_TIGRIS_ROUTER`
 - `MEZO_TIGRIS_POOL_FACTORY`
 - `MEZO_TIGRIS_MUSD_MUSDC_POOL`
+- `MEZO_TIGRIS_MUSD_MUSDC_STABLE`
 
 TreasuryOS-specific deployment and scenario variables are also defined there for:
 

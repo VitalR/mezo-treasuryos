@@ -16,6 +16,7 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     error InsufficientLiquidityAmountB(uint256 amountB, uint256 amountBMin);
     error InsufficientRemoveAmountA(uint256 amountA, uint256 amountAMin);
     error InsufficientRemoveAmountB(uint256 amountB, uint256 amountBMin);
+    error InvalidRouteLength(uint256 routeLength);
 
     MockMUSDToken public immutable musdToken;
     MockMUSDToken public immutable pairedToken;
@@ -30,6 +31,10 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     uint256 public lastAddAmountBMin;
     uint256 public lastRemoveAmountAMin;
     uint256 public lastRemoveAmountBMin;
+    bool public lastSwapRouteStable;
+    bool public lastAddStable;
+    bool public lastRemoveStable;
+    address public lastSwapRouteFactory;
 
     constructor(MockMUSDToken _musdToken, MockMUSDToken _pairedToken, MockTigrisLPToken _lpToken) {
         musdToken = _musdToken;
@@ -59,20 +64,24 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     function swapExactTokensForTokens(
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address[] calldata _path,
+        Route[] calldata _routes,
         address _to,
         uint256
     ) external returns (uint256[] memory amounts) {
-        require(_path.length == 2, "invalid path");
+        if (_routes.length != 1) {
+            revert InvalidRouteLength(_routes.length);
+        }
 
-        IERC20(_path[0]).safeTransferFrom(msg.sender, address(this), _amountIn);
+        IERC20(_routes[0].from).safeTransferFrom(msg.sender, address(this), _amountIn);
         uint256 amountOut = (_amountIn * swapOutputBps) / 10_000;
         if (amountOut < _amountOutMin) {
             revert InsufficientSwapOutput(amountOut, _amountOutMin);
         }
 
         lastSwapAmountOutMin = _amountOutMin;
-        MockMUSDToken(_path[1]).mint(_to, amountOut);
+        lastSwapRouteStable = _routes[0].stable;
+        lastSwapRouteFactory = _routes[0].factory;
+        MockMUSDToken(_routes[0].to).mint(_to, amountOut);
 
         amounts = new uint256[](swapReturnPathLength);
         if (swapReturnPathLength > 0) {
@@ -86,6 +95,7 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     function addLiquidity(
         address _tokenA,
         address _tokenB,
+        bool _stable,
         uint256 _amountADesired,
         uint256 _amountBDesired,
         uint256 _amountAMin,
@@ -107,6 +117,7 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
         liquidity = amountA + amountB;
         lastAddAmountAMin = _amountAMin;
         lastAddAmountBMin = _amountBMin;
+        lastAddStable = _stable;
 
         lpToken.mint(_to, liquidity);
     }
@@ -114,6 +125,7 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
     function removeLiquidity(
         address,
         address,
+        bool _stable,
         uint256 _liquidity,
         uint256 _amountAMin,
         uint256 _amountBMin,
@@ -137,5 +149,6 @@ contract MockTigrisBasicRouter is ITigrisBasicRouter {
         pairedToken.mint(_to, amountB);
         lastRemoveAmountAMin = _amountAMin;
         lastRemoveAmountBMin = _amountBMin;
+        lastRemoveStable = _stable;
     }
 }

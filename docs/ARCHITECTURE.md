@@ -254,8 +254,8 @@ Secondary treasury LP sleeve handler for Mezo testnet.
 
 Responsibilities:
 
-- swap a portion of MUSD into the paired stable token
-- add liquidity into an approved Tigris stable pool
+- swap a portion of MUSD into the paired token through Tigris `Route[]`
+- add liquidity into an approved Tigris pool using the configured `stable` flag
 - keep LP receipt tokens owned by the Treasury Account
 - remove liquidity and swap back into MUSD on withdrawal
 - expose Tigris-specific reporting metadata
@@ -263,6 +263,8 @@ Responsibilities:
 Current V1 testnet target:
 
 - Tigris `MUSD/mUSDC` stable pool on Mezo testnet
+
+The handler stores the Tigris pool factory and pool `stable` flag as immutable metadata. That keeps the current `MUSD/mUSDC` sleeve live-ABI-compatible while leaving room for a separately approved MUSD/BTC directional sleeve handler if the policy model and demo liquidity justify it.
 
 ### 8. ExternalMUSDSavingsRateMock
 
@@ -519,7 +521,7 @@ Current official Mezo testnet targets:
 - PoolFactory: `0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A`
 - `MUSD/mUSDC` pool: `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
 
-These are the reference instances TreasuryOS should target for the current hackathon build.
+These are the reference instances TreasuryOS should target for the current hackathon build. The Tigris router takes swap routes as `(from, to, stable, factory)` and liquidity actions include the same `stable` flag, so deployments must configure `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE=true`.
 
 ### BTC reserve and BTC yield candidates
 

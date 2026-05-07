@@ -248,7 +248,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @param allocatedMUSD Current MUSD allocated to the destination.
     /// @param remainingCapacity Additional MUSD that can be allocated before the cap is reached.
     /// @param yieldToken Yield token exposed by the destination when supported. Zero for unsupported destination types.
-    /// @param pairedToken Paired stable token exposed by a Tigris stable-pool handler when supported.
+    /// @param pairedToken Paired token exposed by a Tigris pool handler when supported.
     ///        Zero for unsupported destination types.
     /// @param handler Registered allocation handler for the destination when one exists.
     /// @param receiptToken Receipt token address held by the Treasury Account for the destination when supported.
@@ -258,7 +258,7 @@ contract TreasuryAccount is Ownable2Step {
     /// @param claimableYield Current claimable yield exposed by the destination for the Treasury Account.
     ///        Zero for unsupported destination types.
     /// @param supportsSavingsRate Whether the destination supports MUSDSavingsRate-compatible reporting.
-    /// @param supportsTigrisStablePool Whether the destination is routed by a Tigris stable-pool handler.
+    /// @param supportsTigrisStablePool Whether the destination is routed by the Tigris pool handler.
     struct DestinationExposure {
         address destination;
         bool approved;

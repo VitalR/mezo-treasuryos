@@ -70,8 +70,10 @@ contract OnboardTreasuryClient is Script {
         address externalSavingsRateMock;
         bool deployExternalSavingsMock;
         address tigrisRouter;
+        address tigrisPoolFactory;
         address tigrisMusdMusdcPool;
         address musdcToken;
+        bool tigrisMusdMusdcStable;
         uint256 tigrisDeadlineWindow;
         uint256 tigrisMaxSlippageBps;
         uint256 liquidityBuffer;
@@ -214,8 +216,10 @@ contract OnboardTreasuryClient is Script {
         config.externalSavingsRateMock = vm.envOr("EXTERNAL_MUSD_SAVINGS_RATE_MOCK", address(0));
         config.deployExternalSavingsMock = vm.envOr("DEPLOY_EXTERNAL_SAVINGS_MOCK", config.savingsRate == address(0));
         config.tigrisRouter = vm.envOr("MEZO_TIGRIS_ROUTER", address(0));
+        config.tigrisPoolFactory = vm.envOr("MEZO_TIGRIS_POOL_FACTORY", address(0));
         config.tigrisMusdMusdcPool = vm.envOr("MEZO_TIGRIS_MUSD_MUSDC_POOL", address(0));
         config.musdcToken = vm.envOr("MEZO_MUSDC_TOKEN", address(0));
+        config.tigrisMusdMusdcStable = vm.envOr("MEZO_TIGRIS_MUSD_MUSDC_STABLE", true);
         config.tigrisDeadlineWindow = vm.envOr("TIGRIS_DEADLINE_WINDOW", DEFAULT_TIGRIS_DEADLINE_WINDOW);
         config.tigrisMaxSlippageBps = vm.envOr("TIGRIS_MAX_SLIPPAGE_BPS", DEFAULT_TIGRIS_MAX_SLIPPAGE_BPS);
         config.liquidityBuffer = vm.envOr("DEMO_TREASURY_LIQUIDITY_BUFFER", DEFAULT_LIQUIDITY_BUFFER);
@@ -368,13 +372,15 @@ contract OnboardTreasuryClient is Script {
         }
 
         if (
-            config.tigrisRouter != address(0) && config.tigrisMusdMusdcPool != address(0)
-                && config.musdcToken != address(0)
+            config.tigrisRouter != address(0) && config.tigrisPoolFactory != address(0)
+                && config.tigrisMusdMusdcPool != address(0) && config.musdcToken != address(0)
         ) {
             TigrisStablePoolHandler tigrisStablePoolHandler = new TigrisStablePoolHandler(
                 artifacts.allocationRouter,
                 ITigrisBasicRouter(config.tigrisRouter),
                 config.tigrisMusdMusdcPool,
+                config.tigrisPoolFactory,
+                config.tigrisMusdMusdcStable,
                 IERC20(config.musdToken),
                 IERC20(config.musdcToken),
                 config.tigrisDeadlineWindow,
@@ -383,7 +389,9 @@ contract OnboardTreasuryClient is Script {
 
             artifacts.tigrisStablePoolHandler = address(tigrisStablePoolHandler);
         } else {
-            console2.log("Skipping TigrisStablePoolHandler deployment: missing router, pool, or MEZO_MUSDC_TOKEN");
+            console2.log(
+                "Skipping TigrisStablePoolHandler deployment: missing router, pool factory, pool, or MEZO_MUSDC_TOKEN"
+            );
         }
 
         address[] memory approvedDestinations =
@@ -713,10 +721,16 @@ contract OnboardTreasuryClient is Script {
             vm.toString(artifacts.savingsDestination),
             '","tigrisRouter":"',
             vm.toString(config.tigrisRouter),
+            '","tigrisPoolFactory":"',
+            vm.toString(config.tigrisPoolFactory),
             '","tigrisMusdMusdcPool":"',
             vm.toString(config.tigrisMusdMusdcPool),
             '","musdcToken":"',
             vm.toString(config.musdcToken),
+            '","tigrisMusdMusdcStable":',
+            _jsonBool(config.tigrisMusdMusdcStable),
+            ',"tigrisDeadlineWindow":"',
+            vm.toString(config.tigrisDeadlineWindow),
             '","tigrisMaxSlippageBps":"',
             vm.toString(config.tigrisMaxSlippageBps),
             '"}'

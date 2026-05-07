@@ -84,12 +84,14 @@ Optional sleeve integrations:
 MEZO_MUSD_SAVINGS_RATE=<official savings vault if available>
 DEPLOY_EXTERNAL_SAVINGS_MOCK=true
 MEZO_TIGRIS_ROUTER=<Tigris router>
+MEZO_TIGRIS_POOL_FACTORY=<Tigris pool factory>
 MEZO_TIGRIS_MUSD_MUSDC_POOL=<Tigris MUSD/mUSDC pool>
+MEZO_TIGRIS_MUSD_MUSDC_STABLE=true
 MEZO_MUSDC_TOKEN=<mUSDC token>
 TIGRIS_MAX_SLIPPAGE_BPS=100
 ```
 
-`TIGRIS_MAX_SLIPPAGE_BPS` configures the Tigris handler's minimum-output and minimum-liquidity checks. The default is `100` basis points. Do not set it to a loose value for the final demo unless the pool route actually requires it and the tradeoff is explained.
+`MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE` are required for the deployed Tigris router ABI. Swaps use a `Route[]` leg with the factory and stable flag; liquidity add/remove calls also include the stable flag. `TIGRIS_MAX_SLIPPAGE_BPS` configures the Tigris handler's minimum-output and minimum-liquidity checks. The default is `100` basis points. Do not set it to a loose value for the final demo unless the pool route actually requires it and the tradeoff is explained.
 
 After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
 
