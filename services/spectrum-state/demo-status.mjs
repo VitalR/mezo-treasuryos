@@ -14,8 +14,13 @@ const manifestPath = normalizeRepoPath(
   process.env.BTC_SLEEVE_VALIDATION_MANIFEST_PATH ?? "deployments/btc-sleeve-validation.json",
 );
 const validationManifest = readJsonIfExists(manifestPath);
+const validationTreasuryAddress = envAddress(
+  "BTC_SLEEVE_TREASURY_ACCOUNT",
+  envAddress("TREASURY_ACCOUNT", validationManifest?.contracts?.treasuryAccount ?? null),
+);
 
 const checks = await Promise.all([
+  contractStatus("BTC sleeve validation TreasuryAccount", validationTreasuryAddress),
   contractStatus("MUSD Savings Vault", envAddress("MEZO_MUSD_SAVINGS_RATE", config.musd.savingsRate.address)),
   contractStatus("Tigris MUSD/mUSDC pool", envAddress("MEZO_TIGRIS_MUSD_MUSDC_POOL", config.tigris.pools.musdMusdc.address)),
   contractStatus("Tigris mcbBTC/BTC pool", envAddress("MEZO_TIGRIS_MCBTC_BTC_POOL", config.tigris.pools.mcbtcBtc.address)),
@@ -27,7 +32,7 @@ const checks = await Promise.all([
   ),
 ]);
 
-const [savings, musdMusdc, mcbtcBtc, btcPolicy, btcRouter, btcHandler] = checks;
+const [validationTreasury, savings, musdMusdc, mcbtcBtc, btcPolicy, btcRouter, btcHandler] = checks;
 
 printStatus({
   selected,
@@ -37,6 +42,7 @@ printStatus({
   btcPolicy,
   btcRouter,
   btcHandler,
+  validationTreasury,
   manifestPath,
   validationManifest,
 });
@@ -74,6 +80,13 @@ function printStatus(status) {
 
   console.log("");
   console.log("BTC sleeve controls:");
+  console.log(
+    `- Validation TreasuryAccount: ${
+      status.validationTreasury.address
+        ? `${codePhrase(status.validationTreasury)} at ${status.validationTreasury.address}`
+        : "missing; set BTC_SLEEVE_TREASURY_ACCOUNT to a deployed TreasuryAccount, not OWNER_PUBLIC_KEY"
+    }`,
+  );
   console.log(`- BTCReservePolicy: ${status.btcPolicy.address ? codePhrase(status.btcPolicy) : "missing in env/manifest"}`);
   console.log(`- BTCReserveRouter: ${status.btcRouter.address ? codePhrase(status.btcRouter) : "will be deployed by validator if missing"}`);
   console.log(

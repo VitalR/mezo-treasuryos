@@ -11,16 +11,23 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { IMUSDSavingsRate } from "../interfaces/IMUSDSavingsRate.sol";
 
 /// @title ExternalMUSDSavingsRateMock
-/// @notice External savings-rate mock that mimics sMUSD principal and yield behavior with owner-funded yield
-/// injections. @dev This contract is intended for demos and local environments. It preserves the same user-facing
-/// mental model
-///      as Mezo's savings vault:
+/// @notice External savings-rate mock that mimics sMUSD principal and yield behavior with owner-funded yield.
+/// @dev This contract is intended for local deterministic demos and tests only. It preserves the same user-facing
+///      mental model as Mezo's savings vault:
 ///      1. MUSD principal is deposited and sMUSD receipts are minted 1:1.
 ///      2. Yield is distributed through a global `yieldIndex`.
 ///      3. Holders claim accumulated MUSD yield without changing principal balances.
+///      It intentionally cannot be deployed on Mezo testnet now that the real MUSD Savings Vault is known.
 contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSavingsRate {
     using SafeERC20 for IERC20;
     using Math for uint256;
+
+    // =============================================================
+    // Constants
+    // =============================================================
+
+    /// @notice Mezo testnet chain ID where the real MUSD Savings Vault should be used instead.
+    uint256 public constant MEZO_TESTNET_CHAIN_ID = 31_611;
 
     // =============================================================
     // Events
@@ -55,6 +62,8 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
     error ZeroAddress();
     /// @notice Reverts when an amount is zero.
     error ZeroAmount();
+    /// @notice Reverts when someone attempts to deploy the mock on Mezo testnet.
+    error MockDisabledOnMezoTestnet();
 
     // =============================================================
     // Storage
@@ -83,6 +92,7 @@ contract ExternalMUSDSavingsRateMock is ERC20, Ownable, ReentrancyGuard, IMUSDSa
     /// @param _owner Owner allowed to fund simulated yield.
     /// @param _musdToken Underlying MUSD token accepted by the vault.
     constructor(address _owner, IERC20 _musdToken) ERC20("External MUSD Savings Rate Mock", "sMUSD") Ownable(_owner) {
+        require(block.chainid != MEZO_TESTNET_CHAIN_ID, MockDisabledOnMezoTestnet());
         require(address(_musdToken) != address(0), ZeroAddress());
 
         musdToken = _musdToken;

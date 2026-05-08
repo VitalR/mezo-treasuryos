@@ -106,6 +106,8 @@ TreasuryOS does not blindly route treasury BTC into yield. It computes the BTC s
 
 V1.5 adds a guarded BTC execution path behind that boundary: `BTCReserveRouter` plus `TigrisBTCStablePoolHandler` can route owner/multisig-approved idle BTC into the `mcbBTC/BTC` pool with hard swap min-out and LP min-liquidity checks. This remains separate from the final V1 MUSD demo path until controlled testnet broadcast validation is complete.
 
+Now that the real Mezo testnet MUSD Savings Vault is known, `ExternalMUSDSavingsRateMock` is local/test-only. It is not used as a Mezo testnet fallback and cannot be deployed on Mezo testnet.
+
 ---
 
 ## Deployment Modes

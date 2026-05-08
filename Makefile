@@ -278,7 +278,7 @@ check-env:
 		$(call require_testnet_env) \
 		echo "Required TreasuryOS Mezo testnet env vars are set."; \
 		if [ -n "$$MEZO_MUSDC_TOKEN" ]; then echo "MEZO_MUSDC_TOKEN=SET"; else echo "MEZO_MUSDC_TOKEN=MISSING (Tigris handler will be skipped)"; fi; \
-		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (external savings mock path expected)"; fi; \
+		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (MUSD Savings handler will be skipped; set the real Mezo testnet vault for final demo)"; fi; \
 	'
 
 .PHONY: check-core-env
@@ -296,7 +296,7 @@ check-client-env:
 		$(call require_client_onboard_env) \
 		echo "Required TreasuryOS client onboarding env vars are set."; \
 		if [ -n "$$MEZO_MUSDC_TOKEN" ]; then echo "MEZO_MUSDC_TOKEN=SET"; else echo "MEZO_MUSDC_TOKEN=MISSING (Tigris handler will be skipped)"; fi; \
-		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (external savings mock path expected)"; fi; \
+		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (MUSD Savings handler will be skipped; set the real Mezo testnet vault for final demo)"; fi; \
 	'
 
 .PHONY: deploy-mezo-testnet

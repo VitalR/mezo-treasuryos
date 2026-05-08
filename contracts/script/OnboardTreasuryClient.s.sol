@@ -40,6 +40,7 @@ contract OnboardTreasuryClient is Script {
     uint256 internal constant DEFAULT_CLIENT_TREASURY_MULTISIG_THRESHOLD = 1;
     uint64 internal constant DEFAULT_CLIENT_TREASURY_MULTISIG_SIG_DELAY = 0;
     uint64 internal constant DEFAULT_CLIENT_TREASURY_MULTISIG_MAX_PENDING = 7 days;
+    uint256 internal constant MEZO_TESTNET_CHAIN_ID = 31_611;
 
     // =============================================================
     // Types
@@ -128,6 +129,8 @@ contract OnboardTreasuryClient is Script {
     error MissingClientMultisigOwner();
     /// @notice Raised when multisig setup proposal is enabled but no proposer private key is configured.
     error MissingClientMultisigProposerPrivateKey();
+    /// @notice Raised when a testnet onboarding script attempts to use the local savings mock.
+    error ExternalSavingsMockDisabledOnMezoTestnet();
     /// @notice Raised when an environment integer does not fit into uint64.
     /// @param key Environment key.
     /// @param value Oversized value.
@@ -216,7 +219,10 @@ contract OnboardTreasuryClient is Script {
         config.borrowerOperations = vm.envAddress("MEZO_BORROWER_OPERATIONS");
         config.savingsRate = vm.envOr("MEZO_MUSD_SAVINGS_RATE", address(0));
         config.externalSavingsRateMock = vm.envOr("EXTERNAL_MUSD_SAVINGS_RATE_MOCK", address(0));
-        config.deployExternalSavingsMock = vm.envOr("DEPLOY_EXTERNAL_SAVINGS_MOCK", config.savingsRate == address(0));
+        config.deployExternalSavingsMock = vm.envOr("DEPLOY_EXTERNAL_SAVINGS_MOCK", false);
+        if (config.deployExternalSavingsMock && block.chainid == MEZO_TESTNET_CHAIN_ID) {
+            revert ExternalSavingsMockDisabledOnMezoTestnet();
+        }
         config.tigrisRouter = vm.envOr("MEZO_TIGRIS_ROUTER", address(0));
         config.tigrisPoolFactory = vm.envOr("MEZO_TIGRIS_POOL_FACTORY", address(0));
         config.tigrisMusdMusdcPool = vm.envOr("MEZO_TIGRIS_MUSD_MUSDC_POOL", address(0));

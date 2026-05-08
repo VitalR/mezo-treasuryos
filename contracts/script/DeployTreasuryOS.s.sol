@@ -35,6 +35,7 @@ contract DeployTreasuryOS is Script {
     uint256 internal constant DEFAULT_TREASURY_MULTISIG_THRESHOLD = 2;
     uint64 internal constant DEFAULT_TREASURY_MULTISIG_SIG_DELAY = 0;
     uint64 internal constant DEFAULT_TREASURY_MULTISIG_MAX_PENDING = 7 days;
+    uint256 internal constant MEZO_TESTNET_CHAIN_ID = 31_611;
 
     struct DeploymentConfig {
         uint256 chainId;
@@ -103,6 +104,7 @@ contract DeployTreasuryOS is Script {
     error MissingOwnerPrivateKey(address treasuryOwner);
     error MissingTreasuryMultisigOwner();
     error MissingTreasuryMultisigProposerPrivateKey();
+    error ExternalSavingsMockDisabledOnMezoTestnet();
     error Uint64Overflow(string key, uint256 value);
 
     /// @notice Deploys the TreasuryOS demo stack and writes a deployment manifest.
@@ -161,7 +163,10 @@ contract DeployTreasuryOS is Script {
         config.borrowerOperations = vm.envAddress("MEZO_BORROWER_OPERATIONS");
         config.savingsRate = vm.envOr("MEZO_MUSD_SAVINGS_RATE", address(0));
         config.externalSavingsRateMock = vm.envOr("EXTERNAL_MUSD_SAVINGS_RATE_MOCK", address(0));
-        config.deployExternalSavingsMock = vm.envOr("DEPLOY_EXTERNAL_SAVINGS_MOCK", config.savingsRate == address(0));
+        config.deployExternalSavingsMock = vm.envOr("DEPLOY_EXTERNAL_SAVINGS_MOCK", false);
+        if (config.deployExternalSavingsMock && block.chainid == MEZO_TESTNET_CHAIN_ID) {
+            revert ExternalSavingsMockDisabledOnMezoTestnet();
+        }
         config.tigrisRouter = vm.envOr("MEZO_TIGRIS_ROUTER", address(0));
         config.tigrisPoolFactory = vm.envOr("MEZO_TIGRIS_POOL_FACTORY", address(0));
         config.tigrisMusdMusdcPool = vm.envOr("MEZO_TIGRIS_MUSD_MUSDC_POOL", address(0));

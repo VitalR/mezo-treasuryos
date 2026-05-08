@@ -98,6 +98,8 @@ TIGRIS_MAX_SLIPPAGE_BPS=100
 
 `MEZO_MUSD_SAVINGS_RATE` is the confirmed Mezo testnet MUSD Savings Vault. The displayed testnet APR is demo/testnet data, not a production guarantee. Set `DEPLOY_EXTERNAL_SAVINGS_MOCK=true` only for local deterministic scenarios.
 
+Testnet deployment scripts no longer deploy or use `ExternalMUSDSavingsRateMock` automatically when `MEZO_MUSD_SAVINGS_RATE` is missing. On Mezo testnet, the mock path is disabled; set the real vault address or the savings handler is skipped. This prevents the final demo from accidentally presenting mock yield now that the real testnet vault is known.
+
 `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE` are required for the deployed Tigris router ABI. Swaps use a `Route[]` leg with the factory and stable flag; liquidity add/remove calls also include the stable flag. `TIGRIS_MAX_SLIPPAGE_BPS` configures the Tigris handler's minimum-output and minimum-liquidity checks. The default is `100` basis points. Do not set it to a loose value for the final demo unless the pool route actually requires it and the tradeoff is explained.
 
 `MEZO_TIGRIS_MCBTC_BTC_POOL` is a real BTC-correlated Tigris pool target for reporting and V1.5 guarded execution. Do not wire it into the MUSD `AllocationRouter`; executable BTC allocation uses `BTCReserveRouter`, `BTCReservePolicy`, BTC-denominated receipt accounting, and separate owner/multisig approval rules.
@@ -190,7 +192,7 @@ It validates the smallest useful execution loop:
 Required setup for the first controlled validation:
 
 ```bash
-BTC_SLEEVE_TREASURY_ACCOUNT=<EOA-owned TreasuryAccount>
+BTC_SLEEVE_TREASURY_ACCOUNT=<deployed EOA-owned TreasuryAccount contract>
 BTC_SLEEVE_VALIDATOR_PRIVATE_KEY=<private key for TreasuryAccount owner>
 BTC_RESERVE_POLICY=<deployed BTCReservePolicy, optional if the validator deploys one>
 MEZO_TIGRIS_BTC_ROUTER=<BTC pool router if different from MEZO_TIGRIS_ROUTER>
@@ -217,6 +219,7 @@ The default test amount is `0.0001 BTC` (`100000000000000` wei). The script refu
 
 Safety notes:
 
+- `BTC_SLEEVE_TREASURY_ACCOUNT` must be the deployed `TreasuryAccount` contract address. Do not set it to `OWNER_PUBLIC_KEY`; `OWNER_PUBLIC_KEY` is the owner/signer address, not the treasury contract.
 - The validator requires the Treasury Account owner to be the signing EOA. For product multisig accounts, reuse the same setup/deposit/withdraw calldata through the multisig after the direct validation path is proven.
 - If current `mcbBTC/BTC` liquidity creates price impact above `BTC_SLEEVE_POLICY_MAX_PRICE_IMPACT_BPS`, the policy preview blocks execution. Raising that cap is a deliberate testnet validation override, not a final demo policy.
 - Because broadcasted transactions are not atomic across the whole sequence, use only a disposable/tiny validation amount. If deposit succeeds and unwind fails, the Treasury Account may temporarily hold LP tokens until a manual guarded unwind is submitted.

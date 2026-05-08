@@ -343,13 +343,19 @@ The handler derives swap minimums, add-liquidity minimums, remove-liquidity mini
 
 ### 8. ExternalMUSDSavingsRateMock
 
-Deployable external mock used for demo-grade savings interactions where controlled yield injection is needed.
+Local-only external mock used for deterministic savings interactions where controlled yield injection is needed.
 
 Responsibilities:
 
 - simulate a production-style `MUSDSavingsRate` surface
 - allow owner-funded yield injection for demos
 - support end-to-end treasury savings flows without pretending proprietary TreasuryOS yield
+
+Non-responsibilities:
+
+- it is not a Mezo testnet fallback now that the real MUSD Savings Vault is known
+- it must not be used in the final demo or indexed as real Mezo yield
+- it is disabled on Mezo testnet so deployment scripts cannot accidentally substitute mock yield for the real vault
 
 ---
 

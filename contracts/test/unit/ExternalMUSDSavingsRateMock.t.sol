@@ -138,6 +138,13 @@ contract ExternalMUSDSavingsRateMockTest is Test {
         assertEq(_savingsRate.lastYieldFundedAt(), 0);
     }
 
+    function test_Constructor_RevertsOnMezoTestnet() public {
+        vm.chainId(_savingsRate.MEZO_TESTNET_CHAIN_ID());
+
+        vm.expectRevert(ExternalMUSDSavingsRateMock.MockDisabledOnMezoTestnet.selector);
+        new ExternalMUSDSavingsRateMock(_owner, _musdToken);
+    }
+
     function test_Transfer_CheckpointsYieldBeforeMovingShares() public {
         vm.startPrank(_alice);
         _musdToken.approve(address(_savingsRate), 100 ether);

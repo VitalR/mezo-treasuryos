@@ -77,11 +77,13 @@ Current testnet deployment planning assumes:
 
 The confirmed Mezo testnet MUSD Savings Vault is `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16` and should remain the primary V1 demo sleeve.
 
-If a live official testnet savings contract is unavailable in a later environment, the local deterministic demo may use:
+If a live official savings contract is unavailable in a later local or private environment, the local deterministic demo may use:
 
 - `ExternalMUSDSavingsRateMock`
 
 That keeps the sleeve behavior realistic without inventing TreasuryOS-native yield.
+
+The mock is not a Mezo testnet fallback. Testnet scripts require the real savings vault for the final demo path or skip the savings handler; the mock contract itself reverts on Mezo testnet deployment.
 
 ---
 
@@ -99,12 +101,12 @@ Then fill in:
 - git commit reference
 - the actual savings sleeve reference used for the scenario
 
-If the demo uses the external savings mock, keep:
+If a local/private demo explicitly uses the external savings mock, keep:
 
 - `references.musd.savingsRate.address` empty
 - `contracts.externalMusdSavingsRateMock.address` filled
 
-If the demo uses an official Mezo testnet savings contract, do the opposite.
+For Mezo testnet, use the confirmed savings vault and do the opposite.
 
 ---
 
@@ -129,7 +131,7 @@ The script:
 - deploys `BTCReservePolicy` for BTC reserve bucket reporting and preview-only BTC sleeve decisions
 - deploys a bounded `TreasuryAutomationExecutor`
 - optionally deploys `TreasuryMultisig` as the Treasury Account owner
-- optionally deploys `ExternalMUSDSavingsRateMock` when no official savings address is set
+- optionally deploys `ExternalMUSDSavingsRateMock` only when `DEPLOY_EXTERNAL_SAVINGS_MOCK=true` outside Mezo testnet
 - optionally deploys the Tigris handler when the paired stable token address is configured
 - deploys one demo Treasury Account through the factory
 - executes owner-controlled setup directly when the owner is an EOA with `TREASURY_OWNER_PRIVATE_KEY`

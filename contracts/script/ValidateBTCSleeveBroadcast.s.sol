@@ -115,6 +115,7 @@ contract ValidateBTCSleeveBroadcast is Script {
     error InvalidBasisPoints(uint256 value);
     error InvalidPoolTokenOrder(address token0, address token1);
     error InvalidPrivateKey(string key);
+    error InvalidTreasuryAccountContract(address value);
     error InvalidTestAmount(uint256 amount, uint256 maxAmount);
     error InvalidTreasuryOwner(address treasuryAccount);
     error MezoTestnetOnly(uint256 chainId);
@@ -204,6 +205,9 @@ contract ValidateBTCSleeveBroadcast is Script {
         require(block.chainid == _MEZO_TESTNET_CHAIN_ID, MezoTestnetOnly(block.chainid));
         if (!config.dryRun && !config.confirmed) revert BroadcastConfirmationRequired();
         if (address(config.treasuryAccount) == address(0)) revert InvalidAddress("BTC_SLEEVE_TREASURY_ACCOUNT");
+        if (address(config.treasuryAccount).code.length == 0) {
+            revert InvalidTreasuryAccountContract(address(config.treasuryAccount));
+        }
         if (address(config.tigrisRouter) == address(0)) revert InvalidAddress("MEZO_TIGRIS_BTC_ROUTER");
         if (address(config.pool) == address(0)) revert InvalidAddress("MEZO_TIGRIS_MCBTC_BTC_POOL");
         if (config.poolFactory == address(0)) revert InvalidAddress("MEZO_TIGRIS_POOL_FACTORY");
