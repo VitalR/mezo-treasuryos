@@ -14,6 +14,7 @@
     "rpc-health": "node services/spectrum-state/rpc-health.mjs",
     "state:probe": "node services/spectrum-state/snapshot.mjs",
     "state:snapshot": "node services/spectrum-state/snapshot.mjs",
+    "btc:sleeve-targets": "node services/spectrum-state/btc-sleeve-targets.mjs",
     "yield:targets": "node services/spectrum-state/yield-targets.mjs"
   }
 }

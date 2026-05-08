@@ -116,7 +116,7 @@ function btcRecommendation(snapshot) {
 
   if (!executableSleeve) {
     if (correlatedSleeve) {
-      return `${correlatedSleeve.label} preserves BTC-correlated exposure better than BTC/MUSD, but stays reporting-only until BTC policy and accounting are live.`;
+      return `${correlatedSleeve.label} preserves BTC-correlated exposure better than BTC/MUSD, but stays reporting-only until guarded BTC execution is live.`;
     }
 
     if (directionalSleeve) {
@@ -164,7 +164,9 @@ if ((snapshot.btcSleeves ?? []).length > 0) {
         sleeve.allocatedBTC,
       )}, ${sleeve.executable ? "execution path live" : "reporting only"}, risk ${
         sleeve.riskClass ?? "unclassified"
-      }`,
+      }, approval ${sleeve.approvalLevel ?? "MULTISIG"}, price impact ${bps(
+        sleeve.swapPriceImpactBps ?? 0,
+      )}, slippage ${bps(sleeve.slippageBps ?? 0)}`,
     );
   }
 }
@@ -176,6 +178,9 @@ if (snapshot.btcAllocationPreview) {
   lines.push(`BTC available for yield: ${btc(preview.availableBTC)}`);
   lines.push(`Projected yield-active BTC: ${btc(preview.projectedYieldActiveBTC)}`);
   lines.push(`Requires multisig approval: ${preview.requiredApproval ? "yes" : "no"}`);
+  if (preview.requiredApprovalLevel) {
+    lines.push(`Required BTC approval level: ${preview.requiredApprovalLevel}`);
+  }
 }
 
 const decision = snapshot.allocationDecision ?? {};

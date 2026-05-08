@@ -45,12 +45,13 @@ These buckets are accounting and policy inputs. They do not move BTC. They let T
 
 `BTCReservePolicy` is a V1 scaffold, not an execution router. It supports:
 
-- reserve policy configuration: `minIdleBTCReserve`, `emergencyBTCReserve`, `maxYieldBTCBps`, `maxPerSleeveBTCBps`, `maxDirectionalBTCBps`, `maxBTCAssetDepegBps`, `collateralWarningCRBps`, and `btcYieldPaused`;
+- reserve policy configuration: `minIdleBTCReserve`, `emergencyBTCReserve`, `maxYieldBTCBps`, `maxPerSleeveBTCBps`, `maxDirectionalBTCBps`, `maxBTCAssetDepegBps`, `maxSwapPriceImpactBps`, `maxSlippageBps`, `collateralWarningCRBps`, and `btcYieldPaused`;
 - sleeve risk classes: `BTC_CORRELATED`, `BTC_DIRECTIONAL_LP`, `SPECULATIVE`, `EXTERNAL_VAULT`, and `DISABLED`;
-- preview-only BTC allocation decisions with `allowed`, `reason`, `availableBTC`, `projectedYieldActiveBTC`, and `requiredApproval`;
+- approval levels: `OPERATOR`, `APPROVER`, `MULTISIG`, `MULTISIG_WITH_RISK_OVERRIDE`, and `DISABLED`;
+- preview-only BTC allocation decisions with `allowed`, `reason`, `availableBTC`, `projectedYieldActiveBTC`, `requiredApproval`, and `requiredApprovalLevel`;
 - indexable events for reserve policy, bucket updates, sleeve configuration, exposure updates, and allocation previews.
 
-The policy intentionally requires treasury-admin configuration and treats every positive BTC allocation preview as requiring approval. Automation must not move BTC principal in V1.
+The policy intentionally requires treasury-admin configuration. BTC-correlated sleeves such as `mcbBTC/BTC` require multisig-level approval. Directional BTC LPs require a multisig risk override. Automation must not move BTC principal in V1.
 
 ## V1 Testnet Targets
 
@@ -86,7 +87,22 @@ Current validation status: `make mezo-yield-fork-test` passes a live Mezo testne
 
 This is the strongest testnet bridge to the Bitcoin Yield & Investment angle because it preserves BTC-correlated exposure better than a BTC/stable LP. It should not be routed through the MUSD `TigrisStablePoolHandler` because the accounting unit, reserve constraints, and approval posture are different. Treat it as V1 reporting/scaffold unless a separate BTC policy and handler are implemented and tested.
 
-Current validation status: live-fork metadata and router quote checks pass. Direct add/remove-liquidity execution is not V1-ready because Foundry cannot currently execute Mezo's ERC20 BTC precompile wrapper in the fork environment. A real BTC sleeve should wait for BTC-denominated policy, receipt accounting, and either a reliable Mezo-aware fork path or a controlled testnet broadcast validation.
+Current validation status:
+
+- Manual Mezo testnet transactions show `BTC` is represented by the BTCCaller/precompile address `0x7b7C000000000000000000000000000000000000`.
+- The observed BTC swap and add-liquidity transactions have `msg.value = 0`, use the live Tigris router ABI, and emit ERC20-style `Transfer` logs from the BTC precompile address.
+- The add-liquidity selector is `addLiquidity(address,address,bool,uint256,uint256,uint256,uint256,address,uint256)`.
+- The swap selector is `swapExactTokensForTokens(uint256,uint256,(address,address,bool,address)[],address,uint256)`.
+- The observed BTC pool router in the UI transactions is `0xd245bec6836d85e159763a5d2bfce7cbc3488e03`; the configured Tigris router may differ, so BTC experiments should configure the router explicitly.
+- The observed LP gauge is `0x65d875b9ac9b50f3561544f83dd5f90043f5862b` and uses `deposit(uint256,address)`.
+
+This reduces the blocker from "native BTC mechanics are unknown" to a narrower execution-readiness blocker: BTC sleeve execution requires BTCReservePolicy limits, BTC-denominated exposure accounting, mcbBTC swap min-out controls, LP min-liquidity controls, receipt/staked-LP accounting, and multisig approval. It still should not be a default V1 execution path until a tiny controlled deposit, withdraw, stake, unstake, and reward-claim flow has been broadcast and reviewed.
+
+Useful inspection command:
+
+```sh
+make btc-sleeve-targets
+```
 
 ## Risk Classification
 
@@ -103,22 +119,24 @@ Current validation status: live-fork metadata and router quote checks pass. Dire
 - MUSD Savings Vault as the primary allocation sleeve.
 - MUSD/mUSDC Basic Stable after live-fork validation and a final liquidity sanity check.
 - BTC-denominated accounting and policy scaffold through `BTCReservePolicy`.
-- mcbBTC/BTC research/scaffold in docs and reporting, marked non-executable until the BTC token path and execution handler are verified.
+- mcbBTC/BTC research/scaffold in docs and reporting, marked experimental until the BTC execution handler is transaction-tested.
 - AI memo that distinguishes MUSD operating capital from BTC reserve/collateral.
 
 ### V1 If Time
 
 - mcbBTC/BTC preview flow wired into reviewer reporting through `BTCReservePolicy`.
 - BTC sleeve reporting fields for principal asset, receipt token, current exposure, risk class, and withdrawal constraints.
+- `IBTCYieldSleeveHandler` preview interface for future BTC sleeve handlers.
 
 ### V1.5
 
-- mcbBTC/BTC guarded execution only after native BTC versus ERC20 BTC handling is verified.
+- mcbBTC/BTC guarded execution after controlled testnet broadcast validation.
 - `BTCYieldIntent` that creates multisig proposals rather than direct autonomous execution.
 - BTC treasury risk profiles: conservative, balanced, active.
 - BTC sleeve reporting and BTC-denominated exposure/PnL accounting.
 - BTC/stable LP classification with elevated approval rules.
 - BTC sleeve automation proposals, not uncontrolled execution.
+- LP gauge staking and reward claiming, with reward claims optionally operator-executable only when no BTC principal moves.
 
 ### V2 / Production
 
@@ -136,7 +154,7 @@ Add executable BTC sleeves only when there is a real target and a separate accou
 
 Minimal future components:
 
-- `IBTCReserveSleeveHandler`
+- `IBTCYieldSleeveHandler`
 - `BTCReservePolicy`
 - `BTCReserveAllocationRouter`
 - `BTCYieldPositionRegistry`
@@ -157,6 +175,10 @@ Minimal policy checks:
 - require elevated approval for BTC/stable LP;
 - block automation when collateral health weakens;
 - treat long-lock sleeves as proposal-only.
+
+## veBTC Notes
+
+Mezo testnet also exposes a veBTC lock flow. Manual UI testing shows BTC approval followed by `createLock`, with lock duration, voting power, and withdraw/manage flows. This is real and strategically relevant, but it is not a V1 execution target. It belongs in V1.5/V2 because it introduces lock-duration accounting, withdrawal constraints, transfer/merge behavior, and principal immobility that the current buffer-restoration automation must not ignore.
 
 ## Reporting And AI Memo Rules
 

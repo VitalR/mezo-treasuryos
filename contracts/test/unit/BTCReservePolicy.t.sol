@@ -53,6 +53,7 @@ contract BTCReservePolicyTest is Test {
         assertEq(_preview.availableBTC, 1 ether);
         assertEq(_preview.projectedYieldActiveBTC, 1 ether);
         assertTrue(_preview.requiredApproval);
+        assertEq(uint8(_preview.requiredApprovalLevel), uint8(BTCReservePolicy.BTCApprovalLevel.MULTISIG));
     }
 
     function test_PreviewBTCAllocation_BlocksInsufficientIdleReserve() public {
@@ -126,7 +127,10 @@ contract BTCReservePolicyTest is Test {
                 enabled: true,
                 sleeveCapBps: 1000,
                 assetDepegBps: 20,
-                withdrawalDelaySeconds: 1 days
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 100,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.MULTISIG_WITH_RISK_OVERRIDE
             })
         );
         _btcPolicy.updateBTCDirectionalExposure(_TREASURY, 0.45 ether);
@@ -151,7 +155,10 @@ contract BTCReservePolicyTest is Test {
                 enabled: true,
                 sleeveCapBps: 100,
                 assetDepegBps: 0,
-                withdrawalDelaySeconds: 30 days
+                withdrawalDelaySeconds: 30 days,
+                swapPriceImpactBps: 0,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.DISABLED
             })
         );
 
@@ -173,6 +180,136 @@ contract BTCReservePolicyTest is Test {
         assertEq(_btcPolicy.availableBTCForYield(_TREASURY), 1 ether);
     }
 
+    function test_PreviewBTCAllocation_BlocksCorrelatedSleeveWithoutMultisigApproval() public {
+        _configureDefaultState();
+
+        vm.prank(_ADMIN);
+        _btcPolicy.configureBTCSleeve(
+            _TREASURY,
+            _SLEEVE,
+            BTCReservePolicy.BTCSleeveConfig({
+                riskClass: BTCReservePolicy.BTCSleeveRiskClass.BTC_CORRELATED,
+                enabled: true,
+                sleeveCapBps: 1000,
+                assetDepegBps: 20,
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 100,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.APPROVER
+            })
+        );
+
+        BTCReservePolicy.BTCAllocationPreview memory _preview =
+            _btcPolicy.previewBTCAllocation(_TREASURY, _SLEEVE, 0.1 ether);
+
+        assertFalse(_preview.allowed);
+        assertEq(uint8(_preview.reason), uint8(BTCReservePolicy.BTCAllocationDecisionCode.ApprovalLevelTooLow));
+    }
+
+    function test_PreviewBTCAllocation_BlocksDisabledApprovalLevel() public {
+        _configureDefaultState();
+
+        vm.prank(_ADMIN);
+        _btcPolicy.configureBTCSleeve(
+            _TREASURY,
+            _SLEEVE,
+            BTCReservePolicy.BTCSleeveConfig({
+                riskClass: BTCReservePolicy.BTCSleeveRiskClass.BTC_CORRELATED,
+                enabled: true,
+                sleeveCapBps: 1000,
+                assetDepegBps: 20,
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 100,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.DISABLED
+            })
+        );
+
+        BTCReservePolicy.BTCAllocationPreview memory _preview =
+            _btcPolicy.previewBTCAllocation(_TREASURY, _SLEEVE, 0.1 ether);
+
+        assertFalse(_preview.allowed);
+        assertEq(uint8(_preview.reason), uint8(BTCReservePolicy.BTCAllocationDecisionCode.ApprovalLevelDisabled));
+    }
+
+    function test_PreviewBTCAllocation_BlocksDirectionalSleeveWithoutRiskOverride() public {
+        _configureDefaultState();
+
+        vm.prank(_ADMIN);
+        _btcPolicy.configureBTCSleeve(
+            _TREASURY,
+            _DIRECTIONAL_SLEEVE,
+            BTCReservePolicy.BTCSleeveConfig({
+                riskClass: BTCReservePolicy.BTCSleeveRiskClass.BTC_DIRECTIONAL_LP,
+                enabled: true,
+                sleeveCapBps: 1000,
+                assetDepegBps: 20,
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 100,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.MULTISIG
+            })
+        );
+
+        BTCReservePolicy.BTCAllocationPreview memory _preview =
+            _btcPolicy.previewBTCAllocation(_TREASURY, _DIRECTIONAL_SLEEVE, 0.1 ether);
+
+        assertFalse(_preview.allowed);
+        assertEq(uint8(_preview.reason), uint8(BTCReservePolicy.BTCAllocationDecisionCode.ApprovalLevelTooLow));
+    }
+
+    function test_PreviewBTCAllocation_BlocksPriceImpactAbovePolicy() public {
+        _configureDefaultState();
+
+        vm.prank(_ADMIN);
+        _btcPolicy.configureBTCSleeve(
+            _TREASURY,
+            _SLEEVE,
+            BTCReservePolicy.BTCSleeveConfig({
+                riskClass: BTCReservePolicy.BTCSleeveRiskClass.BTC_CORRELATED,
+                enabled: true,
+                sleeveCapBps: 1000,
+                assetDepegBps: 20,
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 600,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.MULTISIG
+            })
+        );
+
+        BTCReservePolicy.BTCAllocationPreview memory _preview =
+            _btcPolicy.previewBTCAllocation(_TREASURY, _SLEEVE, 0.1 ether);
+
+        assertFalse(_preview.allowed);
+        assertEq(uint8(_preview.reason), uint8(BTCReservePolicy.BTCAllocationDecisionCode.SwapPriceImpactExceeded));
+    }
+
+    function test_PreviewBTCAllocation_BlocksSlippageAbovePolicy() public {
+        _configureDefaultState();
+
+        vm.prank(_ADMIN);
+        _btcPolicy.configureBTCSleeve(
+            _TREASURY,
+            _SLEEVE,
+            BTCReservePolicy.BTCSleeveConfig({
+                riskClass: BTCReservePolicy.BTCSleeveRiskClass.BTC_CORRELATED,
+                enabled: true,
+                sleeveCapBps: 1000,
+                assetDepegBps: 20,
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 100,
+                slippageBps: 150,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.MULTISIG
+            })
+        );
+
+        BTCReservePolicy.BTCAllocationPreview memory _preview =
+            _btcPolicy.previewBTCAllocation(_TREASURY, _SLEEVE, 0.1 ether);
+
+        assertFalse(_preview.allowed);
+        assertEq(uint8(_preview.reason), uint8(BTCReservePolicy.BTCAllocationDecisionCode.SlippageExceeded));
+    }
+
     function _configureDefaultState() internal {
         vm.startPrank(_ADMIN);
         _btcPolicy.configureBTCReservePolicy(_TREASURY, _defaultBTCPolicy());
@@ -185,7 +322,10 @@ contract BTCReservePolicyTest is Test {
                 enabled: true,
                 sleeveCapBps: 1000,
                 assetDepegBps: 20,
-                withdrawalDelaySeconds: 1 days
+                withdrawalDelaySeconds: 1 days,
+                swapPriceImpactBps: 100,
+                slippageBps: 100,
+                approvalLevel: BTCReservePolicy.BTCApprovalLevel.MULTISIG
             })
         );
         vm.stopPrank();
@@ -199,6 +339,8 @@ contract BTCReservePolicyTest is Test {
             maxPerSleeveBTCBps: 1500,
             maxDirectionalBTCBps: 500,
             maxBTCAssetDepegBps: 100,
+            maxSwapPriceImpactBps: 500,
+            maxSlippageBps: 100,
             collateralWarningCRBps: 0,
             btcYieldPaused: false,
             initialized: false

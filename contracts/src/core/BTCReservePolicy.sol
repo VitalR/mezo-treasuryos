@@ -55,6 +55,10 @@ contract BTCReservePolicy {
         SleeveDisabled,
         /// @notice Sleeve is speculative and blocked by default.
         SpeculativeDisabled,
+        /// @notice Sleeve approval level is disabled for BTC principal movement.
+        ApprovalLevelDisabled,
+        /// @notice Sleeve requires a stronger approval level for its BTC risk class.
+        ApprovalLevelTooLow,
         /// @notice Reported emergency BTC reserve is below the required emergency bucket.
         EmergencyReserveShortfall,
         /// @notice Requested allocation would use BTC needed for the idle reserve floor.
@@ -69,8 +73,26 @@ contract BTCReservePolicy {
         DirectionalCapExceeded,
         /// @notice BTC-correlated asset depeg exceeds policy tolerance.
         AssetDepegExceeded,
+        /// @notice Observed or configured swap price impact exceeds policy tolerance.
+        SwapPriceImpactExceeded,
+        /// @notice Configured sleeve slippage exceeds policy tolerance.
+        SlippageExceeded,
         /// @notice Treasury collateral health is below the configured warning ratio.
         CollateralHealthWarning
+    }
+
+    /// @notice Approval posture required before a BTC sleeve can move principal.
+    enum BTCApprovalLevel {
+        /// @notice Operator-level action. This should be reserved for non-principal actions such as reward claims.
+        OPERATOR,
+        /// @notice Treasury approver-level action.
+        APPROVER,
+        /// @notice Treasury multisig-level action.
+        MULTISIG,
+        /// @notice Treasury multisig action that also records directional or risk override intent.
+        MULTISIG_WITH_RISK_OVERRIDE,
+        /// @notice Principal movement is disabled.
+        DISABLED
     }
 
     /// @notice BTC-denominated treasury buckets used for reserve and yield planning.
@@ -94,6 +116,8 @@ contract BTCReservePolicy {
     /// @param maxPerSleeveBTCBps Maximum exposure to any single BTC sleeve as a share of accounted BTC.
     /// @param maxDirectionalBTCBps Maximum directional BTC LP exposure as a share of accounted BTC.
     /// @param maxBTCAssetDepegBps Maximum tolerated BTC-correlated asset depeg in basis points.
+    /// @param maxSwapPriceImpactBps Maximum tolerated swap price impact in basis points.
+    /// @param maxSlippageBps Maximum tolerated sleeve slippage setting in basis points.
     /// @param collateralWarningCRBps Collateral ratio below which BTC yield previews are blocked.
     /// @param btcYieldPaused Whether BTC yield allocation previews should be blocked.
     /// @param initialized Whether this policy has been configured.
@@ -104,6 +128,8 @@ contract BTCReservePolicy {
         uint256 maxPerSleeveBTCBps;
         uint256 maxDirectionalBTCBps;
         uint256 maxBTCAssetDepegBps;
+        uint256 maxSwapPriceImpactBps;
+        uint256 maxSlippageBps;
         uint256 collateralWarningCRBps;
         bool btcYieldPaused;
         bool initialized;
@@ -115,12 +141,18 @@ contract BTCReservePolicy {
     /// @param sleeveCapBps Sleeve-specific cap as a share of accounted BTC.
     /// @param assetDepegBps Observed or configured depeg for the sleeve's BTC-correlated asset.
     /// @param withdrawalDelaySeconds Expected delay before BTC principal can return to idle reserve.
+    /// @param swapPriceImpactBps Observed or configured swap price impact for entering the sleeve.
+    /// @param slippageBps Maximum slippage expected for sleeve execution.
+    /// @param approvalLevel Required approval posture for principal movement.
     struct BTCSleeveConfig {
         BTCSleeveRiskClass riskClass;
         bool enabled;
         uint256 sleeveCapBps;
         uint256 assetDepegBps;
         uint256 withdrawalDelaySeconds;
+        uint256 swapPriceImpactBps;
+        uint256 slippageBps;
+        BTCApprovalLevel approvalLevel;
     }
 
     /// @notice Read-only BTC allocation decision used by reporting and advisory surfaces.
@@ -129,12 +161,14 @@ contract BTCReservePolicy {
     /// @param availableBTC Idle BTC available above the minimum idle reserve.
     /// @param projectedYieldActiveBTC Yield-active BTC after the proposed allocation.
     /// @param requiredApproval Whether multisig-level policy approval is required before execution.
+    /// @param requiredApprovalLevel Required approval posture for the sleeve.
     struct BTCAllocationPreview {
         bool allowed;
         BTCAllocationDecisionCode reason;
         uint256 availableBTC;
         uint256 projectedYieldActiveBTC;
         bool requiredApproval;
+        BTCApprovalLevel requiredApprovalLevel;
     }
 
     // =============================================================
@@ -150,6 +184,8 @@ contract BTCReservePolicy {
     /// @param maxPerSleeveBTCBps Per-sleeve BTC exposure cap.
     /// @param maxDirectionalBTCBps Directional BTC LP exposure cap.
     /// @param maxBTCAssetDepegBps Maximum tolerated BTC-correlated asset depeg.
+    /// @param maxSwapPriceImpactBps Maximum tolerated swap price impact.
+    /// @param maxSlippageBps Maximum tolerated sleeve slippage setting.
     /// @param collateralWarningCRBps Collateral ratio warning threshold for BTC yield previews.
     /// @param btcYieldPaused Whether BTC yield previews are paused.
     event BTCReservePolicyConfigured(
@@ -161,6 +197,8 @@ contract BTCReservePolicy {
         uint256 maxPerSleeveBTCBps,
         uint256 maxDirectionalBTCBps,
         uint256 maxBTCAssetDepegBps,
+        uint256 maxSwapPriceImpactBps,
+        uint256 maxSlippageBps,
         uint256 collateralWarningCRBps,
         bool btcYieldPaused
     );
@@ -190,6 +228,9 @@ contract BTCReservePolicy {
     /// @param sleeveCapBps Sleeve-specific cap as a share of accounted BTC.
     /// @param assetDepegBps Observed or configured BTC-correlated asset depeg.
     /// @param withdrawalDelaySeconds Expected withdrawal delay for the sleeve.
+    /// @param swapPriceImpactBps Observed or configured swap price impact for entering the sleeve.
+    /// @param slippageBps Maximum slippage expected for sleeve execution.
+    /// @param approvalLevel Required approval posture for principal movement.
     event BTCSleeveConfigured(
         address indexed treasury,
         address indexed sleeve,
@@ -198,7 +239,10 @@ contract BTCReservePolicy {
         bool enabled,
         uint256 sleeveCapBps,
         uint256 assetDepegBps,
-        uint256 withdrawalDelaySeconds
+        uint256 withdrawalDelaySeconds,
+        uint256 swapPriceImpactBps,
+        uint256 slippageBps,
+        BTCApprovalLevel approvalLevel
     );
     /// @notice Emitted when reported BTC exposure for a sleeve is updated.
     /// @param treasury Treasury Account whose sleeve exposure changed.
@@ -225,6 +269,7 @@ contract BTCReservePolicy {
     /// @param availableBTC Idle BTC available above reserve floor.
     /// @param projectedYieldActiveBTC Yield-active BTC after the proposed allocation.
     /// @param requiredApproval Whether multisig-level approval is required before execution.
+    /// @param requiredApprovalLevel Required approval posture for the sleeve.
     event BTCAllocationPreviewed(
         address indexed treasury,
         address indexed sleeve,
@@ -234,7 +279,8 @@ contract BTCReservePolicy {
         BTCAllocationDecisionCode reason,
         uint256 availableBTC,
         uint256 projectedYieldActiveBTC,
-        bool requiredApproval
+        bool requiredApproval,
+        BTCApprovalLevel requiredApprovalLevel
     );
     /// @notice Emitted when a recorded BTC allocation preview is blocked.
     /// @param treasury Treasury Account being evaluated.
@@ -255,12 +301,14 @@ contract BTCReservePolicy {
     /// @param btcAmount Proposed BTC-denominated allocation amount.
     /// @param projectedYieldActiveBTC Yield-active BTC after the proposed allocation.
     /// @param requiredApproval Whether multisig-level approval is required before execution.
+    /// @param requiredApprovalLevel Required approval posture for the sleeve.
     event BTCYieldAllocationApproved(
         address indexed treasury,
         address indexed sleeve,
         uint256 btcAmount,
         uint256 projectedYieldActiveBTC,
-        bool requiredApproval
+        bool requiredApproval,
+        BTCApprovalLevel requiredApprovalLevel
     );
 
     // =============================================================
@@ -324,6 +372,8 @@ contract BTCReservePolicy {
         _requireBps(_config.maxPerSleeveBTCBps);
         _requireBps(_config.maxDirectionalBTCBps);
         _requireBps(_config.maxBTCAssetDepegBps);
+        _requireBps(_config.maxSwapPriceImpactBps);
+        _requireBps(_config.maxSlippageBps);
 
         BTCReservePolicyConfig memory _stored = _config;
         _stored.initialized = true;
@@ -338,6 +388,8 @@ contract BTCReservePolicy {
             _stored.maxPerSleeveBTCBps,
             _stored.maxDirectionalBTCBps,
             _stored.maxBTCAssetDepegBps,
+            _stored.maxSwapPriceImpactBps,
+            _stored.maxSlippageBps,
             _stored.collateralWarningCRBps,
             _stored.btcYieldPaused
         );
@@ -372,6 +424,8 @@ contract BTCReservePolicy {
         require(_sleeve != address(0), InvalidSleeve(_sleeve));
         _requireBps(_config.sleeveCapBps);
         _requireBps(_config.assetDepegBps);
+        _requireBps(_config.swapPriceImpactBps);
+        _requireBps(_config.slippageBps);
 
         btcSleeves[_treasury][_sleeve] = _config;
 
@@ -383,7 +437,10 @@ contract BTCReservePolicy {
             _config.enabled,
             _config.sleeveCapBps,
             _config.assetDepegBps,
-            _config.withdrawalDelaySeconds
+            _config.withdrawalDelaySeconds,
+            _config.swapPriceImpactBps,
+            _config.slippageBps,
+            _config.approvalLevel
         );
     }
 
@@ -434,12 +491,18 @@ contract BTCReservePolicy {
             preview.reason,
             preview.availableBTC,
             preview.projectedYieldActiveBTC,
-            preview.requiredApproval
+            preview.requiredApproval,
+            preview.requiredApprovalLevel
         );
 
         if (preview.allowed) {
             emit BTCYieldAllocationApproved(
-                _treasury, _sleeve, _btcAmount, preview.projectedYieldActiveBTC, preview.requiredApproval
+                _treasury,
+                _sleeve,
+                _btcAmount,
+                preview.projectedYieldActiveBTC,
+                preview.requiredApproval,
+                preview.requiredApprovalLevel
             );
         } else {
             emit BTCYieldAllocationBlocked(_treasury, _sleeve, _btcAmount, preview.reason, preview.availableBTC);
@@ -461,10 +524,12 @@ contract BTCReservePolicy {
         returns (BTCAllocationPreview memory preview)
     {
         BTCReserveBuckets memory _buckets = reserveBuckets[_treasury];
+        BTCSleeveConfig memory _sleeveConfig = btcSleeves[_treasury][_sleeve];
 
         preview.availableBTC = availableBTCForYield(_treasury);
         preview.projectedYieldActiveBTC = _buckets.yieldActiveBTC + _btcAmount;
-        preview.requiredApproval = _btcAmount > 0;
+        preview.requiredApprovalLevel = _sleeveConfig.approvalLevel;
+        preview.requiredApproval = _btcAmount > 0 && _requiresExplicitApproval(_sleeveConfig.approvalLevel);
         preview.reason = _previewReason(_treasury, _sleeve, _btcAmount, preview);
         preview.allowed = preview.reason == BTCAllocationDecisionCode.Allowed;
     }
@@ -524,6 +589,10 @@ contract BTCReservePolicy {
         if (_sleeveConfig.riskClass == BTCSleeveRiskClass.SPECULATIVE) {
             return BTCAllocationDecisionCode.SpeculativeDisabled;
         }
+
+        BTCAllocationDecisionCode _approvalReason = _previewApprovalReason(_sleeveConfig);
+        if (_approvalReason != BTCAllocationDecisionCode.Allowed) return _approvalReason;
+
         if (_buckets.emergencyBTCReserve < _policy.emergencyBTCReserve) {
             return BTCAllocationDecisionCode.EmergencyReserveShortfall;
         }
@@ -535,12 +604,73 @@ contract BTCReservePolicy {
             _previewCapReason(_treasury, _sleeve, _btcAmount, _preview.projectedYieldActiveBTC);
         if (_capReason != BTCAllocationDecisionCode.Allowed) return _capReason;
 
+        BTCAllocationDecisionCode _marketRiskReason = _previewMarketRiskReason(_policy, _sleeveConfig);
+        if (_marketRiskReason != BTCAllocationDecisionCode.Allowed) return _marketRiskReason;
+
         (bool _hasCollateralRatio, uint256 _collateralRatioBps) = _tryCollateralRatio(_treasury);
         if (
             _policy.collateralWarningCRBps > 0 && _hasCollateralRatio
                 && _collateralRatioBps < _policy.collateralWarningCRBps
         ) {
             return BTCAllocationDecisionCode.CollateralHealthWarning;
+        }
+
+        return BTCAllocationDecisionCode.Allowed;
+    }
+
+    /// @notice Computes approval-level failures for a BTC sleeve risk class.
+    /// @param _sleeveConfig BTC sleeve risk and approval metadata.
+    /// @return Machine-readable approval decision reason.
+    function _previewApprovalReason(BTCSleeveConfig storage _sleeveConfig)
+        internal
+        view
+        returns (BTCAllocationDecisionCode)
+    {
+        BTCApprovalLevel _approvalLevel = _sleeveConfig.approvalLevel;
+
+        if (_approvalLevel == BTCApprovalLevel.DISABLED) {
+            return BTCAllocationDecisionCode.ApprovalLevelDisabled;
+        }
+
+        if (
+            _sleeveConfig.riskClass == BTCSleeveRiskClass.BTC_CORRELATED
+                && _isApprovalBelow(_approvalLevel, BTCApprovalLevel.MULTISIG)
+        ) {
+            return BTCAllocationDecisionCode.ApprovalLevelTooLow;
+        }
+
+        if (
+            _sleeveConfig.riskClass == BTCSleeveRiskClass.BTC_DIRECTIONAL_LP
+                && _isApprovalBelow(_approvalLevel, BTCApprovalLevel.MULTISIG_WITH_RISK_OVERRIDE)
+        ) {
+            return BTCAllocationDecisionCode.ApprovalLevelTooLow;
+        }
+
+        if (
+            _sleeveConfig.riskClass == BTCSleeveRiskClass.EXTERNAL_VAULT
+                && _isApprovalBelow(_approvalLevel, BTCApprovalLevel.MULTISIG)
+        ) {
+            return BTCAllocationDecisionCode.ApprovalLevelTooLow;
+        }
+
+        return BTCAllocationDecisionCode.Allowed;
+    }
+
+    /// @notice Computes market-risk failures from configured price-impact and slippage guardrails.
+    /// @param _policy Treasury-level BTC reserve policy.
+    /// @param _sleeveConfig BTC sleeve market-risk metadata.
+    /// @return Machine-readable market-risk decision reason.
+    function _previewMarketRiskReason(BTCReservePolicyConfig storage _policy, BTCSleeveConfig storage _sleeveConfig)
+        internal
+        view
+        returns (BTCAllocationDecisionCode)
+    {
+        if (_sleeveConfig.swapPriceImpactBps > _policy.maxSwapPriceImpactBps) {
+            return BTCAllocationDecisionCode.SwapPriceImpactExceeded;
+        }
+
+        if (_sleeveConfig.slippageBps > _policy.maxSlippageBps) {
+            return BTCAllocationDecisionCode.SlippageExceeded;
         }
 
         return BTCAllocationDecisionCode.Allowed;
@@ -613,6 +743,21 @@ contract BTCReservePolicy {
     /// @param _value Basis-point value being checked.
     function _requireBps(uint256 _value) internal pure {
         require(_value <= BPS_DENOMINATOR, InvalidBasisPoints(_value));
+    }
+
+    /// @notice Returns whether a BTC sleeve approval level requires explicit non-operator approval.
+    /// @param _approvalLevel Configured approval level.
+    /// @return Whether principal movement needs approver/multisig review.
+    function _requiresExplicitApproval(BTCApprovalLevel _approvalLevel) internal pure returns (bool) {
+        return _approvalLevel != BTCApprovalLevel.OPERATOR && _approvalLevel != BTCApprovalLevel.DISABLED;
+    }
+
+    /// @notice Compares two BTC approval levels by escalation strength.
+    /// @param _actual Configured sleeve approval level.
+    /// @param _minimum Minimum required approval level.
+    /// @return Whether the configured approval is weaker than required.
+    function _isApprovalBelow(BTCApprovalLevel _actual, BTCApprovalLevel _minimum) internal pure returns (bool) {
+        return uint8(_actual) < uint8(_minimum);
     }
 
     /// @notice Attempts to read Treasury Account collateral ratio without making the policy unusable for mocks.

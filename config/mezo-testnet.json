@@ -67,10 +67,10 @@
       "mcbtcBtc": {
         "address": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
         "stable": true,
-        "status": "v1_5_btc_correlated_candidate",
+        "status": "v1_experimental_preview_v1_5_guarded_execution_candidate",
         "token0": "mcbtc",
         "token1": "btc",
-        "note": "Real ERC20 BTC-correlated pool; execution should wait for BTC-denominated policy/accounting."
+        "note": "Real ERC20 BTC-correlated pool; UI transactions use ERC20-style BTC with msg.value = 0. Execution should wait for guarded BTC handler validation."
       },
       "musdMusdt": {
         "address": "0x27414B76CF00E24ed087adb56E26bAeEEe93494e",

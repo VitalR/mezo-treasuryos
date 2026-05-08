@@ -174,6 +174,7 @@ Live RPC state probe:
 npm run rpc-health
 npm run state:probe
 npm run yield:targets
+make btc-sleeve-targets
 make mezo-yield-fork-test
 ```
 

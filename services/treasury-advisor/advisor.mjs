@@ -50,7 +50,7 @@ export function buildTreasuryAdvisorReport(snapshot) {
     guardrails: [
       "Advisor output is reporting only and does not control funds.",
       "Every allocation still requires TreasuryPolicyEngine checks.",
-      "BTC-denominated sleeve recommendations are reporting-only until a separate BTC policy/accounting path is live.",
+      "BTC-denominated sleeve recommendations are reporting-only until a guarded BTC execution handler is live.",
       "Automation may only execute bounded restore/de-risk workflows already approved onchain.",
     ],
   };
@@ -96,7 +96,9 @@ export function formatAdvisorReport(report) {
       lines.push(
         `- ${sleeve.label}: ${sleeve.status}, ${formatBTC(sleeve.allocatedBTC)} allocated, ${
           sleeve.executable ? "execution path live" : "reporting only"
-        }, risk ${sleeve.riskClass}, ${sleeve.withdrawalConstraint}`,
+        }, risk ${sleeve.riskClass}, approval ${sleeve.approvalLevel}, price impact ${formatBps(
+          sleeve.swapPriceImpactBps,
+        )}, slippage ${formatBps(sleeve.slippageBps)}, ${sleeve.withdrawalConstraint}`,
       );
     }
   }
@@ -283,7 +285,7 @@ function buildBTCMemo({ btc, btcSleeves, riskState }) {
   const executable = btcSleeves.filter((sleeve) => sleeve.executable && sleeve.approved);
   if (executable.length === 0) {
     notes.push(
-      "No approved BTC-denominated sleeve has a live execution path in this V1 snapshot; treat BTC sleeve ideas as planning inputs only.",
+      "No approved BTC-denominated sleeve has a live execution path in this V1 snapshot; treat BTC sleeve ideas as policy previews and planning inputs only.",
     );
   }
 
@@ -301,6 +303,16 @@ function buildBTCMemo({ btc, btcSleeves, riskState }) {
     notes.push(
       `${wrapperCandidate.label} is the cleaner Bitcoin-yield direction because it preserves BTC-denominated exposure better than BTC/stable LP.`,
     );
+    if (wrapperCandidate.swapPriceImpactBps > 0) {
+      notes.push(
+        `Its configured entry price impact is ${formatBps(
+          wrapperCandidate.swapPriceImpactBps,
+        )}, so large allocations should be blocked or escalated until liquidity improves.`,
+      );
+    }
+    if (wrapperCandidate.approvalLevel && !/multisig/i.test(wrapperCandidate.approvalLevel)) {
+      notes.push("BTC principal movement should require multisig approval, not operator-only automation.");
+    }
   }
 
   return notes.join(" ");
@@ -370,6 +382,9 @@ function normalizeBTCSleeves(sleeves) {
       allocatedBTC: asNumber(sleeve.allocatedBTC),
       capBTC: asNumber(sleeve.capBTC),
       riskClass: String(sleeve.riskClass ?? "btc-denominated").toLowerCase(),
+      approvalLevel: String(sleeve.approvalLevel ?? "MULTISIG").toLowerCase(),
+      swapPriceImpactBps: asNumber(sleeve.swapPriceImpactBps),
+      slippageBps: asNumber(sleeve.slippageBps),
       withdrawalConstraint: sleeve.withdrawalConstraint ?? "requires separate BTC accounting and approval path",
     };
   });

@@ -245,7 +245,7 @@ Responsibilities:
 
 - track BTC reserve buckets: idle reserve, collateral, emergency reserve, yield-active exposure, and pending withdrawals
 - classify BTC sleeve candidates as `BTC_CORRELATED`, `BTC_DIRECTIONAL_LP`, `SPECULATIVE`, `EXTERNAL_VAULT`, or `DISABLED`
-- preview proposed BTC allocations against reserve floors, aggregate yield caps, per-sleeve caps, directional exposure caps, asset-depeg tolerance, and collateral-health warning policy
+- preview proposed BTC allocations against reserve floors, aggregate yield caps, per-sleeve caps, directional exposure caps, asset-depeg tolerance, swap price-impact/slippage limits, approval level, and collateral-health warning policy
 - emit indexable policy, sleeve, exposure, and preview events for reporting
 
 Non-responsibilities:
@@ -253,7 +253,7 @@ Non-responsibilities:
 - it does not custody BTC
 - it does not call Tigris or any vault
 - it does not let automation move BTC principal
-- it does not make `mcbBTC/BTC` executable until the native BTC versus ERC20 BTC path is verified
+- it does not make `mcbBTC/BTC` executable until the guarded handler, receipt accounting, and multisig execution path are transaction-tested
 
 This keeps `mcbBTC/BTC` strategically visible as the `BTC_CORRELATED` candidate without pushing BTC principal through the MUSD allocation router.
 
@@ -552,7 +552,7 @@ Current official Mezo testnet targets:
 
 These are the reference instances TreasuryOS should target for the current hackathon build. The Tigris router takes swap routes as `(from, to, stable, factory)` and liquidity actions include the same `stable` flag, so deployments must configure `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE=true`.
 
-Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks, while direct execution is deferred because Mezo's ERC20 BTC precompile wrapper is not reliably executable in the current Foundry fork environment.
+Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks. Manual transaction inspection also shows the Mezo `BTC` precompile/BTCCaller address behaves ERC20-style in the UI swap/add-liquidity path with `msg.value = 0`. Direct TreasuryOS BTC sleeve execution is still deferred until a guarded handler validates min-out, LP receipt, staking, and unwind behavior through the selected router and gauge.
 
 ### BTC reserve and BTC yield candidates
 
@@ -562,6 +562,7 @@ V1 reporting may show them as candidates, but executable support should wait for
 
 - BTC-denominated handler and route shape;
 - BTC-denominated policy caps and reserve floors;
+- swap price-impact, slippage, and min-liquidity bounds;
 - elevated approval for BTC/stable LP exposure;
 - explicit receipt-token and unwind reporting.
 

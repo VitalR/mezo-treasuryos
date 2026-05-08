@@ -222,9 +222,20 @@ function buildBTCPlanningNotes(snapshot, btcSleeves) {
     if (sleeve.executable && sleeve.approved) {
       notes.push(`${sleeve.label} is executable in this snapshot but still requires BTC-specific policy approval.`);
     } else if (sleeve.riskClass.includes("correlated")) {
-      notes.push(`${sleeve.label} is a BTC-correlated candidate, not a V1 MUSD operating-capital sleeve.`);
+      notes.push(
+        `${sleeve.label} is a BTC-correlated candidate, not a V1 MUSD operating-capital sleeve; approval ${sleeve.approvalLevel}.`,
+      );
+      if (sleeve.swapPriceImpactBps > 0) {
+        notes.push(
+          `${sleeve.label} has ${formatBps(
+            sleeve.swapPriceImpactBps,
+          )} configured entry price impact, so large allocations should remain blocked or escalated.`,
+        );
+      }
     } else if (sleeve.riskClass.includes("directional") || sleeve.riskClass.includes("stable")) {
-      notes.push(`${sleeve.label} is directional BTC/stable exposure and should require elevated approval.`);
+      notes.push(
+        `${sleeve.label} is directional BTC/stable exposure and should require elevated approval: ${sleeve.approvalLevel}.`,
+      );
     } else if (sleeve.riskClass.includes("speculative")) {
       notes.push(`${sleeve.label} is speculative and should remain disabled by default.`);
     }
@@ -261,6 +272,8 @@ function normalizeBTCSleeves(sleeves) {
     approved: Boolean(sleeve.approved),
     executable: Boolean(sleeve.executable),
     riskClass: String(sleeve.riskClass ?? "btc-denominated").toLowerCase(),
+    approvalLevel: String(sleeve.approvalLevel ?? "MULTISIG").toLowerCase(),
+    swapPriceImpactBps: asNumber(sleeve.swapPriceImpactBps),
   }));
 }
 

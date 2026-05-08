@@ -30,6 +30,14 @@ Inspect the configured Mezo yield targets through the selected RPC:
 make yield-targets
 ```
 
+Inspect the `mcbBTC/BTC` BTC sleeve mechanics through the selected RPC:
+
+```sh
+make btc-sleeve-targets
+```
+
+This checks the BTC precompile/BTCCaller metadata, mcbBTC metadata, pool reserves, UI-observed swap/add-liquidity/stake transactions, router code hashes, and LP gauge metadata. It does not move funds.
+
 Build a live snapshot from an onboarding manifest:
 
 ```sh
@@ -63,6 +71,7 @@ Reads currently covered:
 
 - RPC chain and block probe
 - MUSD Savings Vault and Tigris yield target metadata
+- BTC precompile, mcbBTC/BTC pool, and gauge inspection for BTC sleeve planning
 - idle MUSD and idle BTC
 - Treasury Account position debt/collateral
 - collateral-health state

@@ -127,9 +127,9 @@ This target reads `.env`, uses `ACTIVE_MEZO_RPC_URL` when set, otherwise falls b
 - direct MUSD Savings Vault deposit and withdrawal;
 - TreasuryOS `MUSDSavingsRateHandler` deposit and withdrawal;
 - TreasuryOS `TigrisStablePoolHandler` deposit and withdrawal against `MUSD/mUSDC`;
-- `mcbBTC/BTC` metadata and router quote checks.
+- `mcbBTC/BTC` metadata, router quote checks, and separate BTC sleeve transaction inspection via `make btc-sleeve-targets`.
 
-The `mcbBTC/BTC` direct add/remove-liquidity execution test is allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Treat that as a tooling and BTC-sleeve-accounting blocker, not as support for executable BTC-principal allocation in V1.
+The `mcbBTC/BTC` direct add/remove-liquidity execution test is allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Manual transaction inspection shows the UI path uses ERC20-style BTC at `0x7b7C000000000000000000000000000000000000` with `msg.value = 0`, so the blocker is now narrower: TreasuryOS still needs a guarded BTC handler, min-out/LP receipt checks, staking/unwind accounting, and multisig execution validation before BTC-principal allocation belongs in the final demo.
 
 ---
 

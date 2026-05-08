@@ -55,6 +55,8 @@ Core:
 - `BTCReservePolicy.BTCAllocationPreviewed`
 - `BTCReservePolicy.BTCYieldAllocationBlocked`
 - `BTCReservePolicy.BTCYieldAllocationApproved`
+
+BTC policy events include reserve floors, sleeve caps, risk class, approval level, price-impact/slippage metadata, and recorded allow/block previews. They are reporting inputs only; executable BTC sleeve events should be added later with the guarded BTC handler.
 - `TreasuryAccount.BorrowerOperationsUpdated`
 - `TreasuryAccount.AllocationRouterUpdated`
 - `TreasuryAccount.TreasuryAdminSynced`

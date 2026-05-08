@@ -67,6 +67,8 @@
     "maxPerSleeveBTCBps": "1000",
     "maxDirectionalBTCBps": "500",
     "maxBTCAssetDepegBps": "100",
+    "maxSwapPriceImpactBps": "500",
+    "maxSlippageBps": "100",
     "collateralWarningCRBps": "18000",
     "btcYieldPaused": false
   },
@@ -82,7 +84,10 @@
       "allocatedBTC": "0",
       "capBTC": "0",
       "riskClass": "BTC_CORRELATED",
-      "withdrawalConstraint": "ERC20 pool path is visible, but execution requires BTCReservePolicy and BTC-denominated accounting"
+      "approvalLevel": "MULTISIG",
+      "swapPriceImpactBps": "4854",
+      "slippageBps": "100",
+      "withdrawalConstraint": "ERC20 pool path is visible, but execution requires guarded BTC handler validation"
     },
     {
       "label": "Tigris MUSD/BTC directional pool candidate",
@@ -95,6 +100,9 @@
       "allocatedBTC": "0",
       "capBTC": "0",
       "riskClass": "BTC_DIRECTIONAL_LP",
+      "approvalLevel": "MULTISIG_WITH_RISK_OVERRIDE",
+      "swapPriceImpactBps": "0",
+      "slippageBps": "100",
       "withdrawalConstraint": "requires elevated approval because the sleeve changes pure BTC exposure"
     }
   ],

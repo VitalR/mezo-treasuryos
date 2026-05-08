@@ -102,21 +102,21 @@ dataSources:
         - name: BTCReservePolicy
           file: ./abis/BTCReservePolicy.json
       eventHandlers:
-        - event: BTCReservePolicyConfigured(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,bool)
+        - event: BTCReservePolicyConfigured(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,bool)
           handler: handleBTCReservePolicyConfigured
         - event: BTCReserveBucketsUpdated(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256)
           handler: handleBTCReserveBucketsUpdated
-        - event: BTCSleeveConfigured(indexed address,indexed address,indexed address,uint8,bool,uint256,uint256,uint256)
+        - event: BTCSleeveConfigured(indexed address,indexed address,indexed address,uint8,bool,uint256,uint256,uint256,uint256,uint256,uint8)
           handler: handleBTCSleeveConfigured
         - event: BTCSleeveExposureUpdated(indexed address,indexed address,indexed address,uint256)
           handler: handleBTCSleeveExposureUpdated
         - event: BTCDirectionalExposureUpdated(indexed address,indexed address,uint256)
           handler: handleBTCDirectionalExposureUpdated
-        - event: BTCAllocationPreviewed(indexed address,indexed address,indexed address,uint256,bool,uint8,uint256,uint256,bool)
+        - event: BTCAllocationPreviewed(indexed address,indexed address,indexed address,uint256,bool,uint8,uint256,uint256,bool,uint8)
           handler: handleBTCAllocationPreviewed
         - event: BTCYieldAllocationBlocked(indexed address,indexed address,uint256,uint8,uint256)
           handler: handleBTCYieldAllocationBlocked
-        - event: BTCYieldAllocationApproved(indexed address,indexed address,uint256,uint256,bool)
+        - event: BTCYieldAllocationApproved(indexed address,indexed address,uint256,uint256,bool,uint8)
           handler: handleBTCYieldAllocationApproved
       file: ./src/mapping.ts
   - kind: ethereum

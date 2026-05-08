@@ -23,6 +23,7 @@ help:
 	@echo "  make rpc-health                   - test Spectrum Mezo RPC candidates and fallback"
 	@echo "  make state-probe                  - probe selected Mezo testnet RPC"
 	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
+	@echo "  make btc-sleeve-targets           - inspect mcbBTC/BTC BTC sleeve mechanics through selected RPC"
 	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
@@ -80,6 +81,10 @@ state-probe:
 .PHONY: yield-targets
 yield-targets:
 	npm run yield:targets
+
+.PHONY: btc-sleeve-targets
+btc-sleeve-targets:
+	npm run btc:sleeve-targets
 
 .PHONY: mezo-yield-fork-test
 mezo-yield-fork-test:

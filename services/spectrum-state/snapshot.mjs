@@ -49,6 +49,8 @@ const BTC_DECISION_CODES = [
   "InvalidSleeve",
   "SleeveDisabled",
   "SpeculativeDisabled",
+  "ApprovalLevelDisabled",
+  "ApprovalLevelTooLow",
   "EmergencyReserveShortfall",
   "InsufficientIdleBTCReserve",
   "NoAccountedBTC",
@@ -56,6 +58,8 @@ const BTC_DECISION_CODES = [
   "PerSleeveCapExceeded",
   "DirectionalCapExceeded",
   "AssetDepegExceeded",
+  "SwapPriceImpactExceeded",
+  "SlippageExceeded",
   "CollateralHealthWarning",
 ];
 
@@ -65,6 +69,14 @@ const BTC_RISK_CLASSES = [
   "BTC_DIRECTIONAL_LP",
   "SPECULATIVE",
   "EXTERNAL_VAULT",
+];
+
+const BTC_APPROVAL_LEVELS = [
+  "OPERATOR",
+  "APPROVER",
+  "MULTISIG",
+  "MULTISIG_WITH_RISK_OVERRIDE",
+  "DISABLED",
 ];
 
 loadDotEnv();
@@ -422,6 +434,9 @@ async function readBTCReserveState(url, btcReservePolicy, treasuryAccount, propo
         allocatedBTC: "0",
         capBTC: capBTCFromBps(buckets, sleeveConfig?.sleeveCapBps ?? "0"),
         riskClass: sleeveConfig?.riskClass ?? "UNKNOWN",
+        approvalLevel: sleeveConfig?.approvalLevel ?? "UNKNOWN",
+        swapPriceImpactBps: sleeveConfig?.swapPriceImpactBps ?? "0",
+        slippageBps: sleeveConfig?.slippageBps ?? "0",
         withdrawalConstraint: sleeveConfig
           ? `${sleeveConfig.withdrawalDelaySeconds}s configured withdrawal delay; execution path still external to snapshot`
           : "sleeve config unavailable",
@@ -454,9 +469,11 @@ async function readBTCReservePolicy(url, btcReservePolicy, treasuryAccount) {
     maxPerSleeveBTCBps: wordToUint(data, 3).toString(),
     maxDirectionalBTCBps: wordToUint(data, 4).toString(),
     maxBTCAssetDepegBps: wordToUint(data, 5).toString(),
-    collateralWarningCRBps: wordToUint(data, 6).toString(),
-    btcYieldPaused: wordToBool(data, 7),
-    initialized: wordToBool(data, 8),
+    maxSwapPriceImpactBps: wordToUint(data, 6).toString(),
+    maxSlippageBps: wordToUint(data, 7).toString(),
+    collateralWarningCRBps: wordToUint(data, 8).toString(),
+    btcYieldPaused: wordToBool(data, 9),
+    initialized: wordToBool(data, 10),
   };
 }
 
@@ -474,6 +491,9 @@ async function readBTCSleeveConfig(url, btcReservePolicy, treasuryAccount, sleev
     sleeveCapBps: wordToUint(data, 2).toString(),
     assetDepegBps: wordToUint(data, 3).toString(),
     withdrawalDelaySeconds: wordToUint(data, 4).toString(),
+    swapPriceImpactBps: wordToUint(data, 5).toString(),
+    slippageBps: wordToUint(data, 6).toString(),
+    approvalLevel: BTC_APPROVAL_LEVELS[Number(wordToUint(data, 7))] ?? `UNKNOWN(${wordToUint(data, 7)})`,
   };
 }
 
@@ -492,6 +512,7 @@ async function readBTCAllocationPreview(url, btcReservePolicy, treasuryAccount, 
     availableBTC: formatUnits(wordToUint(data, 2), 18),
     projectedYieldActiveBTC: formatUnits(wordToUint(data, 3), 18),
     requiredApproval: wordToBool(data, 4),
+    requiredApprovalLevel: BTC_APPROVAL_LEVELS[Number(wordToUint(data, 5))] ?? `UNKNOWN(${wordToUint(data, 5)})`,
   };
 }
 
