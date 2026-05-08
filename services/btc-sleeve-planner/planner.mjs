@@ -60,6 +60,7 @@ export function buildBTCSleevePlan(snapshot, options = {}) {
     slippageBps,
   });
   const status = policy.allowed ? (target.executable ? "experimental-executable" : "proposal-preview") : "blocked";
+  const recommendation = buildRecommendation({ calculation, policy });
 
   return {
     treasuryName: snapshot.treasuryName ?? "Mezo TreasuryOS Treasury",
@@ -90,7 +91,8 @@ export function buildBTCSleevePlan(snapshot, options = {}) {
       note:
         "Planner does not move BTC. Principal movement should be executed only through a multisig-reviewed BTC handler.",
     },
-    memo: buildMemo({ target, calculation, policy }),
+    recommendation,
+    memo: buildMemo({ calculation, policy, recommendation }),
   };
 }
 
@@ -125,7 +127,11 @@ export function formatBTCSleevePlan(plan) {
 
   lines.push("");
   lines.push(`Policy result: ${plan.policy.allowed ? "ALLOW" : "BLOCK"} (${plan.policy.reason})`);
+  lines.push(`Required approval: ${plan.policy.requiredApprovalLevel}`);
   for (const warning of plan.policy.warnings) lines.push(`- ${warning}`);
+  lines.push("");
+  lines.push("Recommendation:");
+  lines.push(plan.recommendation);
   lines.push("");
   lines.push("Memo:");
   lines.push(plan.memo);
@@ -298,7 +304,31 @@ function firstBlockingReason({
   return "Allowed";
 }
 
-function buildMemo({ target, calculation, policy }) {
+function buildRecommendation({ calculation, policy }) {
+  if (!calculation.available) {
+    return "Keep BTC idle until pool reserves, router quote, and LP supply are available for a real execution plan.";
+  }
+
+  if (!policy.allowed && policy.reason === "SwapPriceImpactExceeded") {
+    return "Keep BTC idle, preserve collateral defense, and wait for deeper mcbBTC/BTC liquidity or a lower-impact route before multisig execution.";
+  }
+
+  if (!policy.allowed && policy.reason === "InsufficientIdleBTCReserve") {
+    return "Keep the BTC reserve floor intact; do not allocate idle BTC below the configured minimum reserve.";
+  }
+
+  if (!policy.allowed && policy.reason === "ApprovalLevelTooLow") {
+    return "Escalate to multisig approval before any BTC principal movement is proposed.";
+  }
+
+  if (!policy.allowed) {
+    return `Do not execute; resolve BTC reserve policy block ${policy.reason} before preparing a transaction.`;
+  }
+
+  return "Use this as a multisig-reviewed proposal only; V1.5 execution should wait for controlled broadcast validation of swap, LP, unwind, stake, and reward paths.";
+}
+
+function buildMemo({ calculation, policy, recommendation }) {
   if (!calculation.available) {
     return "The BTC sleeve cannot be planned because reserve, quote, or LP supply data is missing. Keep BTC idle or use it as collateral until the route can be quoted.";
   }
@@ -310,10 +340,10 @@ function buildMemo({ target, calculation, policy }) {
   )} BTC with that mcbBTC, and require at least ${calculation.minLPTokens} LP tokens.`;
 
   if (!policy.allowed) {
-    return `${base} Current policy blocks the plan with reason ${policy.reason}; keep this as a proposal memo, not an execution.`;
+    return `${base} Current policy blocks the plan with reason ${policy.reason}; keep this as a proposal memo, not an execution. ${recommendation}`;
   }
 
-  return `${base} Policy allows the preview, but principal movement should remain ${policy.requiredApprovalLevel}-approved and proposal-only unless the guarded BTC handler is deployed and transaction-tested.`;
+  return `${base} Policy allows the preview, but principal movement should remain ${policy.requiredApprovalLevel}-approved and proposal-only unless the guarded BTC handler is deployed and transaction-tested. ${recommendation}`;
 }
 
 function normalizeBuckets(snapshot) {

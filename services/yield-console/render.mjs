@@ -110,6 +110,18 @@ function btcRecommendation(snapshot) {
     )} pending withdrawal. Pending BTC should not be counted as available reserve.`;
   }
 
+  if (snapshot.btcSleevePlan) {
+    const plan = snapshot.btcSleevePlan;
+    const candidate = plan.candidate?.label ?? "mcbBTC/BTC";
+    const priceImpact = plan.calculation?.priceImpactBps ?? btcSleeves[0]?.swapPriceImpactBps ?? 0;
+
+    if (!plan.policy?.allowed && plan.policy?.reason === "SwapPriceImpactExceeded") {
+      return `${candidate} is a BTC-correlated sleeve candidate, but current liquidity causes ${bps(
+        priceImpact,
+      )} entry price impact. TreasuryOS blocks BTC principal movement under policy; keep BTC idle, preserve collateral defense, and wait for deeper liquidity or a lower-impact route.`;
+    }
+  }
+
   if (emergencyBTC > 0 && !executableSleeve) {
     return `${btc(emergencyBTC)} is tagged as emergency BTC reserve. BTC sleeve candidates stay reporting-only until multisig-approved BTC policy execution is live.`;
   }
@@ -189,15 +201,26 @@ if (snapshot.btcSleevePlan) {
   lines.push(`BTC sleeve plan: ${plan.policy?.allowed ? "ALLOW" : "BLOCK"} (${plan.policy?.reason ?? "unknown"})`);
   lines.push(`Requested idle BTC: ${btc(plan.requestedPrincipalBTC)}`);
   lines.push(`Candidate: ${plan.candidate?.label ?? "BTC sleeve"}`);
+  lines.push(`Required approval: ${plan.policy?.requiredApprovalLevel ?? plan.candidate?.approvalLevel ?? "MULTISIG"}`);
   if (plan.calculation?.available) {
     lines.push(
       `Swap/deposit: ${btc(plan.calculation.swapBTC)} -> ${
         plan.calculation.expectedMCBTCOut
       } mcbBTC, then LP with ${btc(plan.calculation.remainingBTCForLP)}`,
     );
+    lines.push(`Min mcbBTC out: ${plan.calculation.minMCBTCOut}`);
+    if (plan.calculation.expectedLPTokens) {
+      lines.push(`Expected LP: ${plan.calculation.expectedLPTokens} sAMM-mcbBTC/BTC`);
+    }
     lines.push(`Min LP out: ${plan.calculation.minLPTokens}`);
     lines.push(`Estimated price impact: ${bps(plan.calculation.priceImpactBps)}`);
   }
+  lines.push(
+    `Recommendation: ${
+      plan.recommendation
+        ?? "Keep BTC idle / preserve collateral defense / wait for deeper liquidity before execution."
+    }`,
+  );
 }
 
 const decision = snapshot.allocationDecision ?? {};

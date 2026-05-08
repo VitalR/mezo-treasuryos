@@ -305,6 +305,21 @@ function buildBTCMemo({ btc, btcSleeves, btcSleevePlan, riskState }) {
         btcSleevePlan.candidate?.label ?? "the BTC-correlated sleeve"
       }; policy ${allowed ? "allows" : "blocks"} it with reason ${reason} and approval ${approval}.`,
     );
+
+    if (!allowed && reason === "SwapPriceImpactExceeded") {
+      notes.push(
+        "The mcbBTC/BTC candidate is BTC-correlated, but current liquidity creates excessive entry price impact.",
+      );
+      notes.push(
+        "TreasuryOS blocks BTC principal movement under policy; recommended action is to keep BTC idle, preserve collateral defense, and wait for deeper liquidity or a lower-impact route.",
+      );
+    } else if (!allowed) {
+      notes.push("TreasuryOS keeps this BTC sleeve as a planning memo until the policy block is resolved.");
+    } else {
+      notes.push(
+        "Treat the allowed BTC sleeve plan as a multisig proposal preview until V1.5 guarded execution has controlled broadcast validation.",
+      );
+    }
   }
 
   const executable = btcSleeves.filter((sleeve) => sleeve.executable && sleeve.approved);

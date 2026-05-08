@@ -103,6 +103,20 @@ test("buildBTCSleevePlan blocks slippage above policy cap", () => {
   assert.equal(plan.policy.reason, "SlippageExceeded");
 });
 
+test("buildBTCSleevePlan blocks approval level below multisig", () => {
+  const plan = buildBTCSleevePlan({
+    ...BASE_SNAPSHOT,
+    btcSleeveTarget: {
+      ...BASE_SNAPSHOT.btcSleeveTarget,
+      approvalLevel: "APPROVER",
+    },
+  });
+
+  assert.equal(plan.policy.allowed, false);
+  assert.equal(plan.policy.reason, "ApprovalLevelTooLow");
+  assert.match(plan.recommendation, /multisig approval/i);
+});
+
 test("buildBTCSleevePlan blocks missing quotes instead of faking execution", () => {
   const plan = buildBTCSleevePlan({
     ...BASE_SNAPSHOT,

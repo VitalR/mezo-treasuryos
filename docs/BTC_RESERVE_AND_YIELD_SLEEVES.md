@@ -114,6 +114,8 @@ npm run demo:btc-sleeve-plan
 
 The planner is reserve-ratio aware. It does not assume a naive 50/50 BTC split. Given a requested idle BTC amount, current mcbBTC/BTC reserves, and a BTC -> mcbBTC quote, it solves for the BTC swap amount that leaves the expected mcbBTC output and remaining BTC aligned with the pool reserve ratio. It then estimates LP tokens, applies slippage to produce `minMCBTCOut` and `minLPTokens`, and evaluates BTC policy guardrails.
 
+V1 treats this as a calculator plus policy gate plus AI memo, not an execution path. TreasuryOS does not blindly route treasury BTC into yield; it computes the BTC sleeve execution plan and blocks it when reserve floors, approval level, slippage, or price-impact limits are breached. With current shallow testnet mcbBTC/BTC liquidity, a policy block is an expected treasury-control outcome.
+
 ## Risk Classification
 
 - **MUSD Savings Vault:** conservative operating-capital yield. It is the reliable V1 sleeve for the demo, subject to policy caps and buffer checks.
@@ -131,6 +133,8 @@ The planner is reserve-ratio aware. It does not assume a naive 50/50 BTC split. 
 - BTC-denominated accounting and policy scaffold through `BTCReservePolicy`.
 - mcbBTC/BTC research/scaffold in docs and reporting, marked experimental until the BTC execution handler is transaction-tested.
 - BTC sleeve planner that uses idle BTC reserve, pool reserves, and a BTC -> mcbBTC quote to calculate a proposal-only LP entry plan.
+- BTC sleeve policy block shown in demo output when price impact, reserve floor, or approval level fails policy.
+- Guarded `BTCReserveRouter` as a scoped design boundary only; no V1 BTC principal movement.
 - AI memo that distinguishes MUSD operating capital from BTC reserve/collateral.
 
 ### V1 If Time
@@ -142,6 +146,7 @@ The planner is reserve-ratio aware. It does not assume a naive 50/50 BTC split. 
 ### V1.5
 
 - mcbBTC/BTC guarded execution after controlled testnet broadcast validation.
+- controlled broadcast validation for BTC -> mcbBTC swap, add/remove liquidity, LP stake/unstake, reward claim, receipt accounting, and unwind.
 - `BTCYieldIntent` that creates multisig proposals rather than direct autonomous execution.
 - BTC treasury risk profiles: conservative, balanced, active.
 - BTC sleeve reporting and BTC-denominated exposure/PnL accounting.

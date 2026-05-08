@@ -117,6 +117,8 @@
       "swapBTC": "0.01335412000638805",
       "remainingBTCForLP": "0.03664587999361195",
       "expectedMCBTCOut": "0.00686668",
+      "expectedLPTokens": "0.000000204493921594",
+      "minMCBTCOut": "0.00679801",
       "minLPTokens": "0.000000202448982378",
       "priceImpactBps": "4858"
     },
@@ -124,7 +126,8 @@
       "allowed": false,
       "reason": "SwapPriceImpactExceeded",
       "requiredApprovalLevel": "MULTISIG"
-    }
+    },
+    "recommendation": "Keep BTC idle, preserve collateral defense, and wait for deeper mcbBTC/BTC liquidity or a lower-impact route before execution."
   },
   "allocationDecision": {
     "allowed": true,

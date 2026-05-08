@@ -102,6 +102,8 @@ The yield angle is not a separate high-yield product. TreasuryOS preserves the r
 
 `MUSD/mUSDC` has a passing live-fork TreasuryOS deposit/withdraw simulation, but MUSD Savings remains the primary demo sleeve because testnet LP liquidity can move or become imbalanced. BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 includes `BTCReservePolicy` plus a preview-only BTC sleeve planner, so the advisor can discuss the real Tigris `mcbBTC/BTC` pool candidate, calculate idle-BTC split/min-out requirements, and still avoid implying BTC-principal execution is live. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
 
+TreasuryOS does not blindly route treasury BTC into yield. It computes the BTC sleeve execution plan and blocks it when reserve, approval, slippage, or price-impact limits are breached.
+
 ---
 
 ## Deployment Modes
