@@ -10,8 +10,10 @@ Foundry workspace for the TreasuryOS onchain layer.
 - `core/TreasuryAutomationExecutor.sol`: bounded automation executor for approved low-latency workflows.
 - `multisig/TreasuryMultisig.sol`: optional TreasuryOS-native multisig controller for critical setup and elevated treasury actions.
 - `adapters/AllocationRouter.sol`: maps approved destinations to sleeve handlers.
+- `adapters/BTCReserveRouter.sol`: maps BTC-denominated sleeve destinations to guarded BTC handlers.
 - `adapters/MUSDSavingsRateHandler.sol`: routes idle MUSD into a MUSD Savings Rate-compatible sleeve.
 - `adapters/TigrisStablePoolHandler.sol`: routes approved MUSD into a Tigris stable-pool sleeve with min-out/min-liquidity protection.
+- `adapters/TigrisBTCStablePoolHandler.sol`: V1.5 guarded mcbBTC/BTC handler with BTCReservePolicy checks and hard min-out/min-LP execution bounds.
 - `external/ExternalMUSDSavingsRateMock.sol`: demo/test external savings surface with controlled yield funding.
 
 ## Control Model
@@ -23,6 +25,8 @@ The Treasury Account owner is the treasury admin authority. It can be an externa
 `TreasuryAutomationExecutor` is intentionally narrower. It can only trigger bounded workflows such as buffer restoration or sleeve-funded debt repayment after `TreasuryPolicyEngine` authorizes the executor and action limits.
 
 `TreasuryAccount.previewAllocation(...)` exposes a read-only decision for treasury consoles and memo generation. Enforcement still lives in `TreasuryPolicyEngine`; the preview only explains the current policy result before execution.
+
+BTC-principal movement uses a separate control path. `TreasuryAccount` can trust one `BTCReserveRouter`, and BTC handlers can debit `idleBTC` only when the initiating actor is the Treasury Account owner. In the product path that owner should be `TreasuryMultisig` or an external custody/multisig account; automation is not allowed to move BTC principal.
 
 ## Commands
 

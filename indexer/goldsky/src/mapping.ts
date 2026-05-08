@@ -16,6 +16,7 @@ import {
   TreasuryAdminUpdated,
 } from "../generated/TreasuryPolicyEngine/TreasuryPolicyEngine";
 import { HandlerRegistered, HandlerRemoved } from "../generated/AllocationRouter/AllocationRouter";
+import { BTCHandlerRegistered, BTCHandlerRemoved } from "../generated/BTCReserveRouter/BTCReserveRouter";
 import {
   AutomationOperatorAuthorizationUpdated,
   BufferRestoreExecuted,
@@ -34,6 +35,9 @@ import {
 import {
   AllocationRouterUpdated,
   AllocationExecuted,
+  BTCAllocationExecuted,
+  BTCReserveRouterUpdated,
+  BTCWithdrawalSettled,
   BorrowerOperationsUpdated,
   CollateralDeposited,
   CollateralWithdrawn,
@@ -85,6 +89,10 @@ import {
   StablePoolDepositRouted,
   StablePoolWithdrawalRouted,
 } from "../generated/TigrisStablePoolHandler/TigrisStablePoolHandler";
+import {
+  BTCStablePoolDepositRouted,
+  BTCStablePoolWithdrawalRouted,
+} from "../generated/TigrisBTCStablePoolHandler/TigrisBTCStablePoolHandler";
 import { TreasuryAccount as TreasuryAccountTemplate } from "../generated/templates";
 import {
   AutomationAction,
@@ -296,6 +304,19 @@ export function handleAllocationRouterUpdated(event: AllocationRouterUpdated): v
   );
 }
 
+export function handleBTCReserveRouterUpdated(event: BTCReserveRouterUpdated): void {
+  recordActivity(
+    event,
+    event.address,
+    null,
+    event.params.btcReserveRouter,
+    "account",
+    "BTCReserveRouterUpdated",
+    null,
+    null,
+  );
+}
+
 export function handleTreasuryAdminSynced(event: TreasuryAdminSynced): void {
   recordActivity(
     event,
@@ -480,6 +501,32 @@ export function handleIdleBTCFunded(event: IdleBTCFunded): void {
   );
 }
 
+export function handleBTCAllocationExecuted(event: BTCAllocationExecuted): void {
+  recordActivity(
+    event,
+    event.address,
+    event.params.actor,
+    event.params.sleeve,
+    "btc-sleeve",
+    "BTCAllocationExecuted",
+    event.params.amount,
+    event.params.sleevePrincipalAfter,
+  );
+}
+
+export function handleBTCWithdrawalSettled(event: BTCWithdrawalSettled): void {
+  recordActivity(
+    event,
+    event.address,
+    event.params.actor,
+    event.params.sleeve,
+    "btc-sleeve",
+    "BTCWithdrawalSettled",
+    event.params.principalReduced,
+    event.params.idleBTCIncrease,
+  );
+}
+
 export function handleWithdrawalSettledFromDestination(event: WithdrawalSettledFromDestination): void {
   updateSleeve(event.address, event.params.destination, event.params.allocationAfter, event);
   recordActivity(
@@ -541,6 +588,32 @@ export function handleHandlerRemoved(event: HandlerRemoved): void {
     event.params.destination,
     "router",
     "HandlerRemoved",
+    null,
+    null,
+  );
+}
+
+export function handleBTCHandlerRegistered(event: BTCHandlerRegistered): void {
+  recordActivity(
+    event,
+    null,
+    event.params.handler,
+    event.params.sleeve,
+    "btc-router",
+    "BTCHandlerRegistered",
+    null,
+    null,
+  );
+}
+
+export function handleBTCHandlerRemoved(event: BTCHandlerRemoved): void {
+  recordActivity(
+    event,
+    null,
+    event.params.handler,
+    event.params.sleeve,
+    "btc-router",
+    "BTCHandlerRemoved",
     null,
     null,
   );
@@ -749,6 +822,32 @@ export function handleStablePoolWithdrawalRouted(event: StablePoolWithdrawalRout
     "StablePoolWithdrawalRouted",
     event.params.allocationReduced,
     event.params.musdReturned,
+  );
+}
+
+export function handleBTCStablePoolDepositRouted(event: BTCStablePoolDepositRouted): void {
+  recordActivity(
+    event,
+    event.params.treasuryAccount,
+    event.params.actor,
+    event.params.destination,
+    "btc-sleeve",
+    "BTCStablePoolDepositRouted",
+    event.params.btcAmount,
+    event.params.liquidityMinted,
+  );
+}
+
+export function handleBTCStablePoolWithdrawalRouted(event: BTCStablePoolWithdrawalRouted): void {
+  recordActivity(
+    event,
+    event.params.treasuryAccount,
+    event.params.actor,
+    event.params.destination,
+    "btc-sleeve",
+    "BTCStablePoolWithdrawalRouted",
+    event.params.principalReduced,
+    event.params.btcReceived.plus(event.params.btcFromPairedSwap),
   );
 }
 

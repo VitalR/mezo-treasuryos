@@ -7,6 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IAllocationRouterAuthority } from "../interfaces/IAllocationRouterAuthority.sol";
+import { IBTCReserveRouterAuthority } from "../interfaces/IBTCReserveRouterAuthority.sol";
 import { IAllocationRouter } from "../interfaces/IAllocationRouter.sol";
 import { IAllocationRouterView } from "../interfaces/IAllocationRouterView.sol";
 import { IBorrowerOperations } from "../interfaces/IBorrowerOperations.sol";
@@ -30,6 +31,8 @@ contract TreasuryAccount is Ownable2Step {
     event BorrowerOperationsUpdated(address indexed borrowerOperations);
     /// @notice Emitted when the trusted allocation router is updated.
     event AllocationRouterUpdated(address indexed allocationRouter);
+    /// @notice Emitted when the trusted BTC reserve router is updated.
+    event BTCReserveRouterUpdated(address indexed btcReserveRouter);
     /// @notice Emitted when Treasury Account ownership is finalized and synced into policy state.
     event TreasuryAdminSynced(address indexed previousTreasuryAdmin, address indexed newTreasuryAdmin);
     /// @notice Emitted when a Mezo position is opened for this Treasury Account.
@@ -77,6 +80,23 @@ contract TreasuryAccount is Ownable2Step {
     event IdleMUSDFunded(address indexed funder, uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when BTC is explicitly funded into idle treasury reserve accounting.
     event IdleBTCFunded(address indexed funder, uint256 amount, uint256 idleBTCAfter);
+    /// @notice Emitted when idle BTC reserve is allocated into a BTC-denominated sleeve.
+    event BTCAllocationExecuted(
+        address indexed actor,
+        address indexed sleeve,
+        uint256 amount,
+        uint256 idleBTCAfter,
+        uint256 sleevePrincipalAfter
+    );
+    /// @notice Emitted when BTC-denominated sleeve principal is settled back to idle BTC reserve accounting.
+    event BTCWithdrawalSettled(
+        address indexed actor,
+        address indexed sleeve,
+        uint256 principalReduced,
+        uint256 idleBTCIncrease,
+        uint256 idleBTCAfter,
+        uint256 sleevePrincipalAfter
+    );
     /// @notice Emitted when idle MUSD is disbursed to an external operating recipient.
     event TreasuryDisbursed(address indexed actor, address indexed recipient, uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when a destination handler settles a routed withdrawal with explicit idle-balance proceeds.
@@ -115,6 +135,9 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Raised when the allocation router address is zero.
     /// @param allocationRouter Invalid allocation router address.
     error InvalidAllocationRouter(address allocationRouter);
+    /// @notice Raised when the BTC reserve router address is zero.
+    /// @param btcReserveRouter Invalid BTC reserve router address.
+    error InvalidBTCReserveRouter(address btcReserveRouter);
     /// @notice Raised when a required amount is zero or otherwise invalid.
     /// @param amount Invalid amount value.
     error InvalidAmount(uint256 amount);
@@ -167,6 +190,15 @@ contract TreasuryAccount is Ownable2Step {
     /// @param amount Requested allocation reduction.
     /// @param currentAllocation Current tracked allocation before reduction.
     error InsufficientDestinationAllocation(address destination, uint256 amount, uint256 currentAllocation);
+    /// @notice Raised when a BTC sleeve settlement attempts to reduce principal below zero.
+    /// @param sleeve BTC sleeve whose tracked principal would be overdrawn.
+    /// @param amount Requested principal reduction.
+    /// @param currentPrincipal Current tracked BTC principal before reduction.
+    error InsufficientBTCSleevePrincipal(address sleeve, uint256 amount, uint256 currentPrincipal);
+    /// @notice Raised when idle BTC accounting is below the requested BTC-principal movement.
+    /// @param amount Requested BTC amount.
+    /// @param idleBTC Current idle BTC accounting balance.
+    error InsufficientIdleBTC(uint256 amount, uint256 idleBTC);
     /// @notice Raised when an account-level caller lacks the required authority.
     /// @param caller Unauthorized caller.
     error UnauthorizedCaller(address caller);
@@ -359,6 +391,8 @@ contract TreasuryAccount is Ownable2Step {
     IBorrowerOperations public borrowerOperations;
     /// @notice Trusted allocation router allowed to orchestrate governed destination flows.
     address public allocationRouter;
+    /// @notice Trusted BTC reserve router allowed to orchestrate guarded BTC-denominated sleeve flows.
+    address public btcReserveRouter;
 
     /// @notice Idle treasury-managed MUSD held inside the account and available for operations.
     uint256 public idleMUSD;
@@ -366,6 +400,8 @@ contract TreasuryAccount is Ownable2Step {
     uint256 public idleBTC;
     /// @notice Deployed MUSD amount tracked per approved destination.
     mapping(address destination => uint256 amount) public destinationAllocations;
+    /// @notice BTC principal tracked per BTC-denominated sleeve.
+    mapping(address sleeve => uint256 amount) public btcSleevePrincipalAllocations;
 
     // =============================================================
     // Constructor
@@ -701,6 +737,90 @@ contract TreasuryAccount is Ownable2Step {
         return _result;
     }
 
+    /// @notice Sets token allowance from the Treasury Account for an authorized BTC reserve handler.
+    /// @dev This path is separate from MUSD allocation handlers so BTC-principal actions remain owner/multisig scoped.
+    /// @param _token Token being approved.
+    /// @param _spender Spender receiving the allowance.
+    /// @param _amount Allowance amount to set.
+    function forceApproveTokenFromBTCHandler(address _token, address _spender, uint256 _amount) external {
+        _requireAuthorizedBTCReserveCaller();
+        require(_token != address(0), InvalidToken(_token));
+        require(_spender != address(0), InvalidSpender(_spender));
+
+        IERC20(_token).forceApprove(_spender, _amount);
+    }
+
+    /// @notice Executes an external call from the Treasury Account for an authorized BTC reserve handler.
+    /// @dev Used by guarded BTC handlers so BTC assets and LP receipt tokens remain owned by the Treasury Account.
+    /// @param _target External contract being called.
+    /// @param _value Native value forwarded with the call.
+    /// @param _data Calldata executed against the target.
+    /// @return result Raw return data from the external call.
+    function executeFromBTCHandler(address _target, uint256 _value, bytes calldata _data)
+        external
+        returns (bytes memory result)
+    {
+        _requireAuthorizedBTCReserveCaller();
+        require(_target != address(0), InvalidExecutionTarget(_target));
+
+        (bool _success, bytes memory _result) = _target.call{ value: _value }(_data);
+        if (!_success) {
+            _revertWithReturnData(_result);
+        }
+
+        return _result;
+    }
+
+    /// @notice Debits idle BTC accounting for a guarded BTC sleeve entry.
+    /// @dev Only an authorized BTC reserve handler can call this, and the initiating actor must be the owner. In the
+    ///      product path, that owner is expected to be a TreasuryMultisig or external custody/multisig account.
+    /// @param _actor Treasury owner/multisig initiating the principal movement.
+    /// @param _sleeve BTC sleeve receiving principal exposure.
+    /// @param _amount BTC-principal amount being allocated from idle reserve accounting.
+    function allocateIdleBTCFromBTCHandler(address _actor, address _sleeve, uint256 _amount) external {
+        _requireAuthorizedBTCReserveCaller();
+        require(_actor == owner(), UnauthorizedCaller(_actor));
+        require(_sleeve != address(0), InvalidExecutionTarget(_sleeve));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(idleBTC >= _amount, InsufficientIdleBTC(_amount, idleBTC));
+
+        idleBTC -= _amount;
+        btcSleevePrincipalAllocations[_sleeve] += _amount;
+
+        emit BTCAllocationExecuted(_actor, _sleeve, _amount, idleBTC, btcSleevePrincipalAllocations[_sleeve]);
+    }
+
+    /// @notice Settles BTC-denominated sleeve principal back into idle BTC reserve accounting.
+    /// @dev Used for guarded exits and for returning any unused BTC after an LP entry.
+    /// @param _actor Treasury owner/multisig initiating the settlement.
+    /// @param _sleeve BTC sleeve whose principal accounting is reduced.
+    /// @param _principalReduction BTC-principal amount removed from sleeve accounting.
+    /// @param _idleBTCIncrease BTC amount credited back to idle reserve accounting.
+    function settleBTCWithdrawalFromHandler(
+        address _actor,
+        address _sleeve,
+        uint256 _principalReduction,
+        uint256 _idleBTCIncrease
+    ) external {
+        _requireAuthorizedBTCReserveCaller();
+        require(_actor == owner(), UnauthorizedCaller(_actor));
+        require(_sleeve != address(0), InvalidExecutionTarget(_sleeve));
+        require(_principalReduction > 0 || _idleBTCIncrease > 0, InvalidAmount(0));
+
+        uint256 _currentPrincipal = btcSleevePrincipalAllocations[_sleeve];
+        require(
+            _currentPrincipal >= _principalReduction,
+            InsufficientBTCSleevePrincipal(_sleeve, _principalReduction, _currentPrincipal)
+        );
+
+        btcSleevePrincipalAllocations[_sleeve] = _currentPrincipal - _principalReduction;
+        idleBTC += _idleBTCIncrease;
+
+        emit BTCWithdrawalSettled(
+            _actor, _sleeve, _principalReduction, _idleBTCIncrease, idleBTC, btcSleevePrincipalAllocations[_sleeve]
+        );
+    }
+
     /// @notice Deposits idle MUSD into the configured MUSD Savings Rate vault through the trusted adapter flow.
     /// @param _actor Treasury actor on whose behalf the deposit is being performed.
     /// @param _savingsRate Savings Rate destination receiving the principal.
@@ -961,6 +1081,15 @@ contract TreasuryAccount is Ownable2Step {
 
         allocationRouter = _allocationRouter;
         emit AllocationRouterUpdated(_allocationRouter);
+    }
+
+    /// @notice Sets the trusted BTC reserve router for guarded BTC-denominated sleeve flows.
+    /// @param _btcReserveRouter BTC reserve router allowed to authorize BTC sleeve handlers.
+    function setBTCReserveRouter(address _btcReserveRouter) external onlyOwner {
+        require(_btcReserveRouter != address(0), InvalidBTCReserveRouter(_btcReserveRouter));
+
+        btcReserveRouter = _btcReserveRouter;
+        emit BTCReserveRouterUpdated(_btcReserveRouter);
     }
 
     /// @notice Finalizes a pending ownership transfer and syncs the policy engine's treasury admin.
@@ -1500,6 +1629,24 @@ contract TreasuryAccount is Ownable2Step {
 
         if (allocationRouter != address(0)) {
             try IAllocationRouterAuthority(allocationRouter).isAuthorizedHandler(msg.sender) returns (
+                bool _authorized
+            ) {
+                require(_authorized, UnauthorizedCaller(msg.sender));
+                return;
+            } catch { }
+        }
+
+        revert UnauthorizedCaller(msg.sender);
+    }
+
+    /// @notice Reverts when the caller is neither the configured BTC reserve router nor a registered BTC handler.
+    function _requireAuthorizedBTCReserveCaller() internal view {
+        if (msg.sender == btcReserveRouter) {
+            return;
+        }
+
+        if (btcReserveRouter != address(0)) {
+            try IBTCReserveRouterAuthority(btcReserveRouter).isAuthorizedBTCHandler(msg.sender) returns (
                 bool _authorized
             ) {
                 require(_authorized, UnauthorizedCaller(msg.sender));

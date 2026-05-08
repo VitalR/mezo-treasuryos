@@ -56,9 +56,10 @@ Core:
 - `BTCReservePolicy.BTCYieldAllocationBlocked`
 - `BTCReservePolicy.BTCYieldAllocationApproved`
 
-BTC policy events include reserve floors, sleeve caps, risk class, approval level, price-impact/slippage metadata, and recorded allow/block previews. They are reporting inputs only; executable BTC sleeve events should be added later with the guarded BTC handler.
+BTC policy events include reserve floors, sleeve caps, risk class, approval level, price-impact/slippage metadata, and recorded allow/block previews. Guarded BTC handler events are included for V1.5 reporting once the handler is deployed and controlled broadcast validation has passed.
 - `TreasuryAccount.BorrowerOperationsUpdated`
 - `TreasuryAccount.AllocationRouterUpdated`
+- `TreasuryAccount.BTCReserveRouterUpdated`
 - `TreasuryAccount.TreasuryAdminSynced`
 - `TreasuryAccount.PositionOpened`
 - `TreasuryAccount.CollateralDeposited`
@@ -73,6 +74,8 @@ BTC policy events include reserve floors, sleeve caps, risk class, approval leve
 - `TreasuryAccount.YieldClaimedFromDestination`
 - `TreasuryAccount.IdleMUSDFunded`
 - `TreasuryAccount.IdleBTCFunded`
+- `TreasuryAccount.BTCAllocationExecuted`
+- `TreasuryAccount.BTCWithdrawalSettled`
 - `TreasuryAccount.WithdrawalSettledFromDestination`
 - `TreasuryAccount.LiquidityBufferRestored`
 - `TreasuryAccount.SleeveUnwoundAndDebtRepaid`
@@ -84,6 +87,10 @@ Sleeves:
 - `MUSDSavingsRateHandler.SavingsYieldClaimed`
 - `TigrisStablePoolHandler.StablePoolDepositRouted`
 - `TigrisStablePoolHandler.StablePoolWithdrawalRouted`
+- `BTCReserveRouter.BTCHandlerRegistered`
+- `BTCReserveRouter.BTCHandlerRemoved`
+- `TigrisBTCStablePoolHandler.BTCStablePoolDepositRouted`
+- `TigrisBTCStablePoolHandler.BTCStablePoolWithdrawalRouted`
 
 Automation:
 

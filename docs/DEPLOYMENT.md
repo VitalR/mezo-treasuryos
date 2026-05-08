@@ -99,7 +99,7 @@ TIGRIS_MAX_SLIPPAGE_BPS=100
 
 `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE` are required for the deployed Tigris router ABI. Swaps use a `Route[]` leg with the factory and stable flag; liquidity add/remove calls also include the stable flag. `TIGRIS_MAX_SLIPPAGE_BPS` configures the Tigris handler's minimum-output and minimum-liquidity checks. The default is `100` basis points. Do not set it to a loose value for the final demo unless the pool route actually requires it and the tradeoff is explained.
 
-`MEZO_TIGRIS_MCBTC_BTC_POOL` is a real BTC-correlated Tigris pool target for reporting and V1.5 planning. Do not wire it into the MUSD `AllocationRouter`; executable BTC allocation requires BTC-denominated policy, receipt accounting, and separate approval rules.
+`MEZO_TIGRIS_MCBTC_BTC_POOL` is a real BTC-correlated Tigris pool target for reporting and V1.5 guarded execution. Do not wire it into the MUSD `AllocationRouter`; executable BTC allocation uses `BTCReserveRouter`, `BTCReservePolicy`, BTC-denominated receipt accounting, and separate owner/multisig approval rules.
 
 After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
 
@@ -127,9 +127,9 @@ This target reads `.env`, uses `ACTIVE_MEZO_RPC_URL` when set, otherwise falls b
 - direct MUSD Savings Vault deposit and withdrawal;
 - TreasuryOS `MUSDSavingsRateHandler` deposit and withdrawal;
 - TreasuryOS `TigrisStablePoolHandler` deposit and withdrawal against `MUSD/mUSDC`;
-- `mcbBTC/BTC` metadata, router quote checks, and separate BTC sleeve transaction inspection via `make btc-sleeve-targets`.
+- `mcbBTC/BTC` metadata, router quote checks, guarded TreasuryOS handler fork validation, and separate BTC sleeve transaction inspection via `make btc-sleeve-targets`.
 
-The `mcbBTC/BTC` direct add/remove-liquidity execution test is allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Manual transaction inspection shows the UI path uses ERC20-style BTC at `0x7b7C000000000000000000000000000000000000` with `msg.value = 0`, so the blocker is now narrower: TreasuryOS still needs a guarded BTC handler, min-out/LP receipt checks, staking/unwind accounting, and multisig execution validation before BTC-principal allocation belongs in the final demo.
+The `mcbBTC/BTC` direct and TreasuryOS-guarded add/remove-liquidity execution tests are allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Manual transaction inspection shows the UI path uses ERC20-style BTC at `0x7b7C000000000000000000000000000000000000` with `msg.value = 0`. The guarded handler now covers BTCReservePolicy checks, owner/multisig-only principal movement, swap min-out, LP min-liquidity, receipt accounting, and unwind accounting. Remaining live-demo validation is a tiny controlled testnet broadcast plus optional LP staking, unstaking, and reward-claim support.
 
 ---
 
@@ -145,6 +145,7 @@ This deploys:
 
 - `TreasuryPolicyEngine`
 - `BTCReservePolicy`
+- `BTCReserveRouter` when testing V1.5 guarded BTC sleeves
 - `TreasuryAccountFactory`
 
 The owner of `TreasuryAccountFactory` is the protocol admin derived from `DEPLOYER_PRIVATE_KEY`. For testnet this should be a deployer EOA. For production it can later be migrated to a protocol multisig.
@@ -157,7 +158,7 @@ BTC_RESERVE_POLICY=<deployed BTC reserve policy>
 TREASURY_ACCOUNT_FACTORY=<deployed factory>
 ```
 
-`BTCReservePolicy` is a preview/reporting scaffold. Configure it after onboarding only if you want the demo to show BTC reserve bucket accounting and `mcbBTC/BTC` policy previews. It does not execute BTC sleeve allocations.
+`BTCReservePolicy` governs BTC reserve bucket accounting and sleeve allow/block decisions. Configure it after onboarding if you want the demo to show BTC reserve bucket accounting, `mcbBTC/BTC` policy previews, or V1.5 guarded BTC handler validation. BTC execution still uses a separate `BTCReserveRouter`; it is not routed through the MUSD `AllocationRouter`.
 
 ---
 

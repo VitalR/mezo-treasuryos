@@ -52,7 +52,7 @@ export function buildTreasuryAdvisorReport(snapshot) {
     guardrails: [
       "Advisor output is reporting only and does not control funds.",
       "Every allocation still requires TreasuryPolicyEngine checks.",
-      "BTC-denominated sleeve recommendations are reporting-only until a guarded BTC execution handler is live.",
+      "BTC-denominated sleeve recommendations are reporting-only until a guarded BTC execution handler is deployed and broadcast-validated for the treasury.",
       "Automation may only execute bounded restore/de-risk workflows already approved onchain.",
     ],
   };

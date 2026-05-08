@@ -86,6 +86,28 @@ dataSources:
           handler: handleHandlerRemoved
       file: ./src/mapping.ts
   - kind: ethereum
+    name: BTCReserveRouter
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: BTCReserveRouter
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+      abis:
+        - name: BTCReserveRouter
+          file: ./abis/BTCReserveRouter.json
+      eventHandlers:
+        - event: BTCHandlerRegistered(indexed address,indexed address)
+          handler: handleBTCHandlerRegistered
+        - event: BTCHandlerRemoved(indexed address,indexed address)
+          handler: handleBTCHandlerRemoved
+      file: ./src/mapping.ts
+  - kind: ethereum
     name: BTCReservePolicy
     network: mezo-testnet
     source:
@@ -190,6 +212,28 @@ dataSources:
         - event: StablePoolWithdrawalRouted(indexed address,indexed address,indexed address,uint256,uint256,uint256)
           handler: handleStablePoolWithdrawalRouted
       file: ./src/mapping.ts
+  - kind: ethereum
+    name: TigrisBTCStablePoolHandler
+    network: mezo-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: TigrisBTCStablePoolHandler
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TreasuryActivity
+      abis:
+        - name: TigrisBTCStablePoolHandler
+          file: ./abis/TigrisBTCStablePoolHandler.json
+      eventHandlers:
+        - event: BTCStablePoolDepositRouted(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleBTCStablePoolDepositRouted
+        - event: BTCStablePoolWithdrawalRouted(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256,uint256)
+          handler: handleBTCStablePoolWithdrawalRouted
+      file: ./src/mapping.ts
 templates:
   - kind: ethereum/contract
     name: TreasuryAccount
@@ -211,6 +255,8 @@ templates:
           handler: handleBorrowerOperationsUpdated
         - event: AllocationRouterUpdated(indexed address)
           handler: handleAllocationRouterUpdated
+        - event: BTCReserveRouterUpdated(indexed address)
+          handler: handleBTCReserveRouterUpdated
         - event: TreasuryAdminSynced(indexed address,indexed address)
           handler: handleTreasuryAdminSynced
         - event: PositionOpened(uint256,uint256,uint256,uint256,uint256)
@@ -239,6 +285,10 @@ templates:
           handler: handleIdleMUSDFunded
         - event: IdleBTCFunded(indexed address,uint256,uint256)
           handler: handleIdleBTCFunded
+        - event: BTCAllocationExecuted(indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleBTCAllocationExecuted
+        - event: BTCWithdrawalSettled(indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleBTCWithdrawalSettled
         - event: WithdrawalSettledFromDestination(indexed address,uint256,uint256,uint256,uint256)
           handler: handleWithdrawalSettledFromDestination
         - event: LiquidityBufferRestored(indexed address,indexed address,uint256,uint256,uint256,uint256)

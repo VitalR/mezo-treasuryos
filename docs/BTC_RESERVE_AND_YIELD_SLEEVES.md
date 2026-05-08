@@ -39,13 +39,13 @@ BTC sleeves:
 - `yieldActiveBTC`: BTC principal already active in BTC-denominated sleeve exposure.
 - `pendingWithdrawBTC`: BTC requested for withdrawal but not yet returned to idle reserve.
 
-These buckets are accounting and policy inputs. They do not move BTC. They let TreasuryOS explain whether a proposed BTC sleeve allocation would be permitted before any future router/handler touches principal.
+These buckets are accounting and policy inputs. `BTCReservePolicy` itself does not move BTC. In V1.5, the separate `BTCReserveRouter` and `TigrisBTCStablePoolHandler` can use those policy inputs before any guarded principal movement.
 
 `TreasuryAccount.fundIdleBTC()` is the explicit way to add idle BTC reserve inventory to a Treasury Account. Direct native BTC receives are accepted but do not increment `idleBTC`, which avoids double-counting BTC returned by Mezo borrow lifecycle calls or accidental transfers.
 
-## V1 BTC Policy Scaffold
+## BTC Policy Scaffold
 
-`BTCReservePolicy` is a V1 scaffold, not an execution router. It supports:
+`BTCReservePolicy` is a policy scaffold, not an execution router. It supports:
 
 - reserve policy configuration: `minIdleBTCReserve`, `emergencyBTCReserve`, `maxYieldBTCBps`, `maxPerSleeveBTCBps`, `maxDirectionalBTCBps`, `maxBTCAssetDepegBps`, `maxSwapPriceImpactBps`, `maxSlippageBps`, `collateralWarningCRBps`, and `btcYieldPaused`;
 - sleeve risk classes: `BTC_CORRELATED`, `BTC_DIRECTIONAL_LP`, `SPECULATIVE`, `EXTERNAL_VAULT`, and `DISABLED`;
@@ -98,7 +98,7 @@ Current validation status:
 - The observed BTC pool router in the UI transactions is `0xd245bec6836d85e159763a5d2bfce7cbc3488e03`; the configured Tigris router may differ, so BTC experiments should configure the router explicitly.
 - The observed LP gauge is `0x65d875b9ac9b50f3561544f83dd5f90043f5862b` and uses `deposit(uint256,address)`.
 
-This reduces the blocker from "native BTC mechanics are unknown" to a narrower execution-readiness blocker: BTC sleeve execution requires BTCReservePolicy limits, BTC-denominated exposure accounting, mcbBTC swap min-out controls, LP min-liquidity controls, receipt/staked-LP accounting, and multisig approval. It still should not be a default V1 execution path until a tiny controlled deposit, withdraw, stake, unstake, and reward-claim flow has been broadcast and reviewed.
+This reduces the blocker from "native BTC mechanics are unknown" to a narrower execution-readiness blocker: BTC sleeve execution requires BTCReservePolicy limits, BTC-denominated exposure accounting, mcbBTC swap min-out controls, LP min-liquidity controls, receipt accounting, and multisig approval. The V1.5 contract path now exists through `BTCReserveRouter` and `TigrisBTCStablePoolHandler`, but it still should not be the default V1 demo path until tiny controlled deposit/withdraw broadcasts are reviewed. LP staking, unstaking, and reward claiming remain separate validation items.
 
 Useful inspection command:
 
@@ -145,8 +145,10 @@ V1 treats this as a calculator plus policy gate plus AI memo, not an execution p
 
 ### V1.5
 
-- mcbBTC/BTC guarded execution after controlled testnet broadcast validation.
-- controlled broadcast validation for BTC -> mcbBTC swap, add/remove liquidity, LP stake/unstake, reward claim, receipt accounting, and unwind.
+- `BTCReserveRouter` for BTC-denominated sleeves, separate from the MUSD `AllocationRouter`.
+- `TigrisBTCStablePoolHandler` for owner/multisig-approved mcbBTC/BTC entry and exit with hard swap min-out and LP min-liquidity checks.
+- controlled broadcast validation for BTC -> mcbBTC swap, add/remove liquidity, receipt accounting, and unwind before this belongs in the main demo.
+- LP stake/unstake and reward claim validation as the next guarded extension.
 - `BTCYieldIntent` that creates multisig proposals rather than direct autonomous execution.
 - BTC treasury risk profiles: conservative, balanced, active.
 - BTC sleeve reporting and BTC-denominated exposure/PnL accounting.

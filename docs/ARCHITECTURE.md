@@ -239,7 +239,7 @@ The future router should therefore be a separate BTC reserve allocation path, no
 
 ### BTCReservePolicy
 
-`BTCReservePolicy` is the minimal V1 BTC-denominated accounting and policy scaffold.
+`BTCReservePolicy` is the BTC-denominated accounting and policy scaffold.
 
 Responsibilities:
 
@@ -253,9 +253,38 @@ Non-responsibilities:
 - it does not custody BTC
 - it does not call Tigris or any vault
 - it does not let automation move BTC principal
-- it does not make `mcbBTC/BTC` executable until the guarded handler, receipt accounting, and multisig execution path are transaction-tested
+- it does not execute BTC movements directly; guarded execution lives behind `BTCReserveRouter` and a BTC-specific handler
 
 This keeps `mcbBTC/BTC` strategically visible as the `BTC_CORRELATED` candidate without pushing BTC principal through the MUSD allocation router.
+
+### BTCReserveRouter And TigrisBTCStablePoolHandler
+
+`BTCReserveRouter` is the V1.5 BTC-principal execution boundary.
+
+Responsibilities:
+
+- keep BTC-denominated sleeve routing separate from the MUSD `AllocationRouter`
+- authorize BTC handlers through `isAuthorizedBTCHandler`
+- route only owner/multisig-initiated BTC sleeve requests
+- support handler registration without redeploying Treasury Accounts
+
+`TigrisBTCStablePoolHandler` is the guarded handler for the `mcbBTC/BTC` stable pool.
+
+Responsibilities:
+
+- check `BTCReservePolicy` before BTC principal moves
+- debit `TreasuryAccount.idleBTC` only through the BTC handler path
+- require the initiating actor to be the Treasury Account owner, which should be a multisig or custody account in the product path
+- swap BTC to mcbBTC with explicit minimum output
+- add/remove Tigris liquidity with explicit token and LP minimums
+- keep LP receipt tokens and returned BTC inside the Treasury Account
+
+Non-responsibilities:
+
+- it is not an automation path
+- it does not route BTC through MUSD buffer accounting
+- it does not yet stake LP tokens or claim gauge rewards
+- it should not be used in the main demo until a tiny controlled testnet broadcast is reviewed
 
 ### BTC Sleeve Planner
 
@@ -572,13 +601,13 @@ Current official Mezo testnet targets:
 
 These are the reference instances TreasuryOS should target for the current hackathon build. The Tigris router takes swap routes as `(from, to, stable, factory)` and liquidity actions include the same `stable` flag, so deployments must configure `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE=true`.
 
-Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks. Manual transaction inspection also shows the Mezo `BTC` precompile/BTCCaller address behaves ERC20-style in the UI swap/add-liquidity path with `msg.value = 0`. Direct TreasuryOS BTC sleeve execution is still deferred until a guarded handler validates min-out, LP receipt, staking, and unwind behavior through the selected router and gauge.
+Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks, and the V1.5 guarded handler path is covered by local unit tests plus a fork-mode TreasuryOS handler test when the Mezo ERC20 BTC precompile wrapper is executable in Foundry. Manual transaction inspection also shows the Mezo `BTC` precompile/BTCCaller address behaves ERC20-style in the UI swap/add-liquidity path with `msg.value = 0`. Direct TreasuryOS BTC sleeve execution is still deferred from the main demo until a tiny controlled broadcast validates min-out, LP receipt, and unwind behavior. LP staking, unstaking, and reward claims remain a separate extension.
 
 ### BTC reserve and BTC yield candidates
 
 Current testnet inspection also exposes a Basic Stable `mcbBTC/BTC` pool. TreasuryOS should treat it as the BTC-correlated yield candidate, but not as a V1 MUSD sleeve. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity surfaces remain directional BTC/stable strategies, not pure BTC reserve yield.
 
-V1 reporting may show them as candidates, but executable support should wait for:
+V1 reporting may show them as candidates. V1.5 executable support now exists only for the BTC-correlated mcbBTC/BTC path and should remain gated by:
 
 - BTC-denominated handler and route shape;
 - BTC-denominated policy caps and reserve floors;

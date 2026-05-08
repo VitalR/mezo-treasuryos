@@ -104,6 +104,8 @@ The yield angle is not a separate high-yield product. TreasuryOS preserves the r
 
 TreasuryOS does not blindly route treasury BTC into yield. It computes the BTC sleeve execution plan and blocks it when reserve, approval, slippage, or price-impact limits are breached.
 
+V1.5 adds a guarded BTC execution path behind that boundary: `BTCReserveRouter` plus `TigrisBTCStablePoolHandler` can route owner/multisig-approved idle BTC into the `mcbBTC/BTC` pool with hard swap min-out and LP min-liquidity checks. This remains separate from the final V1 MUSD demo path until controlled testnet broadcast validation is complete.
+
 ---
 
 ## Deployment Modes
@@ -147,6 +149,11 @@ Current handlers:
 
 - `MUSDSavingsRateHandler`
 - `TigrisStablePoolHandler`
+
+BTC-specific V1.5 components:
+
+- `BTCReserveRouter`
+- `TigrisBTCStablePoolHandler`
 
 ### Treasury Operations Engine
 

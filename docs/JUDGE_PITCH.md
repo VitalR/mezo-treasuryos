@@ -131,6 +131,8 @@ For demo reliability, MUSD Savings Vault remains the primary allocation sleeve. 
 
 TreasuryOS does not blindly route treasury BTC into yield. It computes the BTC sleeve execution plan and blocks it when policy limits are breached; with current shallow mcbBTC/BTC liquidity, the correct V1 behavior is a policy block and an advisor memo to keep BTC idle or preserve collateral defense.
 
+The V1.5 implementation keeps the same discipline: `BTCReserveRouter` and `TigrisBTCStablePoolHandler` are separate from MUSD allocation, require Treasury Account owner/multisig initiation, check `BTCReservePolicy`, and enforce hard min-out/min-LP bounds before any BTC-principal route can execute.
+
 The yield angle is intentionally treasury-native:
 
 - preserve the operating buffer first
