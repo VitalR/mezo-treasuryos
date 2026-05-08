@@ -257,6 +257,26 @@ Non-responsibilities:
 
 This keeps `mcbBTC/BTC` strategically visible as the `BTC_CORRELATED` candidate without pushing BTC principal through the MUSD allocation router.
 
+### BTC Sleeve Planner
+
+The BTC sleeve planner is a V1 reporting/calculation service, not an execution path.
+
+Responsibilities:
+
+- use `idleBTC` / `idleBTCReserve` as the source bucket for proposed BTC sleeve planning
+- read pool reserves and a BTC -> mcbBTC quote
+- compute the BTC swap amount that leaves the expected mcbBTC and remaining BTC aligned with the mcbBTC/BTC pool reserve ratio
+- estimate LP tokens, `minMCBTCOut`, `minLPTokens`, price impact, and slippage requirements
+- evaluate the same policy posture as `BTCReservePolicy`: reserve floors, emergency reserve, caps, approval level, price impact, slippage, and pause state
+
+Non-responsibilities:
+
+- it does not sign or broadcast transactions
+- it does not move BTC principal
+- it does not make gauge staking automatic
+
+`TreasuryAccount.fundIdleBTC()` is the canonical explicit funding path for idle BTC reserve inventory. The raw `receive()` function intentionally does not increment `idleBTC`, so protocol callbacks or accidental transfers cannot silently corrupt BTC reserve accounting.
+
 ### 6. MUSDSavingsRateHandler
 
 Primary treasury savings sleeve handler.

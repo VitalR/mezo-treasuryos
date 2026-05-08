@@ -237,6 +237,8 @@ templates:
           handler: handleYieldClaimedFromDestination
         - event: IdleMUSDFunded(indexed address,uint256,uint256)
           handler: handleIdleMUSDFunded
+        - event: IdleBTCFunded(indexed address,uint256,uint256)
+          handler: handleIdleBTCFunded
         - event: WithdrawalSettledFromDestination(indexed address,uint256,uint256,uint256,uint256)
           handler: handleWithdrawalSettledFromDestination
         - event: LiquidityBufferRestored(indexed address,indexed address,uint256,uint256,uint256,uint256)

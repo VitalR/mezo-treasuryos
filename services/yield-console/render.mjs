@@ -183,6 +183,23 @@ if (snapshot.btcAllocationPreview) {
   }
 }
 
+if (snapshot.btcSleevePlan) {
+  const plan = snapshot.btcSleevePlan;
+  lines.push("");
+  lines.push(`BTC sleeve plan: ${plan.policy?.allowed ? "ALLOW" : "BLOCK"} (${plan.policy?.reason ?? "unknown"})`);
+  lines.push(`Requested idle BTC: ${btc(plan.requestedPrincipalBTC)}`);
+  lines.push(`Candidate: ${plan.candidate?.label ?? "BTC sleeve"}`);
+  if (plan.calculation?.available) {
+    lines.push(
+      `Swap/deposit: ${btc(plan.calculation.swapBTC)} -> ${
+        plan.calculation.expectedMCBTCOut
+      } mcbBTC, then LP with ${btc(plan.calculation.remainingBTCForLP)}`,
+    );
+    lines.push(`Min LP out: ${plan.calculation.minLPTokens}`);
+    lines.push(`Estimated price impact: ${bps(plan.calculation.priceImpactBps)}`);
+  }
+}
+
 const decision = snapshot.allocationDecision ?? {};
 lines.push("");
 lines.push(`Policy decision: ${decision.allowed ? "ALLOW" : "BLOCK"} (${decision.code})`);

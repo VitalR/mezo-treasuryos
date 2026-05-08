@@ -295,6 +295,31 @@ contract TreasuryAccountTest is Test {
         assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_account)), 75 ether);
     }
 
+    function test_FundIdleBTC_ExplicitlyIncreasesIdleBTCReserve() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.deal(_OPERATOR, 2 ether);
+
+        vm.prank(_OPERATOR);
+        _account.fundIdleBTC{ value: 2 ether }();
+
+        assertEq(_account.idleBTC(), 2 ether);
+        assertEq(address(_account).balance, 2 ether);
+    }
+
+    function test_Receive_DoesNotSilentlyIncrementIdleBTC() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.deal(_OPERATOR, 1 ether);
+
+        vm.prank(_OPERATOR);
+        (bool _success,) = address(_account).call{ value: 1 ether }("");
+
+        assertTrue(_success);
+        assertEq(_account.idleBTC(), 0);
+        assertEq(address(_account).balance, 1 ether);
+    }
+
     function test_DisburseMUSD_TreasuryAdminCanSendOperatingCash() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 

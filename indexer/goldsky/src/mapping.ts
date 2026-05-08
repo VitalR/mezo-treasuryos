@@ -39,6 +39,7 @@ import {
   CollateralWithdrawn,
   DebtDrawn,
   DebtRepaid,
+  IdleBTCFunded,
   IdleMUSDFunded,
   LiquidityBufferRestored,
   PositionAdjusted,
@@ -463,6 +464,19 @@ export function handleIdleMUSDFunded(event: IdleMUSDFunded): void {
     "IdleMUSDFunded",
     event.params.amount,
     event.params.idleBalanceAfter,
+  );
+}
+
+export function handleIdleBTCFunded(event: IdleBTCFunded): void {
+  recordActivity(
+    event,
+    event.address,
+    event.params.funder,
+    null,
+    "funding",
+    "IdleBTCFunded",
+    event.params.amount,
+    event.params.idleBTCAfter,
   );
 }
 

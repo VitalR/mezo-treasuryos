@@ -100,7 +100,7 @@ The product now proves one allocation routing model with two concrete Mezo-nativ
 
 The yield angle is not a separate high-yield product. TreasuryOS preserves the required operating buffer first, calculates allocatable surplus, previews the policy decision for proposed sleeve allocations, and routes only approved surplus into capped Mezo-native sleeves.
 
-`MUSD/mUSDC` has a passing live-fork TreasuryOS deposit/withdraw simulation, but MUSD Savings remains the primary demo sleeve because testnet LP liquidity can move or become imbalanced. BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 includes `BTCReservePolicy` for reserve bucket accounting and preview-only BTC sleeve decisions, so the advisor can discuss the real Tigris `mcbBTC/BTC` pool candidate without implying BTC-principal execution is live. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
+`MUSD/mUSDC` has a passing live-fork TreasuryOS deposit/withdraw simulation, but MUSD Savings remains the primary demo sleeve because testnet LP liquidity can move or become imbalanced. BTC reserve and BTC-denominated yield are treated separately from MUSD operating capital. V1 includes `BTCReservePolicy` plus a preview-only BTC sleeve planner, so the advisor can discuss the real Tigris `mcbBTC/BTC` pool candidate, calculate idle-BTC split/min-out requirements, and still avoid implying BTC-principal execution is live. See `docs/BTC_RESERVE_AND_YIELD_SLEEVES.md`.
 
 ---
 
@@ -166,6 +166,7 @@ Demo renderer:
 npm run demo:yield-console
 npm run advisor:demo
 npm run demo:term-planner
+npm run demo:btc-sleeve-plan
 ```
 
 Live RPC state probe:

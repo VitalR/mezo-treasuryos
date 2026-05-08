@@ -57,11 +57,11 @@
     {
       "label": "Tigris mcbBTC/BTC stable pool candidate",
       "destination": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
-      "approved": false,
+      "approved": true,
       "executable": false,
       "riskClass": "BTC_CORRELATED",
       "approvalLevel": "MULTISIG",
-      "swapPriceImpactBps": "4854",
+      "swapPriceImpactBps": "4858",
       "slippageBps": "100"
     },
     {

@@ -1,0 +1,67 @@
+{
+  "treasuryName": "Demo BTC Operating Treasury",
+  "requestedPrincipalBTC": "0.05",
+  "composition": {
+    "idleMUSD": "1250000",
+    "idleBTC": "0.42",
+    "liquidityBufferMUSD": "500000",
+    "deployableSurplusMUSD": "750000"
+  },
+  "position": {
+    "collateralBTC": "18.5",
+    "totalDebtMUSD": "1800000"
+  },
+  "btcReserveBuckets": {
+    "idleBTCReserve": "0.42",
+    "collateralBTC": "18.5",
+    "emergencyBTCReserve": "0.25",
+    "yieldActiveBTC": "0",
+    "pendingWithdrawBTC": "0"
+  },
+  "btcReservePolicy": {
+    "minIdleBTCReserve": "0.25",
+    "emergencyBTCReserve": "0.25",
+    "maxYieldBTCBps": "3000",
+    "maxPerSleeveBTCBps": "1000",
+    "maxDirectionalBTCBps": "500",
+    "maxBTCAssetDepegBps": "100",
+    "maxSwapPriceImpactBps": "500",
+    "maxSlippageBps": "100",
+    "collateralWarningCRBps": "18000",
+    "btcYieldPaused": false
+  },
+  "btcSleeveTarget": {
+    "label": "Tigris mcbBTC/BTC stable pool candidate",
+    "destination": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
+    "router": "0xd245bec6836d85e159763a5d2bfce7cbc3488e03",
+    "factory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
+    "gauge": "0x65d875b9ac9b50f3561544f83dd5f90043f5862b",
+    "principalAsset": "0x7b7C000000000000000000000000000000000000",
+    "pairedAsset": "0x2278cAAe0009E8A325A346FeA573eF23C5756dbF",
+    "receiptAsset": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
+    "rewardAsset": "0x7b7c000000000000000000000000000000000001",
+    "approved": true,
+    "executable": false,
+    "status": "policy-preview",
+    "riskClass": "BTC_CORRELATED",
+    "approvalLevel": "MULTISIG",
+    "sleeveCapBps": "1000",
+    "maxPriceImpactBps": "500",
+    "slippageBps": "100",
+    "referenceMcbtcPerBtc": "1",
+    "decimals": {
+      "btc": 18,
+      "mcbtc": 8,
+      "lp": 18
+    },
+    "reserves": {
+      "mcbtc": "0.05710118",
+      "btc": "0.30473538847054415"
+    },
+    "quote": {
+      "inputBTC": "0.0001",
+      "outputMCBTC": "0.00005142"
+    },
+    "totalSupplyLP": "0.000001700507993075"
+  }
+}

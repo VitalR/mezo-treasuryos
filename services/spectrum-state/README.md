@@ -36,7 +36,7 @@ Inspect the `mcbBTC/BTC` BTC sleeve mechanics through the selected RPC:
 make btc-sleeve-targets
 ```
 
-This checks the BTC precompile/BTCCaller metadata, mcbBTC metadata, pool reserves, UI-observed swap/add-liquidity/stake transactions, router code hashes, and LP gauge metadata. It does not move funds.
+This checks the BTC precompile/BTCCaller metadata, mcbBTC metadata, pool reserves, BTC -> mcbBTC router quote, UI-observed swap/add-liquidity/stake transactions, router code hashes, and LP gauge metadata. It does not move funds.
 
 Build a live snapshot from an onboarding manifest:
 

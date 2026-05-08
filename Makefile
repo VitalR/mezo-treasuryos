@@ -27,6 +27,7 @@ help:
 	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
+	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
@@ -111,6 +112,10 @@ yield-console-demo:
 .PHONY: term-planner-demo
 term-planner-demo:
 	npm run demo:term-planner
+
+.PHONY: btc-sleeve-plan-demo
+btc-sleeve-plan-demo:
+	npm run demo:btc-sleeve-plan
 
 .PHONY: anvil
 anvil:

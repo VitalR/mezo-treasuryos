@@ -41,6 +41,8 @@ BTC sleeves:
 
 These buckets are accounting and policy inputs. They do not move BTC. They let TreasuryOS explain whether a proposed BTC sleeve allocation would be permitted before any future router/handler touches principal.
 
+`TreasuryAccount.fundIdleBTC()` is the explicit way to add idle BTC reserve inventory to a Treasury Account. Direct native BTC receives are accepted but do not increment `idleBTC`, which avoids double-counting BTC returned by Mezo borrow lifecycle calls or accidental transfers.
+
 ## V1 BTC Policy Scaffold
 
 `BTCReservePolicy` is a V1 scaffold, not an execution router. It supports:
@@ -104,6 +106,14 @@ Useful inspection command:
 make btc-sleeve-targets
 ```
 
+Useful planner command:
+
+```sh
+npm run demo:btc-sleeve-plan
+```
+
+The planner is reserve-ratio aware. It does not assume a naive 50/50 BTC split. Given a requested idle BTC amount, current mcbBTC/BTC reserves, and a BTC -> mcbBTC quote, it solves for the BTC swap amount that leaves the expected mcbBTC output and remaining BTC aligned with the pool reserve ratio. It then estimates LP tokens, applies slippage to produce `minMCBTCOut` and `minLPTokens`, and evaluates BTC policy guardrails.
+
 ## Risk Classification
 
 - **MUSD Savings Vault:** conservative operating-capital yield. It is the reliable V1 sleeve for the demo, subject to policy caps and buffer checks.
@@ -120,6 +130,7 @@ make btc-sleeve-targets
 - MUSD/mUSDC Basic Stable after live-fork validation and a final liquidity sanity check.
 - BTC-denominated accounting and policy scaffold through `BTCReservePolicy`.
 - mcbBTC/BTC research/scaffold in docs and reporting, marked experimental until the BTC execution handler is transaction-tested.
+- BTC sleeve planner that uses idle BTC reserve, pool reserves, and a BTC -> mcbBTC quote to calculate a proposal-only LP entry plan.
 - AI memo that distinguishes MUSD operating capital from BTC reserve/collateral.
 
 ### V1 If Time

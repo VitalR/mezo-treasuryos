@@ -17,6 +17,7 @@ const SELECTORS = {
   balanceOf: "0x70a08231",
   decimals: "0x313ce567",
   factory: "0xc45a0155",
+  getAmountsOut: "0x5509a1ac",
   getReserves: "0x0902f1ac",
   name: "0x06fdde03",
   stable: "0x22be3de1",
@@ -70,10 +71,12 @@ const [swapTx, addLiquidityTx, stakeTx] = await Promise.all([
 
 const uiRouter = addLiquidityTx.to;
 const gauge = stakeTx.to;
-const [uiRouterCode, configuredRouterCode, gaugeInfo] = await Promise.all([
+const [uiRouterCode, configuredRouterCode, gaugeInfo, uiRouterQuote, configuredRouterQuote] = await Promise.all([
   codeHashInfo(uiRouter),
   codeHashInfo(addresses.configuredRouter),
   inspectGauge(gauge).catch((error) => ({ address: gauge, error: error.message })),
+  quoteBTCToMcbtc(uiRouter).catch((error) => ({ router: uiRouter, error: error.message })),
+  quoteBTCToMcbtc(addresses.configuredRouter).catch((error) => ({ router: addresses.configuredRouter, error: error.message })),
 ]);
 
 const report = {
@@ -102,6 +105,11 @@ const report = {
       uiRouter.toLowerCase() === addresses.configuredRouter.toLowerCase()
         ? "Configured router matches the UI-observed BTC pool router."
         : "UI BTC transactions use a different router address with the same ABI shape; configure BTC sleeve experiments explicitly.",
+  },
+  quotes: {
+    quoteInputBTC: process.env.BTC_SLEEVE_QUOTE_BTC ?? "0.0001",
+    uiObservedRouter: uiRouterQuote,
+    configuredRouter: configuredRouterQuote,
   },
   gauge: gaugeInfo,
   transactions: {
@@ -221,6 +229,22 @@ async function inspectTransaction(hash) {
     approvals: receiptResult.logs
       .filter((log) => log.topics[0] === APPROVAL_TOPIC)
       .map((log) => formatApproval(log, tokenByAddress)),
+  };
+}
+
+async function quoteBTCToMcbtc(router) {
+  const quoteInput = parseUnits(process.env.BTC_SLEEVE_QUOTE_BTC ?? "0.0001", btc.decimals);
+  const data = encodeGetAmountsOut(quoteInput, addresses.btc, addresses.mcbtc, true, addresses.poolFactory);
+  const response = await ethCall(router, data);
+  const amounts = decodeUintArray(response);
+  const output = amounts[1] ?? 0n;
+
+  return {
+    router,
+    inputBTC: formatUnits(quoteInput, btc.decimals),
+    outputMCBTC: formatUnits(output, mcbtc.decimals),
+    outputRaw: output.toString(),
+    priceImpactBpsVsOneToOne: Number(priceImpactBps(quoteInput, output, btc.decimals, mcbtc.decimals)),
   };
 }
 
@@ -405,6 +429,54 @@ function formatUnits(value, decimals) {
 
   const fractionText = fraction.toString().padStart(decimals, "0").replace(/0+$/u, "");
   return `${whole}.${fractionText}`;
+}
+
+function parseUnits(value, decimals) {
+  const raw = String(value);
+  const [whole, fraction = ""] = raw.split(".");
+  const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
+  return BigInt(whole || "0") * 10n ** BigInt(decimals) + BigInt(paddedFraction || "0");
+}
+
+function encodeGetAmountsOut(amountIn, from, to, stable, factory) {
+  return `0x${SELECTORS.getAmountsOut.slice(2)}${uintArg(amountIn)}${uintArg(64n)}${uintArg(1n)}${addressArg(from)}${addressArg(
+    to,
+  )}${boolArg(stable)}${addressArg(factory)}`;
+}
+
+function decodeUintArray(data) {
+  const body = strip0x(data);
+  const offset = Number(BigInt(`0x${body.slice(0, 64)}`));
+  const lengthStart = offset * 2;
+  const length = Number(BigInt(`0x${body.slice(lengthStart, lengthStart + 64)}`));
+  const values = [];
+
+  for (let index = 0; index < length; index += 1) {
+    const start = lengthStart + 64 + index * 64;
+    values.push(BigInt(`0x${body.slice(start, start + 64)}`));
+  }
+
+  return values;
+}
+
+function uintArg(value) {
+  return BigInt(value).toString(16).padStart(64, "0");
+}
+
+function addressArg(value) {
+  return strip0x(normalizeAddress(value)).padStart(64, "0");
+}
+
+function boolArg(value) {
+  return uintArg(value ? 1n : 0n);
+}
+
+function priceImpactBps(input, output, inputDecimals, outputDecimals) {
+  if (input === 0n) return 0n;
+  const rateScaled = (output * 10n ** BigInt(inputDecimals) * 10n ** 18n) / (input * 10n ** BigInt(outputDecimals));
+  const one = 10n ** 18n;
+  const delta = rateScaled > one ? rateScaled - one : one - rateScaled;
+  return (delta * 10_000n) / one;
 }
 
 async function sha256Hex(value) {

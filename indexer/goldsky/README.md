@@ -72,6 +72,7 @@ BTC policy events include reserve floors, sleeve caps, risk class, approval leve
 - `TreasuryAccount.WithdrawalExecuted`
 - `TreasuryAccount.YieldClaimedFromDestination`
 - `TreasuryAccount.IdleMUSDFunded`
+- `TreasuryAccount.IdleBTCFunded`
 - `TreasuryAccount.WithdrawalSettledFromDestination`
 - `TreasuryAccount.LiquidityBufferRestored`
 - `TreasuryAccount.SleeveUnwoundAndDebtRepaid`

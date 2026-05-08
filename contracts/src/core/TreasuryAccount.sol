@@ -75,6 +75,8 @@ contract TreasuryAccount is Ownable2Step {
     event YieldClaimedFromDestination(address indexed destination, uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when MUSD is funded back into idle treasury balance.
     event IdleMUSDFunded(address indexed funder, uint256 amount, uint256 idleBalanceAfter);
+    /// @notice Emitted when BTC is explicitly funded into idle treasury reserve accounting.
+    event IdleBTCFunded(address indexed funder, uint256 amount, uint256 idleBTCAfter);
     /// @notice Emitted when idle MUSD is disbursed to an external operating recipient.
     event TreasuryDisbursed(address indexed actor, address indexed recipient, uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when a destination handler settles a routed withdrawal with explicit idle-balance proceeds.
@@ -542,6 +544,17 @@ contract TreasuryAccount is Ownable2Step {
         idleMUSD += _amount;
 
         emit IdleMUSDFunded(msg.sender, _amount, idleMUSD);
+    }
+
+    /// @notice Funds idle BTC reserve accounting with an explicit payable call.
+    /// @dev Plain `receive()` does not update `idleBTC`; use this function when BTC is intentionally added to
+    ///      treasury reserve inventory outside the Mezo borrow lifecycle.
+    function fundIdleBTC() external payable {
+        require(msg.value > 0, InvalidAmount(msg.value));
+
+        idleBTC += msg.value;
+
+        emit IdleBTCFunded(msg.sender, msg.value, idleBTC);
     }
 
     /// @notice Disburses idle MUSD to an external operating recipient.

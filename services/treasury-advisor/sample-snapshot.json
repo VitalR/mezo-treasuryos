@@ -78,14 +78,14 @@
       "destination": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
       "principalAsset": "mcbBTC plus ERC20 BTC",
       "receiptAsset": "sAMM-mcbBTC/BTC",
-      "approved": false,
+      "approved": true,
       "executable": false,
       "status": "research",
       "allocatedBTC": "0",
       "capBTC": "0",
       "riskClass": "BTC_CORRELATED",
       "approvalLevel": "MULTISIG",
-      "swapPriceImpactBps": "4854",
+      "swapPriceImpactBps": "4858",
       "slippageBps": "100",
       "withdrawalConstraint": "ERC20 pool path is visible, but execution requires guarded BTC handler validation"
     },
@@ -106,6 +106,26 @@
       "withdrawalConstraint": "requires elevated approval because the sleeve changes pure BTC exposure"
     }
   ],
+  "btcSleevePlan": {
+    "requestedPrincipalBTC": "0.05",
+    "candidate": {
+      "label": "Tigris mcbBTC/BTC stable pool candidate",
+      "approvalLevel": "MULTISIG"
+    },
+    "calculation": {
+      "available": true,
+      "swapBTC": "0.01335412000638805",
+      "remainingBTCForLP": "0.03664587999361195",
+      "expectedMCBTCOut": "0.00686668",
+      "minLPTokens": "0.000000202448982378",
+      "priceImpactBps": "4858"
+    },
+    "policy": {
+      "allowed": false,
+      "reason": "SwapPriceImpactExceeded",
+      "requiredApprovalLevel": "MULTISIG"
+    }
+  },
   "allocationDecision": {
     "allowed": true,
     "code": "Allowed",

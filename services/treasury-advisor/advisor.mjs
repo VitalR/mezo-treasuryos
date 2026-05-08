@@ -11,6 +11,7 @@ export function buildTreasuryAdvisorReport(snapshot) {
   const health = snapshot.health ?? {};
   const sleeves = normalizeSleeves(snapshot.sleeves ?? []);
   const btcSleeves = normalizeBTCSleeves(snapshot.btcSleeves ?? []);
+  const btcSleevePlan = snapshot.btcSleevePlan ?? null;
   const idleMUSD = asNumber(composition.idleMUSD);
   const requiredBufferMUSD = asNumber(composition.liquidityBufferMUSD);
   const surplusMUSD = Math.max(0, asNumber(composition.deployableSurplusMUSD, idleMUSD - requiredBufferMUSD));
@@ -43,10 +44,11 @@ export function buildTreasuryAdvisorReport(snapshot) {
     btc,
     sleeves,
     btcSleeves,
+    btcSleevePlan,
     allocationPlan,
     automationAction,
     memo: buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan, automationAction, sleeves }),
-    btcMemo: buildBTCMemo({ btc, btcSleeves, riskState }),
+    btcMemo: buildBTCMemo({ btc, btcSleeves, btcSleevePlan, riskState }),
     guardrails: [
       "Advisor output is reporting only and does not control funds.",
       "Every allocation still requires TreasuryPolicyEngine checks.",
@@ -101,6 +103,17 @@ export function formatAdvisorReport(report) {
         )}, slippage ${formatBps(sleeve.slippageBps)}, ${sleeve.withdrawalConstraint}`,
       );
     }
+  }
+
+  if (report.btcSleevePlan) {
+    lines.push("");
+    lines.push(
+      `BTC sleeve plan: ${report.btcSleevePlan.policy?.allowed ? "ALLOW" : "BLOCK"} (${
+        report.btcSleevePlan.policy?.reason ?? "unknown"
+      }) for ${formatBTC(report.btcSleevePlan.requestedPrincipalBTC)} into ${
+        report.btcSleevePlan.candidate?.label ?? "BTC sleeve"
+      }`,
+    );
   }
 
   lines.push("");
@@ -243,7 +256,7 @@ function buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan
   )}. Allocate across approved sleeves according to caps and risk ranking.${suffix}`;
 }
 
-function buildBTCMemo({ btc, btcSleeves, riskState }) {
+function buildBTCMemo({ btc, btcSleeves, btcSleevePlan, riskState }) {
   const notes = [];
 
   if (btc.totalAccountedBTC <= 0 && btcSleeves.length === 0) {
@@ -280,6 +293,18 @@ function buildBTCMemo({ btc, btcSleeves, riskState }) {
 
   if (riskState !== "healthy") {
     notes.push("Collateral health is not healthy, so BTC yield deployment should be paused or escalated.");
+  }
+
+  if (btcSleevePlan) {
+    const allowed = Boolean(btcSleevePlan.policy?.allowed);
+    const reason = btcSleevePlan.policy?.reason ?? "unknown";
+    const approval = btcSleevePlan.policy?.requiredApprovalLevel ?? btcSleevePlan.candidate?.approvalLevel ?? "MULTISIG";
+    const principal = btcSleevePlan.requestedPrincipalBTC ?? "0";
+    notes.push(
+      `BTC sleeve planner proposes ${formatBTC(principal)} from idle BTC into ${
+        btcSleevePlan.candidate?.label ?? "the BTC-correlated sleeve"
+      }; policy ${allowed ? "allows" : "blocks"} it with reason ${reason} and approval ${approval}.`,
+    );
   }
 
   const executable = btcSleeves.filter((sleeve) => sleeve.executable && sleeve.approved);
