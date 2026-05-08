@@ -112,9 +112,19 @@ Useful planner command:
 npm run demo:btc-sleeve-plan
 ```
 
+Useful demo status and V1.5 validation commands:
+
+```sh
+make demo-status
+make btc-sleeve-broadcast-dry-run
+make btc-sleeve-broadcast-validation
+```
+
 The planner is reserve-ratio aware. It does not assume a naive 50/50 BTC split. Given a requested idle BTC amount, current mcbBTC/BTC reserves, and a BTC -> mcbBTC quote, it solves for the BTC swap amount that leaves the expected mcbBTC output and remaining BTC aligned with the pool reserve ratio. It then estimates LP tokens, applies slippage to produce `minMCBTCOut` and `minLPTokens`, and evaluates BTC policy guardrails.
 
 V1 treats this as a calculator plus policy gate plus AI memo, not an execution path. TreasuryOS does not blindly route treasury BTC into yield; it computes the BTC sleeve execution plan and blocks it when reserve floors, approval level, slippage, or price-impact limits are breached. With current shallow testnet mcbBTC/BTC liquidity, a policy block is an expected treasury-control outcome.
+
+The V1.5 guarded execution contracts are implemented, and the next live validation step is deliberately narrow: `ValidateBTCSleeveBroadcast` funds a tiny idle BTC amount, routes a guarded mcbBTC/BTC deposit, verifies LP receipt accounting, immediately unwinds, and writes `deployments/btc-sleeve-validation.json` only after a completed non-dry-run. This validator does not stake LP tokens or claim MEZO rewards.
 
 ## Risk Classification
 
@@ -134,7 +144,7 @@ V1 treats this as a calculator plus policy gate plus AI memo, not an execution p
 - mcbBTC/BTC research/scaffold in docs and reporting, marked experimental until the BTC execution handler is transaction-tested.
 - BTC sleeve planner that uses idle BTC reserve, pool reserves, and a BTC -> mcbBTC quote to calculate a proposal-only LP entry plan.
 - BTC sleeve policy block shown in demo output when price impact, reserve floor, or approval level fails policy.
-- Guarded `BTCReserveRouter` as a scoped design boundary only; no V1 BTC principal movement.
+- Guarded `BTCReserveRouter` and `TigrisBTCStablePoolHandler` implemented as the V1.5 execution boundary, with no V1 demo dependency on BTC principal movement.
 - AI memo that distinguishes MUSD operating capital from BTC reserve/collateral.
 
 ### V1 If Time

@@ -6,6 +6,7 @@ CONTRACTS_ROOT := contracts
 DEPLOY_SCRIPT := script/DeployTreasuryOS.s.sol:DeployTreasuryOS
 CORE_DEPLOY_SCRIPT := script/DeployTreasuryOSCore.s.sol:DeployTreasuryOSCore
 CLIENT_ONBOARD_SCRIPT := script/OnboardTreasuryClient.s.sol:OnboardTreasuryClient
+BTC_SLEEVE_BROADCAST_SCRIPT := script/ValidateBTCSleeveBroadcast.s.sol:ValidateBTCSleeveBroadcast
 LOCAL_DEPLOY_SCRIPT := script/DeployLocalTreasuryOS.s.sol:DeployLocalTreasuryOS
 BLOCKSCOUT_API := https://api.explorer.test.mezo.org/api/
 ANVIL_RPC_URL ?= http://127.0.0.1:8545
@@ -24,7 +25,10 @@ help:
 	@echo "  make state-probe                  - probe selected Mezo testnet RPC"
 	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
 	@echo "  make btc-sleeve-targets           - inspect mcbBTC/BTC BTC sleeve mechanics through selected RPC"
+	@echo "  make demo-status                  - print final demo readiness and live validation status"
 	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
+	@echo "  make btc-sleeve-broadcast-dry-run - simulate tiny guarded mcbBTC/BTC deposit/unwind"
+	@echo "  make btc-sleeve-broadcast-validation - broadcast tiny guarded mcbBTC/BTC deposit/unwind"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
@@ -87,6 +91,10 @@ yield-targets:
 btc-sleeve-targets:
 	npm run btc:sleeve-targets
 
+.PHONY: demo-status
+demo-status:
+	npm run demo:status
+
 .PHONY: mezo-yield-fork-test
 mezo-yield-fork-test:
 	$(call require_env_file)
@@ -99,6 +107,33 @@ mezo-yield-fork-test:
 		echo "Selected Mezo RPC provider: $${ACTIVE_MEZO_RPC_PROVIDER:-MEZO_RPC_URL}"; \
 		RUN_MEZO_FORK_TESTS=true ACTIVE_MEZO_RPC_URL="$$ACTIVE_MEZO_RPC_URL" \
 			forge test --root $(CONTRACTS_ROOT) --match-path test/fork/MezoYieldTargetsFork.t.sol \
+	'
+
+.PHONY: btc-sleeve-broadcast-dry-run
+btc-sleeve-broadcast-dry-run:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_mezo_rpc_candidate) \
+		$(call select_active_mezo_rpc) \
+		BTC_SLEEVE_DRY_RUN=true \
+			forge script $(BTC_SLEEVE_BROADCAST_SCRIPT) \
+			--root $(CONTRACTS_ROOT) \
+			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
+			-vvvv \
+	'
+
+.PHONY: btc-sleeve-broadcast-validation
+btc-sleeve-broadcast-validation:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		[ "$${BTC_SLEEVE_BROADCAST_CONFIRM:-false}" = "true" ] || { echo "Set BTC_SLEEVE_BROADCAST_CONFIRM=true in .env for the tiny live BTC sleeve validation."; exit 1; }; \
+		$(call require_mezo_rpc_candidate) \
+		$(call select_active_mezo_rpc) \
+		forge script $(BTC_SLEEVE_BROADCAST_SCRIPT) \
+			--root $(CONTRACTS_ROOT) \
+			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
+			--broadcast \
+			-vvvv \
 	'
 
 .PHONY: rpc-health

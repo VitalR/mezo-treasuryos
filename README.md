@@ -172,6 +172,7 @@ AI can explain and recommend. It cannot sign, bypass policy, or control funds.
 Demo renderer:
 
 ```sh
+npm run demo:status
 npm run demo:yield-console
 npm run advisor:demo
 npm run demo:term-planner
@@ -187,6 +188,15 @@ npm run yield:targets
 make btc-sleeve-targets
 make mezo-yield-fork-test
 ```
+
+Guarded BTC sleeve validation:
+
+```sh
+make btc-sleeve-broadcast-dry-run
+make btc-sleeve-broadcast-validation
+```
+
+This is deliberately a V1.5 validation path. It uses a tiny amount of idle BTC, live Tigris quotes, hard min-out/min-LP checks, owner-only Treasury Account execution, and immediate unwind. It does not stake LP tokens or claim rewards. The final V1 demo should still rely on MUSD Savings Vault, with `MUSD/mUSDC` optional and `mcbBTC/BTC` shown as a policy-gated BTC reserve/yield plan until the tiny broadcast manifest exists.
 
 The state reader loads the real `.env`, tests `SPECTRUM_MEZO_RPC_URL_1`, `_2`, `_3`, then the legacy `SPECTRUM_MEZO_RPC_URL`, and falls back to `MEZO_RPC_URL` only if no Spectrum candidate returns Mezo testnet chain ID `31611`. We should not claim Spectrum was active in a given run unless `make rpc-health` reports a Spectrum endpoint as `OK`.
 

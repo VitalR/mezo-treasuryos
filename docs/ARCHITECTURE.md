@@ -286,6 +286,8 @@ Non-responsibilities:
 - it does not yet stake LP tokens or claim gauge rewards
 - it should not be used in the main demo until a tiny controlled testnet broadcast is reviewed
 
+`ValidateBTCSleeveBroadcast` is the narrow V1.5 validation script for that review. It uses live Tigris quotes, funds a tiny `idleBTC` amount, routes deposit through the guarded handler, verifies LP receipt and BTC-principal accounting, unwinds immediately, and writes a local validation manifest only after a completed non-dry-run. It requires a direct EOA-owned Treasury Account for the first controlled test; multisig accounts should execute equivalent calls through the multisig after direct validation passes.
+
 ### BTC Sleeve Planner
 
 The BTC sleeve planner is a V1 reporting/calculation service, not an execution path.
@@ -601,7 +603,7 @@ Current official Mezo testnet targets:
 
 These are the reference instances TreasuryOS should target for the current hackathon build. The Tigris router takes swap routes as `(from, to, stable, factory)` and liquidity actions include the same `stable` flag, so deployments must configure `MEZO_TIGRIS_POOL_FACTORY` and `MEZO_TIGRIS_MUSD_MUSDC_STABLE=true`.
 
-Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks, and the V1.5 guarded handler path is covered by local unit tests plus a fork-mode TreasuryOS handler test when the Mezo ERC20 BTC precompile wrapper is executable in Foundry. Manual transaction inspection also shows the Mezo `BTC` precompile/BTCCaller address behaves ERC20-style in the UI swap/add-liquidity path with `msg.value = 0`. Direct TreasuryOS BTC sleeve execution is still deferred from the main demo until a tiny controlled broadcast validates min-out, LP receipt, and unwind behavior. LP staking, unstaking, and reward claims remain a separate extension.
+Current validation: `make mezo-yield-fork-test` passes TreasuryOS handler deposit and withdrawal for `MUSD/mUSDC` against a live Mezo testnet fork. The `mcbBTC/BTC` pool passes metadata and route quote checks, and the V1.5 guarded handler path is covered by local unit tests plus a fork-mode TreasuryOS handler test when the Mezo ERC20 BTC precompile wrapper is executable in Foundry. Manual transaction inspection also shows the Mezo `BTC` precompile/BTCCaller address behaves ERC20-style in the UI swap/add-liquidity path with `msg.value = 0`. Direct TreasuryOS BTC sleeve execution is still deferred from the main demo until `make btc-sleeve-broadcast-validation` completes the tiny controlled min-out, LP receipt, and unwind validation. LP staking, unstaking, and reward claims remain a separate extension.
 
 ### BTC reserve and BTC yield candidates
 

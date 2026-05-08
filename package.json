@@ -14,6 +14,7 @@
     "planner:test": "node --test services/term-yield-planner/planner.test.mjs",
     "btc-planner:test": "node --test services/btc-sleeve-planner/planner.test.mjs",
     "rpc-health": "node services/spectrum-state/rpc-health.mjs",
+    "demo:status": "node services/spectrum-state/demo-status.mjs",
     "state:probe": "node services/spectrum-state/snapshot.mjs",
     "state:snapshot": "node services/spectrum-state/snapshot.mjs",
     "btc:sleeve-targets": "node services/spectrum-state/btc-sleeve-targets.mjs",

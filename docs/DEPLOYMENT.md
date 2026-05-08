@@ -90,6 +90,7 @@ MEZO_TIGRIS_MUSD_MUSDC_STABLE=true
 MEZO_MUSDC_TOKEN=0xe1a26db653708A2AD8F824E92Db9852410e33A59
 MEZO_BTC_TOKEN=0x7b7C000000000000000000000000000000000000
 MEZO_MCBTC_TOKEN=0x2278cAAe0009E8A325A346FeA573eF23C5756dbF
+MEZO_TIGRIS_BTC_ROUTER=<router observed for BTC sleeve validation, optional>
 MEZO_TIGRIS_MCBTC_BTC_POOL=0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E
 MEZO_TIGRIS_MCBTC_BTC_STABLE=true
 TIGRIS_MAX_SLIPPAGE_BPS=100
@@ -129,7 +130,15 @@ This target reads `.env`, uses `ACTIVE_MEZO_RPC_URL` when set, otherwise falls b
 - TreasuryOS `TigrisStablePoolHandler` deposit and withdrawal against `MUSD/mUSDC`;
 - `mcbBTC/BTC` metadata, router quote checks, guarded TreasuryOS handler fork validation, and separate BTC sleeve transaction inspection via `make btc-sleeve-targets`.
 
-The `mcbBTC/BTC` direct and TreasuryOS-guarded add/remove-liquidity execution tests are allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Manual transaction inspection shows the UI path uses ERC20-style BTC at `0x7b7C000000000000000000000000000000000000` with `msg.value = 0`. The guarded handler now covers BTCReservePolicy checks, owner/multisig-only principal movement, swap min-out, LP min-liquidity, receipt accounting, and unwind accounting. Remaining live-demo validation is a tiny controlled testnet broadcast plus optional LP staking, unstaking, and reward-claim support.
+The `mcbBTC/BTC` direct and TreasuryOS-guarded add/remove-liquidity execution tests are allowed to skip when Foundry cannot execute Mezo's ERC20 BTC precompile wrapper in fork mode. Manual transaction inspection shows the UI path uses ERC20-style BTC at `0x7b7C000000000000000000000000000000000000` with `msg.value = 0`. The guarded handler now covers BTCReservePolicy checks, owner/multisig-only principal movement, swap min-out, LP min-liquidity, receipt accounting, and unwind accounting. Remaining live-demo validation is a tiny controlled testnet broadcast. LP staking, unstaking, and reward claiming are intentionally separate future extensions.
+
+Check final demo readiness at any point:
+
+```bash
+make demo-status
+```
+
+The status command reports the active RPC provider, MUSD Savings readiness, optional `MUSD/mUSDC` readiness, BTC policy/router/handler readiness, and whether `deployments/btc-sleeve-validation.json` proves a completed tiny broadcast.
 
 ---
 
@@ -159,6 +168,59 @@ TREASURY_ACCOUNT_FACTORY=<deployed factory>
 ```
 
 `BTCReservePolicy` governs BTC reserve bucket accounting and sleeve allow/block decisions. Configure it after onboarding if you want the demo to show BTC reserve bucket accounting, `mcbBTC/BTC` policy previews, or V1.5 guarded BTC handler validation. BTC execution still uses a separate `BTCReserveRouter`; it is not routed through the MUSD `AllocationRouter`.
+
+`BTCReserveRouter` is not deployed by the core script by default. The tiny BTC sleeve validation script deploys and registers a validation router/handler if `BTC_RESERVE_ROUTER` and `TIGRIS_BTC_STABLE_POOL_HANDLER` are not already set. That keeps V1 onboarding focused on the MUSD operating-capital demo while leaving the guarded BTC path testable.
+
+---
+
+## Tiny BTC Sleeve Broadcast Validation
+
+This is a V1.5 validation tool, not the primary V1 demo path.
+
+It validates the smallest useful execution loop:
+
+1. explicitly fund `TreasuryAccount.fundIdleBTC()` with a tiny amount;
+2. configure `BTCReservePolicy` and `BTCSleeve` for the `mcbBTC/BTC` pool;
+3. calculate BTC -> mcbBTC swap amount, min mcbBTC out, min token amounts used, and min LP out from live Tigris quotes;
+4. route guarded deposit through `BTCReserveRouter` and `TigrisBTCStablePoolHandler`;
+5. verify LP receipt and BTC-principal accounting;
+6. remove liquidity, swap paired mcbBTC back to BTC, and verify idle BTC/principal accounting;
+7. write `deployments/btc-sleeve-validation.json` only after the non-dry-run completes.
+
+Required setup for the first controlled validation:
+
+```bash
+BTC_SLEEVE_TREASURY_ACCOUNT=<EOA-owned TreasuryAccount>
+BTC_SLEEVE_VALIDATOR_PRIVATE_KEY=<private key for TreasuryAccount owner>
+BTC_RESERVE_POLICY=<deployed BTCReservePolicy, optional if the validator deploys one>
+MEZO_TIGRIS_BTC_ROUTER=<BTC pool router if different from MEZO_TIGRIS_ROUTER>
+BTC_SLEEVE_TEST_AMOUNT_WEI=100000000000000
+BTC_SLEEVE_MAX_TEST_AMOUNT_WEI=1000000000000000
+BTC_SLEEVE_POLICY_MAX_PRICE_IMPACT_BPS=500
+BTC_SLEEVE_BROADCAST_CONFIRM=false
+```
+
+Run the simulation first:
+
+```bash
+make btc-sleeve-broadcast-dry-run
+```
+
+Broadcast only after reviewing the dry-run output and the selected RPC provider. Set
+`BTC_SLEEVE_BROADCAST_CONFIRM=true` in `.env`, then run:
+
+```bash
+make btc-sleeve-broadcast-validation
+```
+
+The default test amount is `0.0001 BTC` (`100000000000000` wei). The script refuses amounts above `BTC_SLEEVE_MAX_TEST_AMOUNT_WEI`, defaults to `0.001 BTC`.
+
+Safety notes:
+
+- The validator requires the Treasury Account owner to be the signing EOA. For product multisig accounts, reuse the same setup/deposit/withdraw calldata through the multisig after the direct validation path is proven.
+- If current `mcbBTC/BTC` liquidity creates price impact above `BTC_SLEEVE_POLICY_MAX_PRICE_IMPACT_BPS`, the policy preview blocks execution. Raising that cap is a deliberate testnet validation override, not a final demo policy.
+- Because broadcasted transactions are not atomic across the whole sequence, use only a disposable/tiny validation amount. If deposit succeeds and unwind fails, the Treasury Account may temporarily hold LP tokens until a manual guarded unwind is submitted.
+- LP staking and MEZO reward claiming are not included in this validator.
 
 ---
 

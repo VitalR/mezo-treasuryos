@@ -197,6 +197,8 @@ The strongest demo is:
 
 Throughout the flow, show the selected Mezo testnet RPC provider. If `make rpc-health` selects Spectrum, call out that live reads, monitoring, and transaction execution are running through **Spectrum Nodes**; if not, show the official fallback honestly and keep Spectrum as the preferred provider path.
 
+Use `make demo-status` before the demo to show the current sleeve boundary: MUSD Savings Vault is V1 executable, `MUSD/mUSDC` is optional/pending final route health, `mcbBTC/BTC` has guarded execution implemented with tiny broadcast validation pending or complete, and LP staking/rewards are future work.
+
 If that flow works, TreasuryOS feels like a product, not a prototype.
 
 ---

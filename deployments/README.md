@@ -37,12 +37,19 @@ Each manifest should include:
 - `allocationRouter`
 - `musdSavingsRateHandler`
 - `tigrisStablePoolHandler`
+- `btcReserveRouter` and `tigrisBTCStablePoolHandler` when a tiny BTC sleeve validation run deploys them
 - `externalMusdSavingsRateMock` when used for demo
 - `references` for Mezo / Tigris dependencies
 
 The repo now includes a starter template:
 
 - `mezo-testnet-demo.template.json`
+
+The V1.5 BTC sleeve validator writes:
+
+- `btc-sleeve-validation.json`
+
+only after a completed non-dry-run guarded mcbBTC/BTC deposit and unwind.
 
 ---
 
@@ -66,11 +73,11 @@ Current testnet deployment planning assumes:
 - Spectrum Nodes as the primary RPC provider
 - Mezo MUSD borrow contracts from official docs
 - Tigris testnet router and `MUSD/mUSDC` stable pool from official docs
-- Tigris `mcbBTC/BTC` stable pool recorded as a BTC-correlated planning candidate
+- Tigris `mcbBTC/BTC` stable pool recorded as a BTC-correlated planning candidate, with guarded execution validation tracked separately
 
-The savings vault address is intentionally not pinned here yet unless it has been confirmed in the deployment environment.
+The confirmed Mezo testnet MUSD Savings Vault is `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16` and should remain the primary V1 demo sleeve.
 
-If a live official testnet savings contract is unavailable or not yet confirmed, the demo deployment may use:
+If a live official testnet savings contract is unavailable in a later environment, the local deterministic demo may use:
 
 - `ExternalMUSDSavingsRateMock`
 

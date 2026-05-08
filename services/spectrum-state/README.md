@@ -18,6 +18,12 @@ Check all configured RPC candidates:
 make rpc-health
 ```
 
+Print final demo readiness without exposing RPC URLs or keys:
+
+```sh
+make demo-status
+```
+
 Probe the selected RPC:
 
 ```sh
@@ -37,6 +43,15 @@ make btc-sleeve-targets
 ```
 
 This checks the BTC precompile/BTCCaller metadata, mcbBTC metadata, pool reserves, BTC -> mcbBTC router quote, UI-observed swap/add-liquidity/stake transactions, router code hashes, and LP gauge metadata. It does not move funds.
+
+The guarded BTC sleeve broadcast validator is separate:
+
+```sh
+make btc-sleeve-broadcast-dry-run
+make btc-sleeve-broadcast-validation
+```
+
+It is only for tiny V1.5 deposit/unwind validation and does not include LP staking or reward claiming.
 
 Build a live snapshot from an onboarding manifest:
 
