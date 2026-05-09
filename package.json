@@ -8,6 +8,8 @@
     "contracts:fmt": "forge fmt --root contracts",
     "advisor:demo": "node services/treasury-advisor/run.mjs services/treasury-advisor/sample-snapshot.json",
     "advisor:test": "node --test services/treasury-advisor/advisor.test.mjs",
+    "risk-keeper:demo": "node services/treasury-risk-keeper/run.mjs services/treasury-risk-keeper/sample-snapshot.json",
+    "risk-keeper:test": "node --test services/treasury-risk-keeper/keeper.test.mjs",
     "demo:yield-console": "node services/yield-console/render.mjs services/yield-console/sample-snapshot.json",
     "demo:term-planner": "node services/term-yield-planner/run.mjs services/term-yield-planner/sample-snapshot.json",
     "demo:btc-sleeve-plan": "node services/btc-sleeve-planner/run.mjs services/btc-sleeve-planner/sample-snapshot.json",

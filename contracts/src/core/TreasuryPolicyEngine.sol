@@ -7,6 +7,12 @@ import { ITreasuryPolicyEngine } from "../interfaces/ITreasuryPolicyEngine.sol";
 /// @notice Enforces TreasuryOS internal controls for Treasury Account actions.
 contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     // =============================================================
+    // Constants
+    // =============================================================
+
+    uint256 internal constant BPS_DENOMINATOR = 10_000;
+
+    // =============================================================
     // Events
     // =============================================================
 
@@ -37,6 +43,17 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @notice Emitted when automation capabilities change for an account.
     event AutomationCapabilitiesUpdated(
         address indexed account, bool allowAutoSavingsWithdraw, bool allowAutoDebtRepay
+    );
+    /// @notice Emitted when projected-position and idle-BTC top-up risk controls change for an account.
+    event RiskControlsUpdated(
+        address indexed account,
+        uint256 minOpenCollateralRatioBps,
+        uint256 targetCollateralRatioBps,
+        uint256 stressDropBps,
+        uint256 minPostStressCollateralRatioBps,
+        uint256 minIdleBTCReserve,
+        uint256 maxAutoIdleBTCTopUp,
+        bool allowAutomationBTCTopUp
     );
     /// @notice Emitted when a destination approval or allocation cap changes for an account.
     event DestinationPolicyUpdated(
@@ -72,6 +89,9 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @notice Raised when automated debt repayment is disabled for an account.
     /// @param account Treasury Account whose automation policy blocks the action.
     error AutoDebtRepayDisabled(address account);
+    /// @notice Raised when automated idle-BTC collateral top-up is disabled for an account.
+    /// @param account Treasury Account whose automation policy blocks the action.
+    error AutoBTCTopUpDisabled(address account);
     /// @notice Raised when a destination allocation exceeds the configured cap.
     /// @param nextAllocation Proposed post-action allocation.
     /// @param cap Configured destination cap.
@@ -108,6 +128,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param warningCollateralRatioBps Proposed warning threshold in basis points.
     /// @param criticalCollateralRatioBps Proposed critical threshold in basis points.
     error InvalidRiskThresholds(uint256 warningCollateralRatioBps, uint256 criticalCollateralRatioBps);
+    /// @notice Raised when risk-control settings are internally inconsistent.
+    error InvalidRiskControlConfig();
     /// @notice Raised when an automated action amount exceeds its configured bound.
     /// @param actionType Encoded workflow category being checked.
     /// @param amount Requested automation amount.
@@ -119,12 +141,28 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param nextIdleBalance Proposed post-action idle balance.
     /// @param requiredBuffer Configured minimum liquidity buffer.
     error LiquidityBufferBreached(uint256 nextIdleBalance, uint256 requiredBuffer);
+    /// @notice Raised when an automated idle-BTC top-up would breach the configured idle reserve floor.
+    /// @param nextIdleBTC Projected idle BTC after top-up.
+    /// @param requiredReserve Configured idle BTC floor.
+    error IdleBTCReserveBreached(uint256 nextIdleBTC, uint256 requiredReserve);
     /// @notice Raised when a destination is not approved for treasury allocation.
     /// @param destination Destination being checked.
     error NotApprovedDestination(address destination);
     /// @notice Raised when a paused treasury attempts a blocked action.
     /// @param account Treasury Account currently paused.
     error PolicyPaused(address account);
+    /// @notice Raised when projected CR is below the configured minimum.
+    /// @param projectedCollateralRatioBps Projected collateral ratio.
+    /// @param minimumCollateralRatioBps Configured minimum collateral ratio.
+    error ProjectedCollateralRatioTooLow(uint256 projectedCollateralRatioBps, uint256 minimumCollateralRatioBps);
+    /// @notice Raised when projected post-stress CR is below the configured minimum.
+    /// @param projectedPostStressCollateralRatioBps Projected post-stress collateral ratio.
+    /// @param minimumPostStressCollateralRatioBps Configured post-stress minimum ratio.
+    error PostStressCollateralRatioTooLow(
+        uint256 projectedPostStressCollateralRatioBps, uint256 minimumPostStressCollateralRatioBps
+    );
+    /// @notice Raised when a projected-position check requires price-backed data that is unavailable.
+    error RiskDataUnavailable();
     /// @notice Raised when a caller lacks the authority required for an action.
     /// @param account Treasury Account being protected.
     /// @param actor Caller attempting the action.
@@ -142,6 +180,12 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     /// @param approvalThreshold Maximum amount an operator may move without approver authority.
     /// @param warningCollateralRatioBps Treasury-defined warning threshold for collateral health, in basis points.
     /// @param criticalCollateralRatioBps Treasury-defined critical threshold for collateral health, in basis points.
+    /// @param minOpenCollateralRatioBps Minimum projected CR allowed for borrow/debt-increase/collateral-withdrawal
+    /// flows. @param targetCollateralRatioBps Target CR used by keepers and reports.
+    /// @param stressDropBps BTC price stress modeled by projected-position checks, in basis points.
+    /// @param minPostStressCollateralRatioBps Minimum projected CR after stress.
+    /// @param minIdleBTCReserve Idle BTC floor preserved for automated top-ups.
+    /// @param maxAutoIdleBTCTopUp Maximum automated idle BTC top-up amount.
     /// @param automationEnabled Whether low-risk automation is enabled.
     /// @param paused Whether treasury actions are currently paused.
     /// @param initialized Whether the account has been initialized in the policy engine.
@@ -153,11 +197,18 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         uint256 approvalThreshold;
         uint256 warningCollateralRatioBps;
         uint256 criticalCollateralRatioBps;
+        uint256 minOpenCollateralRatioBps;
+        uint256 targetCollateralRatioBps;
+        uint256 stressDropBps;
+        uint256 minPostStressCollateralRatioBps;
+        uint256 minIdleBTCReserve;
         address automationExecutor;
         uint256 maxAutoBufferRestore;
         uint256 maxAutoDebtRepay;
+        uint256 maxAutoIdleBTCTopUp;
         bool allowAutoSavingsWithdraw;
         bool allowAutoDebtRepay;
+        bool allowAutomationBTCTopUp;
         bool automationEnabled;
         bool paused;
         bool initialized;
@@ -218,6 +269,8 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         policy.approvalThreshold = _config.approvalThreshold;
         policy.warningCollateralRatioBps = _config.warningCollateralRatioBps;
         policy.criticalCollateralRatioBps = _config.criticalCollateralRatioBps;
+        policy.targetCollateralRatioBps = _config.warningCollateralRatioBps;
+        policy.minPostStressCollateralRatioBps = _config.criticalCollateralRatioBps;
         policy.automationEnabled = _config.automationEnabled;
         policy.paused = _config.startPaused;
         policy.initialized = true;
@@ -318,6 +371,33 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
     }
 
     /// @inheritdoc ITreasuryPolicyEngine
+    function updateRiskControls(address _account, RiskControlConfig calldata _config) external {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        _requireAdminAuthority(policy, _account, msg.sender);
+        _validateRiskControlConfig(_config);
+
+        policy.minOpenCollateralRatioBps = _config.minOpenCollateralRatioBps;
+        policy.targetCollateralRatioBps = _config.targetCollateralRatioBps;
+        policy.stressDropBps = _config.stressDropBps;
+        policy.minPostStressCollateralRatioBps = _config.minPostStressCollateralRatioBps;
+        policy.minIdleBTCReserve = _config.minIdleBTCReserve;
+        policy.maxAutoIdleBTCTopUp = _config.maxAutoIdleBTCTopUp;
+        policy.allowAutomationBTCTopUp = _config.allowAutomationBTCTopUp;
+
+        emit RiskControlsUpdated(
+            _account,
+            _config.minOpenCollateralRatioBps,
+            _config.targetCollateralRatioBps,
+            _config.stressDropBps,
+            _config.minPostStressCollateralRatioBps,
+            _config.minIdleBTCReserve,
+            _config.maxAutoIdleBTCTopUp,
+            _config.allowAutomationBTCTopUp
+        );
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
     function updateDestinationPolicy(address _account, address _destination, bool _approved, uint256 _cap) external {
         AccountPolicy storage policy = _requireInitializedAccount(_account);
 
@@ -380,6 +460,67 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
 
         require(!policy.paused, PolicyPaused(_account));
         require(_amount > 0, InvalidAmount(_amount));
+
+        _requireElevatedAuthority(policy, _account, _actor);
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateProjectedPosition(
+        address _account,
+        address,
+        uint256 _projectedCollateral,
+        uint256 _projectedDebt,
+        uint256 _collateralPrice
+    ) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        if (_projectedDebt == 0) {
+            return;
+        }
+
+        bool _needsCurrentRatio = policy.minOpenCollateralRatioBps > 0;
+        bool _needsStressRatio = policy.stressDropBps > 0 && policy.minPostStressCollateralRatioBps > 0;
+        if (!_needsCurrentRatio && !_needsStressRatio) {
+            return;
+        }
+
+        uint256 _projectedRatio = _collateralRatioBps(_projectedCollateral, _projectedDebt, _collateralPrice);
+        if (_needsCurrentRatio && _projectedRatio < policy.minOpenCollateralRatioBps) {
+            revert ProjectedCollateralRatioTooLow(_projectedRatio, policy.minOpenCollateralRatioBps);
+        }
+
+        if (!_needsStressRatio) {
+            return;
+        }
+
+        uint256 _postStressPrice = (_collateralPrice * (BPS_DENOMINATOR - policy.stressDropBps)) / BPS_DENOMINATOR;
+        uint256 _postStressRatio = _collateralRatioBps(_projectedCollateral, _projectedDebt, _postStressPrice);
+        if (_postStressRatio < policy.minPostStressCollateralRatioBps) {
+            revert PostStressCollateralRatioTooLow(_postStressRatio, policy.minPostStressCollateralRatioBps);
+        }
+    }
+
+    /// @inheritdoc ITreasuryPolicyEngine
+    function validateIdleBTCTopUp(address _account, address _actor, uint256 _amount, uint256 _idleBTC) external view {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        require(_amount > 0, InvalidAmount(_amount));
+        require(_idleBTC >= _amount, InsufficientIdleBalance(_amount, _idleBTC));
+
+        if (policy.automationExecutor != address(0) && _actor == policy.automationExecutor) {
+            _requireAutomationAuthority(policy, _account, _actor);
+            require(policy.allowAutomationBTCTopUp, AutoBTCTopUpDisabled(_account));
+            require(
+                _amount <= policy.maxAutoIdleBTCTopUp,
+                AutomationLimitExceeded(bytes32("BTC_TOP_UP"), _amount, policy.maxAutoIdleBTCTopUp)
+            );
+
+            uint256 _nextIdleBTC = _idleBTC - _amount;
+            if (_nextIdleBTC < policy.minIdleBTCReserve) {
+                revert IdleBTCReserveBreached(_nextIdleBTC, policy.minIdleBTCReserve);
+            }
+            return;
+        }
 
         _requireElevatedAuthority(policy, _account, _actor);
     }
@@ -634,9 +775,62 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         );
     }
 
+    /// @inheritdoc ITreasuryPolicyEngine
+    function getAccountRiskControls(address _account) external view returns (RiskControlConfig memory config) {
+        AccountPolicy storage policy = _requireInitializedAccount(_account);
+
+        config = RiskControlConfig({
+            minOpenCollateralRatioBps: policy.minOpenCollateralRatioBps,
+            targetCollateralRatioBps: policy.targetCollateralRatioBps,
+            stressDropBps: policy.stressDropBps,
+            minPostStressCollateralRatioBps: policy.minPostStressCollateralRatioBps,
+            minIdleBTCReserve: policy.minIdleBTCReserve,
+            maxAutoIdleBTCTopUp: policy.maxAutoIdleBTCTopUp,
+            allowAutomationBTCTopUp: policy.allowAutomationBTCTopUp
+        });
+    }
+
     // =============================================================
     // Private Functions
     // =============================================================
+
+    /// @notice Validates risk controls before storage.
+    /// @param _config Proposed risk-control configuration.
+    function _validateRiskControlConfig(RiskControlConfig calldata _config) private pure {
+        if (_config.stressDropBps > BPS_DENOMINATOR) {
+            revert InvalidRiskControlConfig();
+        }
+
+        if (
+            _config.targetCollateralRatioBps > 0 && _config.minOpenCollateralRatioBps > 0
+                && _config.targetCollateralRatioBps < _config.minOpenCollateralRatioBps
+        ) {
+            revert InvalidRiskControlConfig();
+        }
+    }
+
+    /// @notice Returns whether projected risk math has enough data to run.
+    function _riskDataAvailable(uint256 _positionCollateral, uint256 _positionDebt, uint256 _collateralPrice)
+        private
+        pure
+        returns (bool)
+    {
+        return _positionCollateral > 0 && _positionDebt > 0 && _collateralPrice > 0;
+    }
+
+    /// @notice Returns the projected CR in basis points.
+    function _collateralRatioBps(uint256 _positionCollateral, uint256 _positionDebt, uint256 _collateralPrice)
+        private
+        pure
+        returns (uint256)
+    {
+        if (!_riskDataAvailable(_positionCollateral, _positionDebt, _collateralPrice)) {
+            revert RiskDataUnavailable();
+        }
+
+        uint256 _collateralValue = (_positionCollateral * _collateralPrice) / 1e18;
+        return (_collateralValue * BPS_DENOMINATOR) / _positionDebt;
+    }
 
     /// @notice Returns initialized policy state for an account or reverts if the account is unknown.
     /// @param _account Treasury Account being checked.

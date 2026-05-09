@@ -38,6 +38,7 @@ It gives each client:
 - governed allocation routing into approved Mezo-native sleeves
 - bounded automated treasury operations
 - treasury reporting and reviewer visibility
+- liquidation-defense controls that prevent unsafe borrow/allocation structures
 
 For the hackathon build, TreasuryOS uses **Spectrum Nodes** as the primary Mezo testnet RPC provider for treasury state reads, monitoring, and transaction execution.
 
@@ -56,8 +57,9 @@ Goldsky is the planned reporting indexer for treasury activity timelines, sleeve
 5. TreasuryOS keeps the required operating buffer liquid.
 6. Treasury can disburse idle MUSD for real operating use under policy.
 7. Only surplus MUSD can be allocated into approved Mezo-native sleeves.
-8. TreasuryOS monitors treasury conditions and proposes or executes bounded actions.
-9. TreasuryOS produces reviewer-ready reporting and action logs.
+8. TreasuryOS monitors collateral health, stress conditions, and defense capacity.
+9. TreasuryOS proposes or executes bounded actions such as sleeve unwind, debt repayment, or idle BTC collateral top-up.
+10. TreasuryOS produces reviewer-ready reporting and action logs.
 
 ---
 
@@ -116,6 +118,8 @@ V1 proves one serious workflow:
 - router-based multi-sleeve allocation
 - BTC reserve and collateral reporting separate from MUSD operating capital
 - preview-only BTC reserve policy for BTC-correlated sleeve candidates
+- projected-position checks before unsafe borrow, debt increase, or collateral withdrawal
+- strategy-aware Treasury Risk Keeper for BTC price-shock defense
 - one automated treasury response flow
 - one reviewer-facing treasury report
 
@@ -154,12 +158,16 @@ Examples:
 
 - sweep excess idle MUSD into an approved sleeve
 - withdraw from a sleeve to restore operating buffer
+- add accounted idle BTC to collateral when policy and strategy allow
+- block unsafe borrow or allocation when post-stress defense capacity is insufficient
 - disburse idle MUSD for treasury operations under policy
 - block actions that violate treasury policy
 - pause allocation under stress or policy changes
 - generate clear action summaries for operators and reviewers
 
 This is treasury automation, not black-box AI capital management.
+
+The risk keeper is strategy-aware, not a fixed ladder. It can prefer idle BTC collateral top-up when BTC was reserved for collateral defense, or MUSD repayment when idle BTC is scarce and MUSD Savings is immediately withdrawable. It does not assume MUSD already sent to payroll, vendors, OTC, or settlement is still available onchain.
 
 ## AI Story
 
@@ -175,6 +183,7 @@ AI reads TreasuryOS state and generates an allocation memo:
 - sleeve exposure and cap pressure
 - policy decisions and blocked actions
 - collateral-health notes
+- post-stress collateral ratio and defense-capacity notes
 - recommended next treasury step
 
 That makes TreasuryOS feel like an operations product without weakening onchain controls.
@@ -192,8 +201,8 @@ The strongest demo is:
 5. Disburse a portion for treasury operating use
 6. Keep an operating buffer and allocate only surplus MUSD into approved sleeves
 7. Trigger a stress or liquidity event
-8. Show TreasuryOS restoring buffer or blocking a risky action
-9. Show the Treasury Yield Console and AI memo explaining what happened and why
+8. Show TreasuryOS blocking new risky allocation, recommending a defense action, or adding bounded idle BTC collateral through policy
+9. Show the Treasury Yield Console, Treasury Risk Keeper output, and AI memo explaining what happened and why
 
 Throughout the flow, show the selected Mezo testnet RPC provider. If `make rpc-health` selects Spectrum, call out that live reads, monitoring, and transaction execution are running through **Spectrum Nodes**; if not, show the official fallback honestly and keep Spectrum as the preferred provider path.
 

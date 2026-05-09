@@ -102,6 +102,49 @@ contract TreasuryAutomationExecutorTest is Test {
         assertEq(_treasuryAccount.positionTotalDebt(), 510 ether);
     }
 
+    function test_TopUpCollateralFromIdleBTC_AuthorizedOperatorExecutesWorkflow() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.fundIdleBTC{ value: 1.5 ether }();
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(
+            address(_treasuryAccount),
+            ITreasuryPolicyEngine.RiskControlConfig({
+                minOpenCollateralRatioBps: 0,
+                targetCollateralRatioBps: 20_000,
+                stressDropBps: 0,
+                minPostStressCollateralRatioBps: 0,
+                minIdleBTCReserve: 0.5 ether,
+                maxAutoIdleBTCTopUp: 1 ether,
+                allowAutomationBTCTopUp: true
+            })
+        );
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.topUpCollateralFromIdleBTC(_treasuryAccount, 1 ether, _UPPER_HINT, _LOWER_HINT);
+
+        assertEq(_treasuryAccount.idleBTC(), 0.5 ether);
+        assertEq(_treasuryAccount.positionCollateral(), 7 ether);
+    }
+
+    function test_TopUpCollateralFromIdleBTC_BlockedWhenPolicyDisallowsAutomation() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.fundIdleBTC{ value: 1 ether }();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.AutoBTCTopUpDisabled.selector, address(_treasuryAccount))
+        );
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.topUpCollateralFromIdleBTC(_treasuryAccount, 0.5 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
     function test_RestoreBufferFromSavings_UnauthorizedCallerReverts() public {
         vm.expectRevert(
             abi.encodeWithSelector(TreasuryAutomationExecutor.UnauthorizedAutomationCaller.selector, _STRANGER)

@@ -255,6 +255,18 @@ contract TreasuryAccountTest is Test {
         _account.openTrove{ value: 2 ether }(150 ether, _UPPER_HINT, _LOWER_HINT);
     }
 
+    function test_OpenTrove_BlocksProjectedCollateralRatioBelowRiskPolicy() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+        _configureRiskControls(_account, 18_000, 22_000, 0, 0, 0, 0, false);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.ProjectedCollateralRatioTooLow.selector, 13_333, 18_000)
+        );
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 2 ether }(150 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
     function test_WithdrawMUSD_ApproverCanIncreaseDebtAboveApprovalThreshold() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 
@@ -266,6 +278,36 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_account.idleMUSD(), 270 ether);
         assertEq(_account.positionTotalDebt(), 270 ether);
+    }
+
+    function test_WithdrawMUSD_BlocksDebtIncreaseBelowRiskPolicy() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+        _configureRiskControls(_account, 18_000, 22_000, 0, 0, 0, 0, false);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.ProjectedCollateralRatioTooLow.selector, 16_666, 18_000)
+        );
+
+        vm.prank(_APPROVER);
+        _account.withdrawMUSD(40 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
+    function test_WithdrawCollateral_BlocksCollateralReductionBelowRiskPolicy() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+        _configureRiskControls(_account, 18_000, 22_000, 0, 0, 0, 0, false);
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.ProjectedCollateralRatioTooLow.selector, 12_500, 18_000)
+        );
+
+        vm.prank(_APPROVER);
+        _account.withdrawCollateral(1 ether, _UPPER_HINT, _LOWER_HINT);
     }
 
     function test_RepayMUSD_OperatorCanRepayWithinApprovalThreshold() public {
@@ -305,6 +347,43 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_account.idleBTC(), 2 ether);
         assertEq(address(_account).balance, 2 ether);
+    }
+
+    function test_AddIdleBTCToCollateral_ApproverMovesReserveIntoPosition() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.fundIdleBTC{ value: 1 ether }();
+
+        vm.expectEmit(true, false, false, true);
+        emit TreasuryAccount.IdleBTCAddedToCollateral(_APPROVER, 1 ether, 0, 3 ether);
+
+        vm.prank(_APPROVER);
+        _account.addIdleBTCToCollateral(1 ether, _UPPER_HINT, _LOWER_HINT);
+
+        assertEq(_account.idleBTC(), 0);
+        assertEq(address(_account).balance, 0);
+        assertEq(_account.positionCollateral(), 3 ether);
+    }
+
+    function test_AddIdleBTCToCollateral_OperatorWithoutElevatedAuthorityReverts() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+
+        vm.prank(_OPERATOR);
+        _account.openTrove{ value: 2 ether }(80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.fundIdleBTC{ value: 1 ether }();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.UnauthorizedActor.selector, address(_account), _OPERATOR)
+        );
+
+        vm.prank(_OPERATOR);
+        _account.addIdleBTCToCollateral(1 ether, _UPPER_HINT, _LOWER_HINT);
     }
 
     function test_Receive_DoesNotSilentlyIncrementIdleBTC() public {
@@ -909,6 +988,31 @@ contract TreasuryAccountTest is Test {
         _policyEngine.updateAutomationLimits(address(_account), _maxAutoBufferRestore, _maxAutoDebtRepay);
         vm.prank(_TREASURY_ADMIN);
         _policyEngine.updateAutomationCapabilities(address(_account), _allowAutoSavingsWithdraw, _allowAutoDebtRepay);
+    }
+
+    function _configureRiskControls(
+        TreasuryAccount _account,
+        uint256 _minOpenCollateralRatioBps,
+        uint256 _targetCollateralRatioBps,
+        uint256 _stressDropBps,
+        uint256 _minPostStressCollateralRatioBps,
+        uint256 _minIdleBTCReserve,
+        uint256 _maxAutoIdleBTCTopUp,
+        bool _allowAutomationBTCTopUp
+    ) internal {
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(
+            address(_account),
+            ITreasuryPolicyEngine.RiskControlConfig({
+                minOpenCollateralRatioBps: _minOpenCollateralRatioBps,
+                targetCollateralRatioBps: _targetCollateralRatioBps,
+                stressDropBps: _stressDropBps,
+                minPostStressCollateralRatioBps: _minPostStressCollateralRatioBps,
+                minIdleBTCReserve: _minIdleBTCReserve,
+                maxAutoIdleBTCTopUp: _maxAutoIdleBTCTopUp,
+                allowAutomationBTCTopUp: _allowAutomationBTCTopUp
+            })
+        );
     }
 
     function _defaultConfig() internal pure returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {

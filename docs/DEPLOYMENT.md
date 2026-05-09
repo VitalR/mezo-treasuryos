@@ -104,6 +104,20 @@ Testnet deployment scripts no longer deploy or use `ExternalMUSDSavingsRateMock`
 
 `MEZO_TIGRIS_MCBTC_BTC_POOL` is a real BTC-correlated Tigris pool target for reporting and V1.5 guarded execution. Do not wire it into the MUSD `AllocationRouter`; executable BTC allocation uses `BTCReserveRouter`, `BTCReservePolicy`, BTC-denominated receipt accounting, and separate owner/multisig approval rules.
 
+Risk keeper / liquidation-defense defaults:
+
+```bash
+DEMO_TREASURY_MIN_OPEN_COLLATERAL_RATIO_BPS=18000
+DEMO_TREASURY_TARGET_COLLATERAL_RATIO_BPS=20000
+DEMO_TREASURY_STRESS_DROP_BPS=2500
+DEMO_TREASURY_MIN_POST_STRESS_COLLATERAL_RATIO_BPS=14000
+DEMO_TREASURY_MIN_IDLE_BTC_RESERVE=250000000000000000
+DEMO_TREASURY_MAX_AUTO_IDLE_BTC_TOP_UP=250000000000000000
+DEMO_TREASURY_ALLOW_AUTOMATION_BTC_TOP_UP=true
+```
+
+Deployment and onboarding scripts include these controls in the owner setup batch. They make TreasuryOS block treasury-controlled opens, debt increases, and collateral withdrawals that would violate the projected CR or post-stress policy. The idle-BTC collateral top-up path remains bounded by the configured per-action cap and idle reserve floor.
+
 After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
 
 1. deploy a handler implementing `IAllocationHandler`
@@ -138,6 +152,7 @@ Check final demo readiness at any point:
 
 ```bash
 make demo-status
+npm run risk-keeper:demo
 ```
 
 The status command reports the active RPC provider, MUSD Savings readiness, optional `MUSD/mUSDC` readiness, BTC policy/router/handler readiness, and whether `deployments/btc-sleeve-validation.json` proves a completed tiny broadcast.

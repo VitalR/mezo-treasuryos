@@ -167,6 +167,8 @@ Responsibilities:
 - validate liquidity buffer constraints
 - validate allowed sleeve rules
 - validate allocation cap limits
+- validate projected borrow, collateral withdrawal, and debt-increase actions against treasury CR policy
+- validate bounded idle-BTC collateral top-up authority
 - enforce pause conditions
 - validate automation permissions for low-risk actions
 
@@ -174,6 +176,26 @@ Design note:
 
 - V1 can implement this as a dedicated module or tightly scoped policy layer
 - what matters is clear control logic, not maximum modularity
+
+### Treasury Risk Keeper Boundary
+
+TreasuryOS is not only a yield router. It also has to protect BTC-backed MUSD positions from unsafe treasury behavior.
+
+The onchain layer enforces hard controls:
+
+- `RiskControlConfig` blocks projected opens, debt increases, and collateral withdrawals below configured CR and post-stress thresholds.
+- `TreasuryAccount.fundIdleBTC` is the explicit way to account for idle BTC reserve; plain `receive()` does not mutate idle reserve accounting.
+- `TreasuryAccount.addIdleBTCToCollateral` moves accounted idle BTC into Mezo collateral.
+- `TreasuryAutomationExecutor.topUpCollateralFromIdleBTC` can execute that move only inside policy caps and executor authorization.
+
+The offchain keeper computes strategy-aware recommendations using weighted defense capacity:
+
+- idle MUSD above the operating buffer
+- immediately withdrawable MUSD Savings-style sleeves with a haircut
+- MUSD LP sleeves with a larger haircut
+- idle BTC available for collateral top-up with a haircut
+
+This separation keeps advanced stress math and action ranking offchain while contracts enforce the hard limits that matter for safety.
 
 ### 4. TreasuryMultisig
 

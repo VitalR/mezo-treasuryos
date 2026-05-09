@@ -83,6 +83,35 @@ contract TreasuryPolicyEngineTest is Test {
         assertTrue(_allowAutoDebtRepay);
     }
 
+    function test_UpdateRiskControls_TreasuryAdminUpdatesProjectedRiskPolicy() public {
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+
+        vm.expectEmit(true, false, false, true);
+        emit TreasuryPolicyEngine.RiskControlsUpdated(
+            address(_account),
+            _config.minOpenCollateralRatioBps,
+            _config.targetCollateralRatioBps,
+            _config.stressDropBps,
+            _config.minPostStressCollateralRatioBps,
+            _config.minIdleBTCReserve,
+            _config.maxAutoIdleBTCTopUp,
+            _config.allowAutomationBTCTopUp
+        );
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(address(_account), _config);
+
+        ITreasuryPolicyEngine.RiskControlConfig memory _stored = _policyEngine.getAccountRiskControls(address(_account));
+
+        assertEq(_stored.minOpenCollateralRatioBps, 18_000);
+        assertEq(_stored.targetCollateralRatioBps, 22_000);
+        assertEq(_stored.stressDropBps, 2000);
+        assertEq(_stored.minPostStressCollateralRatioBps, 14_000);
+        assertEq(_stored.minIdleBTCReserve, 1 ether);
+        assertEq(_stored.maxAutoIdleBTCTopUp, 0.5 ether);
+        assertTrue(_stored.allowAutomationBTCTopUp);
+    }
+
     function test_UpdateDestinationPolicy_TreasuryAdminApprovesAndRecapsSleeve() public {
         vm.expectEmit(true, true, true, true);
         emit TreasuryPolicyEngine.DestinationPolicyUpdated(
@@ -141,6 +170,42 @@ contract TreasuryPolicyEngineTest is Test {
         vm.prank(_TREASURY_ADMIN);
         vm.expectRevert(abi.encodeWithSelector(TreasuryPolicyEngine.InvalidRiskThresholds.selector, 15_000, 15_000));
         _policyEngine.updateAutomationThresholds(address(_account), 15_000, 15_000);
+    }
+
+    function test_UpdateRiskControls_InvalidConfigReverts() public {
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+        _config.stressDropBps = 10_001;
+
+        vm.prank(_TREASURY_ADMIN);
+        vm.expectRevert(TreasuryPolicyEngine.InvalidRiskControlConfig.selector);
+        _policyEngine.updateRiskControls(address(_account), _config);
+    }
+
+    function test_ValidateProjectedPosition_BlocksBelowMinimumCollateralRatio() public {
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(address(_account), _config);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.ProjectedCollateralRatioTooLow.selector, 13_333, 18_000)
+        );
+        _policyEngine.validateProjectedPosition(address(_account), _TREASURY_ADMIN, 2 ether, 150 ether, 100 ether);
+    }
+
+    function test_ValidateProjectedPosition_BlocksPostStressShortfall() public {
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+        _config.minOpenCollateralRatioBps = 0;
+        _config.stressDropBps = 3000;
+        _config.minPostStressCollateralRatioBps = 18_000;
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(address(_account), _config);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.PostStressCollateralRatioTooLow.selector, 17_500, 18_000)
+        );
+        _policyEngine.validateProjectedPosition(address(_account), _TREASURY_ADMIN, 2 ether, 80 ether, 100 ether);
     }
 
     function test_ValidateAutomationExecution_AuthorizedExecutorPasses() public {
@@ -245,6 +310,44 @@ contract TreasuryPolicyEngineTest is Test {
         _policyEngine.validateDeRiskRepayment(address(_account), _AUTOMATION_EXECUTOR, _SAVINGS_VAULT, 75 ether);
     }
 
+    function test_ValidateIdleBTCTopUp_AutomationPassesWithinLimitAndReserveFloor() public {
+        _configureAutomation(120 ether, 70 ether, true, true);
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(address(_account), _config);
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        _policyEngine.validateIdleBTCTopUp(address(_account), _AUTOMATION_EXECUTOR, 0.4 ether, 1.5 ether);
+    }
+
+    function test_ValidateIdleBTCTopUp_BlocksAutomationReserveFloorBreach() public {
+        _configureAutomation(120 ether, 70 ether, true, true);
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(address(_account), _config);
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.IdleBTCReserveBreached.selector, 0.9 ether, 1 ether)
+        );
+        _policyEngine.validateIdleBTCTopUp(address(_account), _AUTOMATION_EXECUTOR, 0.5 ether, 1.4 ether);
+    }
+
+    function test_ValidateIdleBTCTopUp_BlocksAutomationWhenDisabled() public {
+        _configureAutomation(120 ether, 70 ether, true, true);
+        ITreasuryPolicyEngine.RiskControlConfig memory _config = _riskControlConfig();
+        _config.allowAutomationBTCTopUp = false;
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateRiskControls(address(_account), _config);
+
+        vm.prank(_AUTOMATION_EXECUTOR);
+        vm.expectRevert(abi.encodeWithSelector(TreasuryPolicyEngine.AutoBTCTopUpDisabled.selector, address(_account)));
+        _policyEngine.validateIdleBTCTopUp(address(_account), _AUTOMATION_EXECUTOR, 0.4 ether, 1.5 ether);
+    }
+
     function test_ValidateAutomationExecution_PausedAccountReverts() public {
         vm.prank(_TREASURY_ADMIN);
         _policyEngine.updateAutomationExecutor(address(_account), _AUTOMATION_EXECUTOR);
@@ -269,6 +372,18 @@ contract TreasuryPolicyEngineTest is Test {
         _policyEngine.updateAutomationLimits(address(_account), _maxAutoBufferRestore, _maxAutoDebtRepay);
         vm.prank(_TREASURY_ADMIN);
         _policyEngine.updateAutomationCapabilities(address(_account), _allowAutoSavingsWithdraw, _allowAutoDebtRepay);
+    }
+
+    function _riskControlConfig() internal pure returns (ITreasuryPolicyEngine.RiskControlConfig memory config) {
+        config = ITreasuryPolicyEngine.RiskControlConfig({
+            minOpenCollateralRatioBps: 18_000,
+            targetCollateralRatioBps: 22_000,
+            stressDropBps: 2000,
+            minPostStressCollateralRatioBps: 14_000,
+            minIdleBTCReserve: 1 ether,
+            maxAutoIdleBTCTopUp: 0.5 ether,
+            allowAutomationBTCTopUp: true
+        });
     }
 
     function _defaultConfig() internal pure returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {

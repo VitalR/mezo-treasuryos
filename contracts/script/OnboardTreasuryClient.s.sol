@@ -31,8 +31,14 @@ contract OnboardTreasuryClient is Script {
     uint256 internal constant DEFAULT_APPROVAL_THRESHOLD = 250e18;
     uint256 internal constant DEFAULT_WARNING_COLLATERAL_RATIO_BPS = 18_000;
     uint256 internal constant DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS = 15_000;
+    uint256 internal constant DEFAULT_MIN_OPEN_COLLATERAL_RATIO_BPS = 18_000;
+    uint256 internal constant DEFAULT_TARGET_COLLATERAL_RATIO_BPS = 20_000;
+    uint256 internal constant DEFAULT_STRESS_DROP_BPS = 2500;
+    uint256 internal constant DEFAULT_MIN_POST_STRESS_COLLATERAL_RATIO_BPS = 14_000;
+    uint256 internal constant DEFAULT_MIN_IDLE_BTC_RESERVE = 0.25 ether;
     uint256 internal constant DEFAULT_MAX_AUTO_BUFFER_RESTORE = 500e18;
     uint256 internal constant DEFAULT_MAX_AUTO_DEBT_REPAY = 250e18;
+    uint256 internal constant DEFAULT_MAX_AUTO_IDLE_BTC_TOP_UP = 0.25 ether;
     uint256 internal constant DEFAULT_SAVINGS_CAP = 10_000e18;
     uint256 internal constant DEFAULT_TIGRIS_CAP = 5000e18;
     uint256 internal constant DEFAULT_TIGRIS_DEADLINE_WINDOW = 15 minutes;
@@ -82,12 +88,19 @@ contract OnboardTreasuryClient is Script {
         uint256 approvalThreshold;
         uint256 warningCollateralRatioBps;
         uint256 criticalCollateralRatioBps;
+        uint256 minOpenCollateralRatioBps;
+        uint256 targetCollateralRatioBps;
+        uint256 stressDropBps;
+        uint256 minPostStressCollateralRatioBps;
+        uint256 minIdleBTCReserve;
         bool automationEnabled;
         address automationExecutor;
         uint256 maxAutoBufferRestore;
         uint256 maxAutoDebtRepay;
+        uint256 maxAutoIdleBTCTopUp;
         bool allowAutoSavingsWithdraw;
         bool allowAutoDebtRepay;
+        bool allowAutomationBTCTopUp;
         bool startPaused;
         uint256 savingsCap;
         uint256 tigrisCap;
@@ -236,12 +249,24 @@ contract OnboardTreasuryClient is Script {
             vm.envOr("DEMO_TREASURY_WARNING_COLLATERAL_RATIO_BPS", DEFAULT_WARNING_COLLATERAL_RATIO_BPS);
         config.criticalCollateralRatioBps =
             vm.envOr("DEMO_TREASURY_CRITICAL_COLLATERAL_RATIO_BPS", DEFAULT_CRITICAL_COLLATERAL_RATIO_BPS);
+        config.minOpenCollateralRatioBps =
+            vm.envOr("DEMO_TREASURY_MIN_OPEN_COLLATERAL_RATIO_BPS", DEFAULT_MIN_OPEN_COLLATERAL_RATIO_BPS);
+        config.targetCollateralRatioBps =
+            vm.envOr("DEMO_TREASURY_TARGET_COLLATERAL_RATIO_BPS", DEFAULT_TARGET_COLLATERAL_RATIO_BPS);
+        config.stressDropBps = vm.envOr("DEMO_TREASURY_STRESS_DROP_BPS", DEFAULT_STRESS_DROP_BPS);
+        config.minPostStressCollateralRatioBps = vm.envOr(
+            "DEMO_TREASURY_MIN_POST_STRESS_COLLATERAL_RATIO_BPS", DEFAULT_MIN_POST_STRESS_COLLATERAL_RATIO_BPS
+        );
+        config.minIdleBTCReserve = vm.envOr("DEMO_TREASURY_MIN_IDLE_BTC_RESERVE", DEFAULT_MIN_IDLE_BTC_RESERVE);
         config.automationEnabled = vm.envOr("DEMO_TREASURY_AUTOMATION_ENABLED", true);
         config.automationExecutor = vm.envOr("DEMO_TREASURY_AUTOMATION_EXECUTOR", address(0));
         config.maxAutoBufferRestore = vm.envOr("DEMO_TREASURY_MAX_AUTO_BUFFER_RESTORE", DEFAULT_MAX_AUTO_BUFFER_RESTORE);
         config.maxAutoDebtRepay = vm.envOr("DEMO_TREASURY_MAX_AUTO_DEBT_REPAY", DEFAULT_MAX_AUTO_DEBT_REPAY);
+        config.maxAutoIdleBTCTopUp =
+            vm.envOr("DEMO_TREASURY_MAX_AUTO_IDLE_BTC_TOP_UP", DEFAULT_MAX_AUTO_IDLE_BTC_TOP_UP);
         config.allowAutoSavingsWithdraw = vm.envOr("DEMO_TREASURY_ALLOW_AUTO_SAVINGS_WITHDRAW", true);
         config.allowAutoDebtRepay = vm.envOr("DEMO_TREASURY_ALLOW_AUTO_DEBT_REPAY", true);
+        config.allowAutomationBTCTopUp = vm.envOr("DEMO_TREASURY_ALLOW_AUTOMATION_BTC_TOP_UP", true);
         config.startPaused = vm.envOr("DEMO_TREASURY_START_PAUSED", false);
         config.savingsCap = vm.envOr("DEMO_SAVINGS_CAP", DEFAULT_SAVINGS_CAP);
         config.tigrisCap = vm.envOr("DEMO_TIGRIS_CAP", DEFAULT_TIGRIS_CAP);
@@ -489,7 +514,7 @@ contract OnboardTreasuryClient is Script {
         pure
         returns (address[] memory targets, uint256[] memory values, bytes[] memory payloads)
     {
-        uint256 count = 5;
+        uint256 count = 6;
         if (artifacts.musdSavingsRateHandler != address(0) && artifacts.savingsDestination != address(0)) count++;
         if (artifacts.tigrisStablePoolHandler != address(0) && config.tigrisMusdMusdcPool != address(0)) count++;
         if (config.automationOperator != address(0)) count++;
@@ -534,6 +559,11 @@ contract OnboardTreasuryClient is Script {
             (artifacts.treasuryAccount, config.allowAutoSavingsWithdraw, config.allowAutoDebtRepay)
         );
 
+        targets[index] = config.treasuryPolicyEngine;
+        payloads[index++] = abi.encodeCall(
+            TreasuryPolicyEngine.updateRiskControls, (artifacts.treasuryAccount, _riskControlConfig(config))
+        );
+
         address automationExecutor = _effectiveAutomationExecutor(config, artifacts);
         targets[index] = config.treasuryPolicyEngine;
         payloads[index++] = abi.encodeCall(
@@ -545,6 +575,25 @@ contract OnboardTreasuryClient is Script {
             payloads[index] =
                 abi.encodeCall(TreasuryAutomationExecutor.setAutomationOperator, (config.automationOperator, true));
         }
+    }
+
+    /// @notice Builds the initial projected-risk and idle-BTC top-up policy for the client account.
+    /// @param config Client onboarding config.
+    /// @return riskConfig Risk controls forwarded to TreasuryPolicyEngine.
+    function _riskControlConfig(ClientConfig memory config)
+        internal
+        pure
+        returns (ITreasuryPolicyEngine.RiskControlConfig memory riskConfig)
+    {
+        riskConfig = ITreasuryPolicyEngine.RiskControlConfig({
+            minOpenCollateralRatioBps: config.minOpenCollateralRatioBps,
+            targetCollateralRatioBps: config.targetCollateralRatioBps,
+            stressDropBps: config.stressDropBps,
+            minPostStressCollateralRatioBps: config.minPostStressCollateralRatioBps,
+            minIdleBTCReserve: config.minIdleBTCReserve,
+            maxAutoIdleBTCTopUp: config.maxAutoIdleBTCTopUp,
+            allowAutomationBTCTopUp: config.allowAutomationBTCTopUp
+        });
     }
 
     /// @notice Returns the configured automation executor override or the deployed client executor.
@@ -778,10 +827,35 @@ contract OnboardTreasuryClient is Script {
             vm.toString(config.tigrisCap),
             '","tigrisMaxSlippageBps":"',
             vm.toString(config.tigrisMaxSlippageBps),
-            '","automationEnabled":',
+            '","riskControls":',
+            _buildRiskControlsJson(config),
+            ',"automationEnabled":',
             _jsonBool(config.automationEnabled),
             ',"startPaused":',
             _jsonBool(config.startPaused),
+            "}"
+        );
+    }
+
+    /// @notice Builds manifest risk-control JSON.
+    /// @param config Client onboarding config.
+    /// @return Risk controls JSON fragment.
+    function _buildRiskControlsJson(ClientConfig memory config) internal pure returns (string memory) {
+        return string.concat(
+            '{"minOpenCollateralRatioBps":"',
+            vm.toString(config.minOpenCollateralRatioBps),
+            '","targetCollateralRatioBps":"',
+            vm.toString(config.targetCollateralRatioBps),
+            '","stressDropBps":"',
+            vm.toString(config.stressDropBps),
+            '","minPostStressCollateralRatioBps":"',
+            vm.toString(config.minPostStressCollateralRatioBps),
+            '","minIdleBTCReserve":"',
+            vm.toString(config.minIdleBTCReserve),
+            '","maxAutoIdleBTCTopUp":"',
+            vm.toString(config.maxAutoIdleBTCTopUp),
+            '","allowAutomationBTCTopUp":',
+            _jsonBool(config.allowAutomationBTCTopUp),
             "}"
         );
     }

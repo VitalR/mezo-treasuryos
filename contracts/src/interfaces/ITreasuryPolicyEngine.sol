@@ -32,6 +32,24 @@ interface ITreasuryPolicyEngine {
         uint256[] destinationCaps;
     }
 
+    /// @notice Additional risk-control settings used by projected-position checks and keeper policy.
+    /// @param minOpenCollateralRatioBps Minimum projected CR allowed for borrow/debt-increase/collateral-withdrawal
+    /// flows. @param targetCollateralRatioBps Target CR used by offchain keepers and dashboards.
+    /// @param stressDropBps BTC price shock modeled by policy previews, in basis points.
+    /// @param minPostStressCollateralRatioBps Minimum projected CR after `stressDropBps`.
+    /// @param minIdleBTCReserve Idle BTC floor preserved for automated BTC top-ups.
+    /// @param maxAutoIdleBTCTopUp Maximum idle BTC amount automation may add as collateral in one action.
+    /// @param allowAutomationBTCTopUp Whether automation may add idle BTC collateral.
+    struct RiskControlConfig {
+        uint256 minOpenCollateralRatioBps;
+        uint256 targetCollateralRatioBps;
+        uint256 stressDropBps;
+        uint256 minPostStressCollateralRatioBps;
+        uint256 minIdleBTCReserve;
+        uint256 maxAutoIdleBTCTopUp;
+        bool allowAutomationBTCTopUp;
+    }
+
     /// @notice Initializes policy state for a newly deployed Treasury Account.
     /// @param _account Treasury Account being initialized.
     /// @param _treasuryAdmin Treasury administrator for the account.
@@ -70,6 +88,11 @@ interface ITreasuryPolicyEngine {
     /// @param _allowAutoDebtRepay Whether automation may repay debt using bounded workflows.
     function updateAutomationCapabilities(address _account, bool _allowAutoSavingsWithdraw, bool _allowAutoDebtRepay)
         external;
+
+    /// @notice Updates risk controls used by projected borrow checks and keeper automation.
+    /// @param _account Treasury Account being updated.
+    /// @param _config Risk-control configuration.
+    function updateRiskControls(address _account, RiskControlConfig calldata _config) external;
 
     /// @notice Updates whether a destination is approved for allocation and the amount it may receive.
     /// @param _account Treasury Account whose destination policy is being updated.
@@ -110,6 +133,27 @@ interface ITreasuryPolicyEngine {
     /// @param _actor Caller attempting the action.
     /// @param _amount Amount of BTC collateral being withdrawn.
     function validateCollateralWithdrawal(address _account, address _actor, uint256 _amount) external view;
+
+    /// @notice Validates that a projected position remains inside treasury risk policy.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the action that creates this projection.
+    /// @param _projectedCollateral Projected BTC collateral after the action.
+    /// @param _projectedDebt Projected MUSD debt after the action.
+    /// @param _collateralPrice Current BTC price used for the projection, scaled by 1e18.
+    function validateProjectedPosition(
+        address _account,
+        address _actor,
+        uint256 _projectedCollateral,
+        uint256 _projectedDebt,
+        uint256 _collateralPrice
+    ) external view;
+
+    /// @notice Validates moving accounted idle BTC into active Mezo collateral.
+    /// @param _account Treasury Account being checked.
+    /// @param _actor Caller attempting the top-up.
+    /// @param _amount Idle BTC amount being added as collateral.
+    /// @param _idleBTC Current idle BTC reserve before the top-up.
+    function validateIdleBTCTopUp(address _account, address _actor, uint256 _amount, uint256 _idleBTC) external view;
 
     /// @notice Validates fully closing a Mezo position.
     /// @param _account Treasury Account being checked.
@@ -263,4 +307,8 @@ interface ITreasuryPolicyEngine {
             bool allowAutoSavingsWithdraw,
             bool allowAutoDebtRepay
         );
+
+    /// @notice Returns projected-position and idle-BTC top-up policy for an account.
+    /// @param _account Treasury Account being queried.
+    function getAccountRiskControls(address _account) external view returns (RiskControlConfig memory config);
 }

@@ -50,6 +50,11 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
         uint256 requestedRepayAmount,
         uint256 actualRepaidAmount
     );
+    /// @notice Emitted when automation adds accounted idle BTC to active collateral.
+    /// @param treasuryAccount Treasury Account whose position received collateral.
+    /// @param operator Automation operator that initiated the workflow.
+    /// @param amount Idle BTC amount added as collateral.
+    event IdleBTCCollateralTopUpExecuted(address indexed treasuryAccount, address indexed operator, uint256 amount);
 
     // =============================================================
     // Errors
@@ -166,6 +171,26 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
             _targetRepayAmount,
             actualRepaidAmount
         );
+    }
+
+    /// @notice Adds accounted idle BTC reserve to Mezo collateral through a bounded automation path.
+    /// @param _treasuryAccount Treasury Account being operated.
+    /// @param _amount Idle BTC amount to move into active collateral.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    function topUpCollateralFromIdleBTC(
+        TreasuryAccount _treasuryAccount,
+        uint256 _amount,
+        address _upperHint,
+        address _lowerHint
+    ) external whenNotPaused {
+        _requireAuthorizedAutomationCaller();
+        require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
+        require(_amount > 0, InvalidAmount(_amount));
+
+        _treasuryAccount.addIdleBTCToCollateral(_amount, _upperHint, _lowerHint);
+
+        emit IdleBTCCollateralTopUpExecuted(address(_treasuryAccount), msg.sender, _amount);
     }
 
     // =============================================================

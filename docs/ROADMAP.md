@@ -65,6 +65,7 @@ V1 should add:
 - a lightweight Term Yield Planner for 7/30/60-day treasury planning, using projected assumptions, review dates, buffer constraints, and unwind conditions
 - BTC reserve and collateral reporting that distinguishes retained BTC-denominated exposure from borrowed MUSD operating capital
 - BTC-denominated sleeve candidates marked as planning-only unless a separate BTC accounting/policy path and verified handler target exist
+- liquidation-defense policy and keeper output so TreasuryOS can block unsafe borrow/allocation structures and defend positions before yield routing
 
 V1 should not build:
 
@@ -170,6 +171,7 @@ The right posture is: TreasuryOS helps a treasury decide, approve, execute, and 
 - treasury can initiate deposit plus borrow without leaving TreasuryOS
 - minted MUSD arrives in the Treasury Account
 - the product clearly shows the relationship between the borrow position and treasury-managed MUSD
+- treasury-controlled open and adjust actions are checked against configured projected collateral-ratio and stress policy
 - the testnet borrow workflow is running through Spectrum Nodes as the primary RPC path
 
 ### Notes
@@ -255,6 +257,8 @@ The required protection is standard AMM execution hygiene:
 - operations view in the dashboard
 - policy-aware recommendation inputs for the AI memo layer
 - Spectrum-backed live reads for automation checks and transaction execution
+- strategy-aware Treasury Risk Keeper report for collateral health, post-stress CR, defense capacity, and recommended action
+- idle BTC collateral top-up path for liquidation defense
 
 ### Required V1 automated behaviors
 
@@ -262,8 +266,10 @@ The required protection is standard AMM execution hygiene:
 - detect operating buffer shortfall
 - restore buffer from an approved sleeve within configured automation limits
 - withdraw from an approved sleeve and repay debt within configured automation limits
+- add accounted idle BTC to collateral within configured automation limits when that is the least disruptive defense action
 - block non-compliant allocation attempts
 - block non-compliant operating disbursements
+- block unsafe borrow, debt-increase, collateral-withdrawal, and BTC-yield allocation structures when stress or reserve checks fail
 - propose or perform approved low-risk actions
 
 ### Success criteria
@@ -276,6 +282,8 @@ The required protection is standard AMM execution hygiene:
 
 If AI is used, it should support explanation and summarization only.
 Do not make AI the controlling authority for treasury actions.
+
+The keeper action model is strategy-aware, not a rigid ladder. Idle BTC collateral top-up may be preferred before unwinding MUSD Savings when the treasury explicitly reserves BTC for collateral defense. If idle BTC is scarce and MUSD Savings is immediately withdrawable, the keeper can prefer MUSD repayment. Offchain MUSD already disbursed for payroll, vendors, settlement, or business operations does not count as defense capacity unless explicitly imported.
 
 ---
 
