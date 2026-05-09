@@ -265,6 +265,7 @@ The required protection is standard AMM execution hygiene:
 - detect idle MUSD above threshold
 - detect operating buffer shortfall
 - restore buffer from an approved sleeve within configured automation limits
+- repay debt from idle MUSD within configured automation limits
 - withdraw from an approved sleeve and repay debt within configured automation limits
 - add accounted idle BTC to collateral within configured automation limits when that is the least disruptive defense action
 - block non-compliant allocation attempts

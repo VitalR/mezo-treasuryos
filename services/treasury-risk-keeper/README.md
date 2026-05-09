@@ -9,6 +9,16 @@ npm run risk-keeper:demo
 npm run risk-keeper:test
 ```
 
+Modes:
+
+```sh
+RISK_KEEPER_MODE=dry-run npm run risk-keeper:demo
+RISK_KEEPER_MODE=propose npm run risk-keeper:demo
+RISK_KEEPER_MODE=execute RISK_KEEPER_EXECUTE_CONFIRM=true npm run risk-keeper:demo
+```
+
+Execute mode shells out to one `cast send` against `TreasuryAutomationExecutor`. It requires `RISK_KEEPER_PRIVATE_KEY`, `TREASURY_AUTOMATION_EXECUTOR` or `RISK_KEEPER_AUTOMATION_EXECUTOR`, `RISK_KEEPER_TREASURY_ACCOUNT` or `TREASURY_ACCOUNT`, and `ACTIVE_MEZO_RPC_URL` or `MEZO_RPC_URL`. The key should be an allowlisted keeper EOA with gas only. It should not custody BTC, MUSD, receipt tokens, or LP tokens.
+
 ## Model
 
 The keeper treats defense liquidity by how quickly it can protect a BTC-backed MUSD position:

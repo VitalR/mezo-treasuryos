@@ -50,6 +50,14 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
         uint256 requestedRepayAmount,
         uint256 actualRepaidAmount
     );
+    /// @notice Emitted when automation repays Mezo debt directly from idle MUSD already held by the Treasury Account.
+    /// @param treasuryAccount Treasury Account whose debt was repaid.
+    /// @param operator Automation operator that initiated the workflow.
+    /// @param requestedAmount Requested idle MUSD repayment amount.
+    /// @param actualRepaidAmount Observed debt reduction after the repayment call.
+    event IdleMUSDDebtRepayExecuted(
+        address indexed treasuryAccount, address indexed operator, uint256 requestedAmount, uint256 actualRepaidAmount
+    );
     /// @notice Emitted when automation adds accounted idle BTC to active collateral.
     /// @param treasuryAccount Treasury Account whose position received collateral.
     /// @param operator Automation operator that initiated the workflow.
@@ -171,6 +179,35 @@ contract TreasuryAutomationExecutor is Ownable2Step, Pausable {
             _targetRepayAmount,
             actualRepaidAmount
         );
+    }
+
+    /// @notice De-risks a treasury position by repaying debt from idle MUSD already held by the Treasury Account.
+    /// @dev The keeper never receives funds. TreasuryAccount and TreasuryPolicyEngine enforce idle balance,
+    ///      automation enablement, pause state, and per-action debt repayment caps.
+    /// @param _treasuryAccount Treasury Account being operated.
+    /// @param _amount Idle MUSD amount to repay.
+    /// @param _upperHint Upper insertion hint for Mezo sorted troves.
+    /// @param _lowerHint Lower insertion hint for Mezo sorted troves.
+    /// @return actualRepaidAmount Observed reduction in full protocol debt.
+    function repayDebtFromIdleMUSD(
+        TreasuryAccount _treasuryAccount,
+        uint256 _amount,
+        address _upperHint,
+        address _lowerHint
+    ) external whenNotPaused returns (uint256 actualRepaidAmount) {
+        _requireAuthorizedAutomationCaller();
+        require(address(_treasuryAccount) != address(0), InvalidTreasuryAccount(address(_treasuryAccount)));
+        require(_amount > 0, InvalidAmount(_amount));
+
+        uint256 _debtBefore = _treasuryAccount.positionTotalDebt();
+        _treasuryAccount.repayMUSD(_amount, _upperHint, _lowerHint);
+        uint256 _debtAfter = _treasuryAccount.positionTotalDebt();
+
+        if (_debtBefore > _debtAfter) {
+            actualRepaidAmount = _debtBefore - _debtAfter;
+        }
+
+        emit IdleMUSDDebtRepayExecuted(address(_treasuryAccount), msg.sender, _amount, actualRepaidAmount);
     }
 
     /// @notice Adds accounted idle BTC reserve to Mezo collateral through a bounded automation path.

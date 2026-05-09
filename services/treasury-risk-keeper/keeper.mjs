@@ -187,6 +187,94 @@ export function renderRiskKeeperReport(report) {
   return lines.join("\n");
 }
 
+export function buildKeeperActionPlan(report, env = process.env) {
+  const executor = env.TREASURY_AUTOMATION_EXECUTOR ?? env.RISK_KEEPER_AUTOMATION_EXECUTOR;
+  const treasuryAccount = env.RISK_KEEPER_TREASURY_ACCOUNT ?? env.TREASURY_ACCOUNT;
+  const zero = "0x0000000000000000000000000000000000000000";
+  const upperHint = env.RISK_KEEPER_UPPER_HINT ?? zero;
+  const lowerHint = env.RISK_KEEPER_LOWER_HINT ?? zero;
+  const recommendation = report.recommendation ?? { type: "MONITOR" };
+
+  if (!executor || !treasuryAccount) {
+    return {
+      available: false,
+      reason: "missing TREASURY_AUTOMATION_EXECUTOR/RISK_KEEPER_AUTOMATION_EXECUTOR or RISK_KEEPER_TREASURY_ACCOUNT/TREASURY_ACCOUNT",
+      recommendationType: recommendation.type,
+    };
+  }
+
+  const base = {
+    available: true,
+    target: executor,
+    value: "0",
+    recommendationType: recommendation.type,
+    summary: recommendation.memo,
+  };
+
+  if (recommendation.type === "REPAY_DEBT_FROM_IDLE_MUSD") {
+    const amount = toWeiDecimal(recommendation.amountMUSD, 18);
+    return {
+      ...base,
+      signature: "repayDebtFromIdleMUSD(address,uint256,address,address)",
+      args: [treasuryAccount, amount, upperHint, lowerHint],
+      humanAmount: formatMUSD(recommendation.amountMUSD),
+      castCalldataCommand: castCalldataCommand("repayDebtFromIdleMUSD(address,uint256,address,address)", [
+        treasuryAccount,
+        amount,
+        upperHint,
+        lowerHint,
+      ]),
+    };
+  }
+
+  if (recommendation.type === "ADD_IDLE_BTC_TO_COLLATERAL") {
+    const amount = toWeiDecimal(recommendation.amountBTC, 18);
+    return {
+      ...base,
+      signature: "topUpCollateralFromIdleBTC(address,uint256,address,address)",
+      args: [treasuryAccount, amount, upperHint, lowerHint],
+      humanAmount: formatBTC(recommendation.amountBTC),
+      castCalldataCommand: castCalldataCommand("topUpCollateralFromIdleBTC(address,uint256,address,address)", [
+        treasuryAccount,
+        amount,
+        upperHint,
+        lowerHint,
+      ]),
+    };
+  }
+
+  if (
+    recommendation.type === "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY"
+      || recommendation.type === "WITHDRAW_SLOWER_MUSD_LP_AND_REPAY"
+  ) {
+    if (!recommendation.destination) {
+      return {
+        ...base,
+        available: false,
+        reason: "recommended sleeve action is missing a destination address",
+      };
+    }
+
+    const amount = toWeiDecimal(recommendation.amountMUSD, 18);
+    return {
+      ...base,
+      signature: "deRiskByRepayingFromSleeve(address,address,uint256,uint256,address,address)",
+      args: [treasuryAccount, recommendation.destination, amount, amount, upperHint, lowerHint],
+      humanAmount: formatMUSD(recommendation.amountMUSD),
+      castCalldataCommand: castCalldataCommand(
+        "deRiskByRepayingFromSleeve(address,address,uint256,uint256,address,address)",
+        [treasuryAccount, recommendation.destination, amount, amount, upperHint, lowerHint],
+      ),
+    };
+  }
+
+  return {
+    ...base,
+    available: false,
+    reason: `recommendation ${recommendation.type} is not executable by the keeper`,
+  };
+}
+
 function candidateActions(input) {
   const candidates = [];
 
@@ -206,7 +294,7 @@ function candidateActions(input) {
   if (input.idleMUSDForDefense > 0 && input.repayNeededToTarget > 0) {
     const amountMUSD = Math.min(input.idleMUSDForDefense, input.repayNeededToTarget);
     candidates.push({
-      type: "REPAY_FROM_IDLE_MUSD",
+      type: "REPAY_DEBT_FROM_IDLE_MUSD",
       amountMUSD,
       expectedCollateralRatioBps: collateralRatioBps(input.collateralBTC, input.debtMUSD - amountMUSD, input.btcPrice),
       memo: "Repay debt from idle MUSD above the operating buffer.",
@@ -219,6 +307,7 @@ function candidateActions(input) {
       type: "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY",
       amountMUSD,
       sleeve: input.fastSleeves[0]?.label ?? "fast MUSD sleeve",
+      destination: input.fastSleeves[0]?.destination ?? null,
       expectedCollateralRatioBps: collateralRatioBps(input.collateralBTC, input.debtMUSD - amountMUSD, input.btcPrice),
       memo: "Withdraw from a fast MUSD sleeve and repay debt; use when idle BTC reserve should be preserved.",
     });
@@ -230,6 +319,7 @@ function candidateActions(input) {
       type: "WITHDRAW_SLOWER_MUSD_LP_AND_REPAY",
       amountMUSD,
       sleeve: input.lpSleeves[0]?.label ?? "MUSD LP sleeve",
+      destination: input.lpSleeves[0]?.destination ?? null,
       expectedCollateralRatioBps: collateralRatioBps(input.collateralBTC, input.debtMUSD - amountMUSD, input.btcPrice),
       memo: "Unwind a slower MUSD LP sleeve only if less disruptive defense paths are insufficient.",
     });
@@ -254,12 +344,12 @@ function chooseAction({ state, profile, actions }) {
   const preference = profile.preferIdleBTCForCollateralTopUp
     ? [
         "ADD_IDLE_BTC_TO_COLLATERAL",
-        "REPAY_FROM_IDLE_MUSD",
+        "REPAY_DEBT_FROM_IDLE_MUSD",
         "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY",
         "WITHDRAW_SLOWER_MUSD_LP_AND_REPAY",
       ]
     : [
-        "REPAY_FROM_IDLE_MUSD",
+        "REPAY_DEBT_FROM_IDLE_MUSD",
         "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY",
         "ADD_IDLE_BTC_TO_COLLATERAL",
         "WITHDRAW_SLOWER_MUSD_LP_AND_REPAY",
@@ -324,6 +414,22 @@ function sum(values) {
 
 function withoutUndefined(value) {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
+}
+
+function castCalldataCommand(signature, args) {
+  return `cast calldata "${signature}" ${args.map((arg) => quoteShell(String(arg))).join(" ")}`;
+}
+
+function quoteShell(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function toWeiDecimal(value, decimals = 18) {
+  const raw = String(value ?? "0");
+  const [wholeRaw, fractionRaw = ""] = raw.split(".");
+  const whole = wholeRaw === "" ? "0" : wholeRaw;
+  const fraction = `${fractionRaw}${"0".repeat(decimals)}`.slice(0, decimals);
+  return (BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fraction || "0")).toString();
 }
 
 function formatBps(value) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRiskKeeperReport } from "./keeper.mjs";
+import { buildKeeperActionPlan, buildRiskKeeperReport } from "./keeper.mjs";
 
 const BASE_SNAPSHOT = {
   treasuryName: "Risk Keeper Test Treasury",
@@ -65,7 +65,7 @@ test("active profile prefers MUSD repayment paths before idle BTC collateral top
     },
   });
 
-  assert.equal(report.recommendation.type, "REPAY_FROM_IDLE_MUSD");
+  assert.equal(report.recommendation.type, "REPAY_DEBT_FROM_IDLE_MUSD");
   assert.ok(Math.abs(report.recommendation.amountMUSD - 29411.76470588235) < 1e-9);
 });
 
@@ -115,4 +115,32 @@ test("keeper preserves operating MUSD buffer and idle BTC reserve in defense cap
 
   assert.equal(report.defenseCapacity.idleMUSD, 70000);
   assert.ok(Math.abs(report.defenseCapacity.idleBTCValue - 76500) < 1e-9);
+});
+
+test("buildKeeperActionPlan prepares idle MUSD repayment executor payload", () => {
+  const report = buildRiskKeeperReport({
+    ...BASE_SNAPSHOT,
+    riskKeeper: {
+      strategyProfile: "active",
+      btcPriceMUSD: "100000",
+    },
+  });
+  const plan = buildKeeperActionPlan(report, {
+    TREASURY_AUTOMATION_EXECUTOR: "0x0000000000000000000000000000000000000E01",
+    RISK_KEEPER_TREASURY_ACCOUNT: "0x0000000000000000000000000000000000000A01",
+  });
+
+  assert.equal(plan.available, true);
+  assert.equal(plan.signature, "repayDebtFromIdleMUSD(address,uint256,address,address)");
+  assert.equal(plan.args[0], "0x0000000000000000000000000000000000000A01");
+  assert.equal(plan.args[1], "29411764705882350000000");
+  assert.match(plan.castCalldataCommand, /cast calldata/);
+});
+
+test("buildKeeperActionPlan fails closed without executor or treasury account", () => {
+  const report = buildRiskKeeperReport(BASE_SNAPSHOT);
+  const plan = buildKeeperActionPlan(report, {});
+
+  assert.equal(plan.available, false);
+  assert.match(plan.reason, /missing/);
 });

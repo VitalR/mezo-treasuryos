@@ -443,6 +443,16 @@ contract TreasuryPolicyEngine is ITreasuryPolicyEngine {
         require(_amount > 0, InvalidAmount(_amount));
         require(_idleBalance >= _amount, InsufficientIdleBalance(_amount, _idleBalance));
 
+        if (policy.automationExecutor != address(0) && _actor == policy.automationExecutor) {
+            _requireAutomationAuthority(policy, _account, _actor);
+            require(policy.allowAutoDebtRepay, AutoDebtRepayDisabled(_account));
+            if (_amount > policy.maxAutoDebtRepay) {
+                revert AutomationLimitExceeded(bytes32("DEBT_REPAY"), _amount, policy.maxAutoDebtRepay);
+            }
+
+            return;
+        }
+
         _requireMovementAuthority(policy, _account, _actor, _amount);
     }
 

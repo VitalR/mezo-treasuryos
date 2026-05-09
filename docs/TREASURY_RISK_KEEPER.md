@@ -35,6 +35,8 @@ The V1 risk keeper adds the missing liquidation-defense layer:
 - the amount is within `maxAutoIdleBTCTopUp`
 - the post-action idle BTC reserve remains above `minIdleBTCReserve`
 
+`TreasuryAutomationExecutor.repayDebtFromIdleMUSD` is the simplest defensive action. It lets an allowlisted keeper repay Mezo debt from idle MUSD already held by the Treasury Account. The keeper pays gas only; MUSD never leaves the Treasury Account except into the Mezo repayment flow. `TreasuryPolicyEngine` reuses `maxAutoDebtRepay` and `allowAutoDebtRepay` for this path.
+
 ## Offchain Keeper
 
 The keeper is deterministic and dry-run first:
@@ -42,6 +44,21 @@ The keeper is deterministic and dry-run first:
 ```sh
 npm run risk-keeper:demo
 ```
+
+It supports three modes:
+
+- `dry-run`: print state, defense capacity, recommendation, and expected action.
+- `propose`: print the executor target, function signature, args, and `cast calldata` helper for a multisig proposal.
+- `execute`: send one whitelisted `TreasuryAutomationExecutor` transaction from an allowlisted keeper EOA, only when `RISK_KEEPER_EXECUTE_CONFIRM=true`.
+
+Required execution env:
+
+- `RISK_KEEPER_PRIVATE_KEY`
+- `TREASURY_AUTOMATION_EXECUTOR` or `RISK_KEEPER_AUTOMATION_EXECUTOR`
+- `RISK_KEEPER_TREASURY_ACCOUNT` or `TREASURY_ACCOUNT`
+- `ACTIVE_MEZO_RPC_URL` or `MEZO_RPC_URL`
+- `RISK_KEEPER_EXECUTE_CONFIRM=true`
+- `RISK_KEEPER_MAX_ACTIONS_PER_RUN=1`
 
 It computes:
 

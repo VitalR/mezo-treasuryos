@@ -118,6 +118,19 @@ DEMO_TREASURY_ALLOW_AUTOMATION_BTC_TOP_UP=true
 
 Deployment and onboarding scripts include these controls in the owner setup batch. They make TreasuryOS block treasury-controlled opens, debt increases, and collateral withdrawals that would violate the projected CR or post-stress policy. The idle-BTC collateral top-up path remains bounded by the configured per-action cap and idle reserve floor.
 
+Delegated keeper execution is opt-in. The TreasuryAutomationExecutor owner must authorize the keeper EOA with `setAutomationOperator(keeper, true)`. For local/demo execution, configure:
+
+```bash
+RISK_KEEPER_MODE=dry-run
+RISK_KEEPER_PRIVATE_KEY=<keeper gas-only private key>
+RISK_KEEPER_TREASURY_ACCOUNT=<client TreasuryAccount>
+TREASURY_AUTOMATION_EXECUTOR=<client TreasuryAutomationExecutor>
+RISK_KEEPER_EXECUTE_CONFIRM=false
+RISK_KEEPER_MAX_ACTIONS_PER_RUN=1
+```
+
+Use `RISK_KEEPER_MODE=propose` to print calldata/proposal inputs. Use `RISK_KEEPER_MODE=execute` only after setting `RISK_KEEPER_EXECUTE_CONFIRM=true` and confirming the keeper EOA is allowlisted. The keeper should hold only native BTC for gas; TreasuryAccount remains the BTC/MUSD custody boundary.
+
 After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
 
 1. deploy a handler implementing `IAllocationHandler`

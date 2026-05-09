@@ -156,6 +156,7 @@ TreasuryOS includes automated treasury operations, but in a bounded and explaina
 
 Examples:
 
+- repay debt from idle MUSD already held in the Treasury Account
 - sweep excess idle MUSD into an approved sleeve
 - withdraw from a sleeve to restore operating buffer
 - add accounted idle BTC to collateral when policy and strategy allow
@@ -167,7 +168,7 @@ Examples:
 
 This is treasury automation, not black-box AI capital management.
 
-The risk keeper is strategy-aware, not a fixed ladder. It can prefer idle BTC collateral top-up when BTC was reserved for collateral defense, or MUSD repayment when idle BTC is scarce and MUSD Savings is immediately withdrawable. It does not assume MUSD already sent to payroll, vendors, OTC, or settlement is still available onchain.
+The risk keeper is strategy-aware, not a fixed ladder. It can prefer direct idle-MUSD repayment, idle BTC collateral top-up when BTC was reserved for collateral defense, or MUSD sleeve unwind when idle reserves are insufficient. It does not assume MUSD already sent to payroll, vendors, OTC, or settlement is still available onchain.
 
 ## AI Story
 
