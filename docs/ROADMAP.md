@@ -258,6 +258,7 @@ The required protection is standard AMM execution hygiene:
 - policy-aware recommendation inputs for the AI memo layer
 - Spectrum-backed live reads for automation checks and transaction execution
 - strategy-aware Treasury Risk Keeper report for collateral health, post-stress CR, defense capacity, and recommended action
+- direct idle-MUSD debt repayment through the automation executor, capped by policy
 - idle BTC collateral top-up path for liquidation defense
 
 ### Required V1 automated behaviors
@@ -276,6 +277,7 @@ The required protection is standard AMM execution hygiene:
 ### Success criteria
 
 - TreasuryOS can show one real automated treasury response
+- final demo can show dry-run, proposal calldata, and guarded one-action execution for idle-MUSD repayment
 - operators can understand why an action was allowed, blocked, or triggered
 - the automation flow is clearly shown as running on top of Spectrum-backed Mezo testnet infrastructure
 

@@ -6,6 +6,7 @@ It does not replace onchain policy. It reads a treasury snapshot, applies the se
 
 ```sh
 npm run risk-keeper:demo
+npm run risk-keeper:propose
 npm run risk-keeper:test
 ```
 
@@ -17,7 +18,7 @@ RISK_KEEPER_MODE=propose npm run risk-keeper:demo
 RISK_KEEPER_MODE=execute RISK_KEEPER_EXECUTE_CONFIRM=true npm run risk-keeper:demo
 ```
 
-Execute mode shells out to one `cast send` against `TreasuryAutomationExecutor`. It requires `RISK_KEEPER_PRIVATE_KEY`, `TREASURY_AUTOMATION_EXECUTOR` or `RISK_KEEPER_AUTOMATION_EXECUTOR`, `RISK_KEEPER_TREASURY_ACCOUNT` or `TREASURY_ACCOUNT`, and `ACTIVE_MEZO_RPC_URL` or `MEZO_RPC_URL`. The key should be an allowlisted keeper EOA with gas only. It should not custody BTC, MUSD, receipt tokens, or LP tokens.
+`risk-keeper:demo` uses `sample-warning-repay-snapshot.json`, where an active treasury is in WARNING and direct idle-MUSD repayment is preferred. Execute mode shells out to one `cast send` against `TreasuryAutomationExecutor`. It requires `RISK_KEEPER_PRIVATE_KEY`, `TREASURY_AUTOMATION_EXECUTOR` or `RISK_KEEPER_AUTOMATION_EXECUTOR`, `RISK_KEEPER_TREASURY_ACCOUNT` or `TREASURY_ACCOUNT`, `ACTIVE_MEZO_RPC_URL` or `MEZO_RPC_URL`, and `RISK_KEEPER_MAX_ACTIONS_PER_RUN=1`. The key should be an allowlisted keeper EOA with gas only. It should not custody BTC, MUSD, receipt tokens, or LP tokens.
 
 ## Model
 

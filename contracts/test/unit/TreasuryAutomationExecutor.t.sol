@@ -102,6 +102,100 @@ contract TreasuryAutomationExecutorTest is Test {
         assertEq(_treasuryAccount.positionTotalDebt(), 510 ether);
     }
 
+    function test_RepayDebtFromIdleMUSD_AuthorizedOperatorExecutesWorkflow() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        uint256 _idleBefore = _treasuryAccount.idleMUSD();
+        uint256 _debtBefore = _treasuryAccount.positionTotalDebt();
+        uint256 _healthBefore = _treasuryAccount.collateralRatioBps();
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        uint256 _actualRepaidAmount =
+            _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 80 ether, _UPPER_HINT, _LOWER_HINT);
+
+        assertEq(_actualRepaidAmount, 80 ether);
+        assertEq(_treasuryAccount.idleMUSD(), _idleBefore - 80 ether);
+        assertEq(_treasuryAccount.positionTotalDebt(), _debtBefore - 80 ether);
+        assertGt(_treasuryAccount.collateralRatioBps(), _healthBefore);
+    }
+
+    function test_RepayDebtFromIdleMUSD_UnauthorizedCallerReverts() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryAutomationExecutor.UnauthorizedAutomationCaller.selector, _STRANGER)
+        );
+
+        vm.prank(_STRANGER);
+        _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 50 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
+    function test_RepayDebtFromIdleMUSD_AmountAboveAutomationLimitReverts() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryPolicyEngine.AutomationLimitExceeded.selector, bytes32("DEBT_REPAY"), 91 ether, 90 ether
+            )
+        );
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 91 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
+    function test_RepayDebtFromIdleMUSD_AmountAboveIdleMUSDReverts() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.disburseMUSD(address(0xABCD), 560 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.InsufficientIdleBalance.selector, 50 ether, 40 ether)
+        );
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 50 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
+    function test_RepayDebtFromIdleMUSD_AutomationDisabledReverts() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _policyEngine.updateAutomationEnabled(address(_treasuryAccount), false);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryPolicyEngine.AutomationDisabled.selector, address(_treasuryAccount))
+        );
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 50 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
+    function test_RepayDebtFromIdleMUSD_PausedAccountReverts() public {
+        vm.prank(_TREASURY_APPROVER);
+        _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_TREASURY_ADMIN);
+        _treasuryAccount.setPause(true);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryPolicyEngine.PolicyPaused.selector, address(_treasuryAccount)));
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 50 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
+    function test_RepayDebtFromIdleMUSD_PausedExecutorReverts() public {
+        vm.prank(_TREASURY_ADMIN);
+        _automationExecutor.pause();
+
+        vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+
+        vm.prank(_AUTOMATION_OPERATOR);
+        _automationExecutor.repayDebtFromIdleMUSD(_treasuryAccount, 50 ether, _UPPER_HINT, _LOWER_HINT);
+    }
+
     function test_TopUpCollateralFromIdleBTC_AuthorizedOperatorExecutesWorkflow() public {
         vm.prank(_TREASURY_APPROVER);
         _treasuryAccount.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);

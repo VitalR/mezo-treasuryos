@@ -1,0 +1,55 @@
+{
+  "treasuryName": "Warning Idle-MUSD Repay Treasury",
+  "composition": {
+    "idleMUSD": "180000",
+    "idleBTC": "0.20",
+    "liquidityBufferMUSD": "100000",
+    "deployableSurplusMUSD": "80000"
+  },
+  "position": {
+    "collateralBTC": "8",
+    "totalDebtMUSD": "500000"
+  },
+  "btcReserveBuckets": {
+    "idleBTCReserve": "0.20",
+    "collateralBTC": "8",
+    "emergencyBTCReserve": "0.10",
+    "yieldActiveBTC": "0",
+    "pendingWithdrawBTC": "0"
+  },
+  "health": {
+    "collateralRatioBps": "16000",
+    "warningCollateralRatioBps": "17000",
+    "criticalCollateralRatioBps": "14000",
+    "belowWarningRatio": true,
+    "belowCriticalRatio": false
+  },
+  "sleeves": [
+    {
+      "label": "MUSD Savings Vault",
+      "approved": true,
+      "allocatedMUSD": "90000",
+      "riskTier": "low",
+      "unwindDays": "0",
+      "supportsSavingsRate": true,
+      "automationEligible": true
+    },
+    {
+      "label": "Tigris Basic Stable MUSD/mUSDC",
+      "approved": true,
+      "allocatedMUSD": "50000",
+      "riskTier": "medium",
+      "unwindDays": "1",
+      "supportsTigrisStablePool": true,
+      "automationEligible": false
+    }
+  ],
+  "riskKeeper": {
+    "strategyProfile": "active",
+    "btcPriceMUSD": "100000",
+    "overrides": {
+      "musdOperatingBuffer": 100000,
+      "preferIdleBTCForCollateralTopUp": false
+    }
+  }
+}

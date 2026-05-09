@@ -127,9 +127,11 @@ RISK_KEEPER_TREASURY_ACCOUNT=<client TreasuryAccount>
 TREASURY_AUTOMATION_EXECUTOR=<client TreasuryAutomationExecutor>
 RISK_KEEPER_EXECUTE_CONFIRM=false
 RISK_KEEPER_MAX_ACTIONS_PER_RUN=1
+RISK_KEEPER_UPPER_HINT=0x0000000000000000000000000000000000000000
+RISK_KEEPER_LOWER_HINT=0x0000000000000000000000000000000000000000
 ```
 
-Use `RISK_KEEPER_MODE=propose` to print calldata/proposal inputs. Use `RISK_KEEPER_MODE=execute` only after setting `RISK_KEEPER_EXECUTE_CONFIRM=true` and confirming the keeper EOA is allowlisted. The keeper should hold only native BTC for gas; TreasuryAccount remains the BTC/MUSD custody boundary.
+Use `RISK_KEEPER_MODE=propose` or `npm run risk-keeper:propose` to print calldata/proposal inputs. Use `RISK_KEEPER_MODE=execute` only after setting `RISK_KEEPER_EXECUTE_CONFIRM=true`, keeping `RISK_KEEPER_MAX_ACTIONS_PER_RUN=1`, and confirming the keeper EOA is allowlisted. The keeper should hold only native BTC for gas; TreasuryAccount remains the BTC/MUSD custody boundary.
 
 After a client is onboarded, another MUSD-denominated sleeve can be added without redeploying the Treasury Account:
 
@@ -166,9 +168,10 @@ Check final demo readiness at any point:
 ```bash
 make demo-status
 npm run risk-keeper:demo
+RISK_KEEPER_MODE=propose npm run risk-keeper:demo
 ```
 
-The status command reports the active RPC provider, MUSD Savings readiness, optional `MUSD/mUSDC` readiness, BTC policy/router/handler readiness, and whether `deployments/btc-sleeve-validation.json` proves a completed tiny broadcast.
+The status command reports the active RPC provider, MUSD Savings readiness, optional `MUSD/mUSDC` readiness, BTC policy/router/handler readiness, keeper readiness, and whether `deployments/btc-sleeve-validation.json` proves a completed tiny broadcast. Keeper readiness is intentionally operational: it shows whether `TreasuryAutomationExecutor` is configured, the selected risk keeper mode, whether a keeper private key is present, whether execution confirmation is true, and reminds operators that the keeper key must hold gas only.
 
 ---
 

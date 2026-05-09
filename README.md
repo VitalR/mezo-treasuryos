@@ -161,7 +161,7 @@ BTC-specific V1.5 components:
 
 Monitoring and bounded automated treasury actions.
 
-TreasuryOS now includes liquidation defense, not just yield routing. `TreasuryPolicyEngine` can block projected borrow/adjust actions below policy CR, `TreasuryAccount.addIdleBTCToCollateral` moves explicitly accounted idle BTC into Mezo collateral, and `TreasuryAutomationExecutor.topUpCollateralFromIdleBTC` can execute a capped top-up only when policy allows it. The offchain Treasury Risk Keeper ranks defense actions by strategy and defense capacity instead of using a rigid ladder.
+TreasuryOS now includes liquidation defense, not just yield routing. `TreasuryPolicyEngine` can block projected borrow/adjust actions below policy CR, `TreasuryAccount.repayMUSD` can repay from idle MUSD already held by the Treasury Account, `TreasuryAccount.addIdleBTCToCollateral` moves explicitly accounted idle BTC into Mezo collateral, and `TreasuryAutomationExecutor` can execute those defensive paths only when policy allows them. The offchain Treasury Risk Keeper ranks defense actions by strategy and defense capacity instead of using a rigid ladder.
 
 Delegated keeper execution is opt-in: an offchain keeper EOA must be allowlisted on `TreasuryAutomationExecutor`, holds only gas, and can call only whitelisted defensive functions such as idle-MUSD repayment, buffer restoration, approved sleeve unwind plus repayment, or capped idle-BTC collateral top-up. Dry-run/propose modes remain available when automation is disabled.
 
@@ -182,6 +182,7 @@ npm run demo:status
 npm run demo:yield-console
 npm run advisor:demo
 npm run risk-keeper:demo
+npm run risk-keeper:propose
 npm run demo:term-planner
 npm run demo:btc-sleeve-plan
 ```

@@ -32,7 +32,8 @@ help:
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
-	@echo "  make risk-keeper-demo             - render sample BTC price-shock defense report"
+	@echo "  make risk-keeper-demo             - render warning idle-MUSD repayment keeper report"
+	@echo "  make risk-keeper-propose          - render keeper calldata/proposal for demo action"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
@@ -156,6 +157,10 @@ btc-sleeve-plan-demo:
 .PHONY: risk-keeper-demo
 risk-keeper-demo:
 	npm run risk-keeper:demo
+
+.PHONY: risk-keeper-propose
+risk-keeper-propose:
+	npm run risk-keeper:propose
 
 .PHONY: anvil
 anvil:

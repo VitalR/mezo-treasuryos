@@ -18,9 +18,14 @@ const validationTreasuryAddress = envAddress(
   "BTC_SLEEVE_TREASURY_ACCOUNT",
   envAddress("TREASURY_ACCOUNT", validationManifest?.contracts?.treasuryAccount ?? null),
 );
+const automationExecutorAddress = envAddress(
+  "TREASURY_AUTOMATION_EXECUTOR",
+  envAddress("RISK_KEEPER_AUTOMATION_EXECUTOR", validationManifest?.contracts?.treasuryAutomationExecutor ?? null),
+);
 
 const checks = await Promise.all([
   contractStatus("BTC sleeve validation TreasuryAccount", validationTreasuryAddress),
+  contractStatus("TreasuryAutomationExecutor", automationExecutorAddress),
   contractStatus("MUSD Savings Vault", envAddress("MEZO_MUSD_SAVINGS_RATE", config.musd.savingsRate.address)),
   contractStatus("Tigris MUSD/mUSDC pool", envAddress("MEZO_TIGRIS_MUSD_MUSDC_POOL", config.tigris.pools.musdMusdc.address)),
   contractStatus("Tigris mcbBTC/BTC pool", envAddress("MEZO_TIGRIS_MCBTC_BTC_POOL", config.tigris.pools.mcbtcBtc.address)),
@@ -32,10 +37,11 @@ const checks = await Promise.all([
   ),
 ]);
 
-const [validationTreasury, savings, musdMusdc, mcbtcBtc, btcPolicy, btcRouter, btcHandler] = checks;
+const [validationTreasury, automationExecutor, savings, musdMusdc, mcbtcBtc, btcPolicy, btcRouter, btcHandler] = checks;
 
 printStatus({
   selected,
+  automationExecutor,
   savings,
   musdMusdc,
   mcbtcBtc,
@@ -45,6 +51,12 @@ printStatus({
   validationTreasury,
   manifestPath,
   validationManifest,
+  riskKeeper: {
+    mode: process.env.RISK_KEEPER_MODE ?? "dry-run",
+    keeperKeyConfigured: Boolean(process.env.RISK_KEEPER_PRIVATE_KEY?.trim()),
+    executeConfirm: process.env.RISK_KEEPER_EXECUTE_CONFIRM === "true",
+    maxActionsPerRun: process.env.RISK_KEEPER_MAX_ACTIONS_PER_RUN ?? "1",
+  },
 });
 
 function printStatus(status) {
@@ -95,6 +107,21 @@ function printStatus(status) {
     }`,
   );
   console.log("- LP staking / rewards: future extension, not part of the deposit/unwind validation.");
+
+  console.log("");
+  console.log("Keeper readiness:");
+  console.log(
+    `- TreasuryAutomationExecutor configured: ${
+      status.automationExecutor.address
+        ? `yes, ${codePhrase(status.automationExecutor)} at ${status.automationExecutor.address}`
+        : "no; set TREASURY_AUTOMATION_EXECUTOR or RISK_KEEPER_AUTOMATION_EXECUTOR"
+    }`,
+  );
+  console.log(`- Risk keeper mode: ${status.riskKeeper.mode}`);
+  console.log(`- Keeper EOA configured: ${status.riskKeeper.keeperKeyConfigured ? "yes" : "no"}`);
+  console.log(`- Execute confirmation: ${status.riskKeeper.executeConfirm ? "true" : "false"}`);
+  console.log(`- Max actions per run: ${status.riskKeeper.maxActionsPerRun}`);
+  console.log("- Keeper key should hold native BTC for gas only; TreasuryAccount remains the BTC/MUSD custody boundary.");
 
   console.log("");
   console.log("Broadcast validation:");

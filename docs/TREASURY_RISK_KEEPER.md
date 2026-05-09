@@ -13,7 +13,7 @@ The V1 risk keeper adds the missing liquidation-defense layer:
 
 ## Onchain Controls
 
-`TreasuryPolicyEngine.RiskControlConfig` stores the hard limits:
+`TreasuryPolicyEngine` stores the hard limits across risk controls and automation settings:
 
 - `minOpenCollateralRatioBps`
 - `targetCollateralRatioBps`
@@ -22,6 +22,8 @@ The V1 risk keeper adds the missing liquidation-defense layer:
 - `minIdleBTCReserve`
 - `maxAutoIdleBTCTopUp`
 - `allowAutomationBTCTopUp`
+- `maxAutoDebtRepay`
+- `allowAutoDebtRepay`
 
 `TreasuryAccount` calls `validateProjectedPosition` before opening a trove, borrowing more MUSD, withdrawing collateral, or adjusting into a weaker position. Purely risk-reducing actions are not blocked by projected-position checks.
 
@@ -43,6 +45,7 @@ The keeper is deterministic and dry-run first:
 
 ```sh
 npm run risk-keeper:demo
+npm run risk-keeper:propose
 ```
 
 It supports three modes:
@@ -59,6 +62,9 @@ Required execution env:
 - `ACTIVE_MEZO_RPC_URL` or `MEZO_RPC_URL`
 - `RISK_KEEPER_EXECUTE_CONFIRM=true`
 - `RISK_KEEPER_MAX_ACTIONS_PER_RUN=1`
+- `RISK_KEEPER_UPPER_HINT` and `RISK_KEEPER_LOWER_HINT` when Mezo sorted-trove hints are available
+
+`npm run risk-keeper:demo` uses `sample-warning-repay-snapshot.json`, a WARNING-state fixture where active treasury policy prefers direct idle-MUSD repayment. `RISK_KEEPER_MODE=propose npm run risk-keeper:demo` prints the exact executor target, signature, args, and calldata helper. Execute mode remains intentionally narrow: one run can send exactly one whitelisted executor call.
 
 It computes:
 
@@ -90,11 +96,12 @@ The recommended demo story:
 1. Open a BTC-backed MUSD position above policy minimum CR.
 2. Allocate some surplus MUSD to MUSD Savings.
 3. Keep explicit idle BTC as emergency reserve.
-4. Run `npm run risk-keeper:demo` and show a healthy or warning state.
+4. Run `npm run risk-keeper:demo` and show a WARNING state.
 5. Simulate a BTC price drop in the snapshot.
-6. Keeper recommends the best allowed defense action.
-7. If configured, `TreasuryAutomationExecutor` can add a bounded amount of idle BTC to collateral.
-8. Advisor/reporting explains why the system blocked new risky allocation and how the position was defended.
+6. Keeper recommends direct idle-MUSD repayment when that is the least disruptive defense action.
+7. Run `RISK_KEEPER_MODE=propose npm run risk-keeper:demo` to show the multisig-ready calldata.
+8. If configured and explicitly confirmed, `TreasuryAutomationExecutor` executes exactly one allowlisted repayment, capped by `maxAutoDebtRepay`.
+9. Advisor/reporting explains why the system blocked new risky allocation and how the position was defended.
 
 ## AI Boundary
 
