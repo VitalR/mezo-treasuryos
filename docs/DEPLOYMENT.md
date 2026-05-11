@@ -185,12 +185,16 @@ make deploy-mezo-testnet-core
 
 This deploys:
 
+- `ProtocolFeeVault`
+- `ProtocolFeeManager`
 - `TreasuryPolicyEngine`
 - `BTCReservePolicy`
 - `BTCReserveRouter` when testing V1.5 guarded BTC sleeves
 - `TreasuryAccountFactory`
 
 The owner of `TreasuryAccountFactory` is the protocol admin derived from `DEPLOYER_PRIVATE_KEY`. For testnet this should be a deployer EOA. For production it can later be migrated to a protocol multisig.
+
+`ProtocolFeeVault` and `ProtocolFeeManager` are deployed as governance-ready fee infrastructure. They are not wired into client treasury execution by default. Fee rates are zero, fee collection is disabled, and ERC20 subscription tokens are not accepted until governance explicitly allowlists them. See `PROTOCOL_FEES.md`.
 
 After deployment, copy the core addresses from `CORE_DEPLOYMENT_MANIFEST_PATH` into:
 

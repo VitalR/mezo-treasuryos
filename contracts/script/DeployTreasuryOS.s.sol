@@ -13,6 +13,8 @@ import { TreasuryAutomationExecutor } from "../src/core/TreasuryAutomationExecut
 import { TreasuryAccountFactory } from "../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../src/core/TreasuryPolicyEngine.sol";
 import { ExternalMUSDSavingsRateMock } from "../src/external/ExternalMUSDSavingsRateMock.sol";
+import { ProtocolFeeManager } from "../src/fees/ProtocolFeeManager.sol";
+import { ProtocolFeeVault } from "../src/fees/ProtocolFeeVault.sol";
 import { IAllocationHandler } from "../src/interfaces/IAllocationHandler.sol";
 import { IMUSDSavingsRate } from "../src/interfaces/IMUSDSavingsRate.sol";
 import { ITigrisBasicRouter } from "../src/interfaces/ITigrisBasicRouter.sol";
@@ -96,6 +98,8 @@ contract DeployTreasuryOS is Script {
     }
 
     struct DeploymentArtifacts {
+        address protocolFeeVault;
+        address protocolFeeManager;
         address treasuryPolicyEngine;
         address btcReservePolicy;
         address treasuryAccountFactory;
@@ -137,6 +141,8 @@ contract DeployTreasuryOS is Script {
         _configureOwnerControlledState(config, artifacts);
         _writeManifest(config, artifacts);
 
+        console2.log("ProtocolFeeVault:", artifacts.protocolFeeVault);
+        console2.log("ProtocolFeeManager:", artifacts.protocolFeeManager);
         console2.log("TreasuryPolicyEngine:", artifacts.treasuryPolicyEngine);
         console2.log("BTCReservePolicy:", artifacts.btcReservePolicy);
         console2.log("TreasuryAccountFactory:", artifacts.treasuryAccountFactory);
@@ -312,6 +318,8 @@ contract DeployTreasuryOS is Script {
             treasuryOwner = address(treasuryMultisig);
         }
 
+        ProtocolFeeVault protocolFeeVault = new ProtocolFeeVault(config.deployer);
+        ProtocolFeeManager protocolFeeManager = new ProtocolFeeManager(config.deployer, address(protocolFeeVault));
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
         BTCReservePolicy btcReservePolicy = new BTCReservePolicy(treasuryPolicyEngine);
         TreasuryAccountFactory treasuryAccountFactory =
@@ -319,6 +327,8 @@ contract DeployTreasuryOS is Script {
         TreasuryAutomationExecutor treasuryAutomationExecutor = new TreasuryAutomationExecutor(treasuryOwner);
         AllocationRouter allocationRouter = new AllocationRouter(treasuryOwner);
 
+        artifacts.protocolFeeVault = address(protocolFeeVault);
+        artifacts.protocolFeeManager = address(protocolFeeManager);
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
         artifacts.btcReservePolicy = address(btcReservePolicy);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
@@ -646,6 +656,10 @@ contract DeployTreasuryOS is Script {
         return string.concat(
             '{"treasuryPolicyEngine":"',
             vm.toString(artifacts.treasuryPolicyEngine),
+            '","protocolFeeVault":"',
+            vm.toString(artifacts.protocolFeeVault),
+            '","protocolFeeManager":"',
+            vm.toString(artifacts.protocolFeeManager),
             '","btcReservePolicy":"',
             vm.toString(artifacts.btcReservePolicy),
             '","treasuryAccountFactory":"',

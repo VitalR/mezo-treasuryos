@@ -98,6 +98,17 @@ Automation:
 - `TreasuryAutomationExecutor.BufferRestoreExecuted`
 - `TreasuryAutomationExecutor.DeRiskRepaymentExecuted`
 
+Fees:
+
+- `ProtocolFeeManager.SubscriptionPaid` for ERC20 subscription/service payments
+- `ProtocolFeeManager.NativeSubscriptionPaid` for native BTC subscription/service payments
+- `ProtocolFeeManager.AcceptedSubscriptionTokenUpdated` for subscription token allowlist changes
+- `ProtocolFeeManager.FeeConfigUpdated` for fee configuration changes
+- `ProtocolFeeVault.FeeReceived` for direct vault deposits through `depositNative` or `depositERC20`
+- `ProtocolFeeVault.FeeWithdrawn` for governance withdrawals
+
+Do not classify `ProtocolFeeVault.FeeReceived` as a subscription event. Subscription payments routed through `ProtocolFeeManager` emit manager-level subscription events; direct vault deposits emit vault-level `FeeReceived`.
+
 Multisig:
 
 - `TreasuryMultisig.TreasuryMultisigInitialized`
