@@ -4,6 +4,7 @@ pragma solidity 0.8.34;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 import { TreasuryAccount } from "./TreasuryAccount.sol";
@@ -47,6 +48,9 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
     /// @notice Raised when a treasury administrator has not been approved for official TreasuryOS onboarding.
     /// @param treasuryAdmin Treasury administrator that is not allowlisted.
     error TreasuryAdminNotApproved(address treasuryAdmin);
+    /// @notice Raised when the Treasury Account implementation address is zero.
+    /// @param accountImplementation Invalid implementation address.
+    error InvalidAccountImplementation(address accountImplementation);
 
     // =============================================================
     // Storage
@@ -56,6 +60,8 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
     IERC20 public immutable musdToken;
     /// @notice Policy engine used for Treasury Account initialization and policy enforcement.
     ITreasuryPolicyEngine public immutable policyEngine;
+    /// @notice Implementation cloned for each client Treasury Account.
+    address public immutable accountImplementation;
     /// @notice Treasury administrators approved for official TreasuryOS account deployment.
     mapping(address treasuryAdmin => bool approved) public approvedTreasuryAdmins;
     /// @notice Registry of Treasury Accounts officially deployed through this factory.
@@ -67,12 +73,17 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
 
     /// @param _musdToken MUSD token used by Treasury Accounts for repayment and destination allocations.
     /// @param _policyEngine Policy engine used for Treasury Account initialization.
-    constructor(IERC20 _musdToken, ITreasuryPolicyEngine _policyEngine) Ownable(msg.sender) {
+    /// @param _accountImplementation Treasury Account implementation used for minimal proxies.
+    constructor(IERC20 _musdToken, ITreasuryPolicyEngine _policyEngine, address _accountImplementation)
+        Ownable(msg.sender)
+    {
         require(address(_musdToken) != address(0), InvalidMUSDToken(address(_musdToken)));
         require(address(_policyEngine) != address(0), InvalidPolicyEngine(address(_policyEngine)));
+        require(_accountImplementation != address(0), InvalidAccountImplementation(_accountImplementation));
 
         musdToken = _musdToken;
         policyEngine = _policyEngine;
+        accountImplementation = _accountImplementation;
         _policyEngine.setFactory(address(this));
     }
 
@@ -115,8 +126,8 @@ contract TreasuryAccountFactory is Ownable2Step, Pausable {
         require(approvedTreasuryAdmins[_treasuryAdmin], TreasuryAdminNotApproved(_treasuryAdmin));
         require(msg.sender == _treasuryAdmin || msg.sender == owner(), UnauthorizedDeployer(msg.sender, _treasuryAdmin));
 
-        TreasuryAccount account = new TreasuryAccount(_treasuryAdmin, policyEngine, musdToken);
-        treasuryAccount = address(account);
+        treasuryAccount = Clones.clone(accountImplementation);
+        TreasuryAccount(payable(treasuryAccount)).initialize(_treasuryAdmin, policyEngine, musdToken);
 
         policyEngine.initializeAccount(treasuryAccount, _treasuryAdmin, _config);
         isTreasuryAccount[treasuryAccount] = true;

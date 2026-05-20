@@ -169,6 +169,23 @@ test("buildKeeperActionPlan fails closed without executor or treasury account", 
   assert.match(plan.reason, /missing/);
 });
 
+test("buildKeeperActionPlan fails closed for placeholder executor or treasury addresses", () => {
+  const report = buildRiskKeeperReport({
+    ...BASE_SNAPSHOT,
+    riskKeeper: {
+      strategyProfile: "active",
+      btcPriceMUSD: "100000",
+    },
+  });
+  const plan = buildKeeperActionPlan(report, {
+    TREASURY_AUTOMATION_EXECUTOR: "0xYourDeployedTreasuryAutomationExecutor",
+    RISK_KEEPER_TREASURY_ACCOUNT: "0xYourDeployedTreasuryAccount",
+  });
+
+  assert.equal(plan.available, false);
+  assert.match(plan.reason, /valid 0x addresses/);
+});
+
 test("execute mode requires explicit confirmation before sending", () => {
   const plan = {
     available: true,

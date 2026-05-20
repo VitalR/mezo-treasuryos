@@ -30,6 +30,8 @@ Each manifest should include:
 - `network`
 - `chainId`
 - `deployer`
+- `protocolFeeVault`
+- `protocolFeeManager`
 - `treasuryPolicyEngine`
 - `btcReservePolicy`
 - `treasuryAccountFactory`
@@ -44,6 +46,15 @@ Each manifest should include:
 The repo now includes a starter template:
 
 - `mezo-testnet-demo.template.json`
+
+The current tracked Mezo testnet deployment address reference is:
+
+- `docs/MEZO_TESTNET_DEPLOYMENT.md`
+
+Local generated manifests may also exist as ignored files:
+
+- `mezo-testnet-core.json`
+- `mezo-testnet-client.json`
 
 The V1.5 BTC sleeve validator writes:
 

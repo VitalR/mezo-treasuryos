@@ -61,6 +61,14 @@ make rpc-health
 
 Deployment and onboarding Make targets use the selected active RPC provider internally and print only the selected provider label/env key, not the raw URL.
 
+For the final deployment pass, run:
+
+```bash
+make predeploy-check
+```
+
+This wraps the critical deployment sanity checks in one command: Mezo chain ID `31611` through the selected RPC, required deploy/client env vars, deployer address and gas balance, risk-policy defaults, keeper env completeness when execution is configured, BTC sleeve validation env completeness when tiny broadcast validation is enabled, and the explicit reminder that protocol fees deploy disabled and are not wired into treasury execution.
+
 Goldsky reporting is scaffolded under `indexer/goldsky`. After deploying core and client contracts, copy deployed addresses and start blocks into `indexer/goldsky/subgraph.yaml`, then copy Foundry-generated ABI JSON files into `indexer/goldsky/abis/`. Do not publish the indexer with placeholder zero addresses.
 
 Client onboarding requires:
@@ -166,6 +174,7 @@ The `mcbBTC/BTC` direct and TreasuryOS-guarded add/remove-liquidity execution te
 Check final demo readiness at any point:
 
 ```bash
+make post-deploy-smoke
 make demo-status
 npm run risk-keeper:demo
 RISK_KEEPER_MODE=propose npm run risk-keeper:demo
@@ -195,6 +204,9 @@ This deploys:
 The owner of `TreasuryAccountFactory` is the protocol admin derived from `DEPLOYER_PRIVATE_KEY`. For testnet this should be a deployer EOA. For production it can later be migrated to a protocol multisig.
 
 `ProtocolFeeVault` and `ProtocolFeeManager` are deployed as governance-ready fee infrastructure. They are not wired into client treasury execution by default. Fee rates are zero, fee collection is disabled, and ERC20 subscription tokens are not accepted until governance explicitly allowlists them. See `PROTOCOL_FEES.md`.
+
+Current Mezo testnet addresses are recorded in `docs/MEZO_TESTNET_DEPLOYMENT.md`. Local untracked manifests are also
+written under `deployments/mezo-testnet-core.json` and `deployments/mezo-testnet-client.json` when available.
 
 After deployment, copy the core addresses from `CORE_DEPLOYMENT_MANIFEST_PATH` into:
 

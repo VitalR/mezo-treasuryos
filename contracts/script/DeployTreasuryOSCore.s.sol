@@ -5,6 +5,7 @@ import { Script, console2 } from "@forge-std/Script.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BTCReservePolicy } from "../src/core/BTCReservePolicy.sol";
+import { TreasuryAccount } from "../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../src/core/TreasuryPolicyEngine.sol";
 import { ProtocolFeeManager } from "../src/fees/ProtocolFeeManager.sol";
@@ -34,6 +35,7 @@ contract DeployTreasuryOSCore is Script {
         address protocolFeeManager;
         address treasuryPolicyEngine;
         address btcReservePolicy;
+        address treasuryAccountImplementation;
         address treasuryAccountFactory;
     }
 
@@ -63,13 +65,16 @@ contract DeployTreasuryOSCore is Script {
         ProtocolFeeManager protocolFeeManager = new ProtocolFeeManager(config.protocolAdmin, address(protocolFeeVault));
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
         BTCReservePolicy btcReservePolicy = new BTCReservePolicy(treasuryPolicyEngine);
-        TreasuryAccountFactory treasuryAccountFactory =
-            new TreasuryAccountFactory(IERC20(config.musdToken), treasuryPolicyEngine);
+        TreasuryAccount treasuryAccountImplementation = new TreasuryAccount();
+        TreasuryAccountFactory treasuryAccountFactory = new TreasuryAccountFactory(
+            IERC20(config.musdToken), treasuryPolicyEngine, address(treasuryAccountImplementation)
+        );
 
         artifacts.protocolFeeVault = address(protocolFeeVault);
         artifacts.protocolFeeManager = address(protocolFeeManager);
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
         artifacts.btcReservePolicy = address(btcReservePolicy);
+        artifacts.treasuryAccountImplementation = address(treasuryAccountImplementation);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
 
         vm.stopBroadcast();
@@ -80,6 +85,7 @@ contract DeployTreasuryOSCore is Script {
         console2.log("ProtocolFeeManager:", artifacts.protocolFeeManager);
         console2.log("TreasuryPolicyEngine:", artifacts.treasuryPolicyEngine);
         console2.log("BTCReservePolicy:", artifacts.btcReservePolicy);
+        console2.log("TreasuryAccountImplementation:", artifacts.treasuryAccountImplementation);
         console2.log("TreasuryAccountFactory:", artifacts.treasuryAccountFactory);
         console2.log("Manifest:", config.manifestPath);
     }
@@ -125,6 +131,8 @@ contract DeployTreasuryOSCore is Script {
             vm.toString(artifacts.protocolFeeManager),
             '","btcReservePolicy":"',
             vm.toString(artifacts.btcReservePolicy),
+            '","treasuryAccountImplementation":"',
+            vm.toString(artifacts.treasuryAccountImplementation),
             '","treasuryAccountFactory":"',
             vm.toString(artifacts.treasuryAccountFactory),
             '"},',

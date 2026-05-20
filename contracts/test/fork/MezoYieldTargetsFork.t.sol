@@ -382,7 +382,8 @@ contract MezoYieldTargetsForkTest is Test {
         returns (TreasuryAccount account, AllocationRouter router)
     {
         TreasuryPolicyEngine _policyEngine = new TreasuryPolicyEngine();
-        TreasuryAccountFactory _factory = new TreasuryAccountFactory(_musd, _policyEngine);
+        TreasuryAccountFactory _factory =
+            new TreasuryAccountFactory(_musd, _policyEngine, address(new TreasuryAccount()));
         _factory.setTreasuryAdminApproval(_owner, true);
 
         vm.startPrank(_owner);

@@ -43,7 +43,7 @@ contract TigrisBTCStablePoolHandlerTest is Test {
         _tigrisRouter = new MockTigrisBasicRouter(_mcbtc, _btc, _poolToken);
 
         _policyEngine = new TreasuryPolicyEngine();
-        _factory = new TreasuryAccountFactory(IERC20(address(_musd)), _policyEngine);
+        _factory = new TreasuryAccountFactory(IERC20(address(_musd)), _policyEngine, address(new TreasuryAccount()));
         _factory.setTreasuryAdminApproval(_TREASURY_ADMIN, true);
         _btcReservePolicy = new BTCReservePolicy(_policyEngine);
         _btcReserveRouter = new BTCReserveRouter(_TREASURY_ADMIN);

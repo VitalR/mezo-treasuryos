@@ -206,6 +206,8 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Raised when an account-level caller lacks the required authority.
     /// @param caller Unauthorized caller.
     error UnauthorizedCaller(address caller);
+    /// @notice Raised when the clone has already been initialized.
+    error AlreadyInitialized();
 
     // =============================================================
     // Types
@@ -388,9 +390,9 @@ contract TreasuryAccount is Ownable2Step {
     // =============================================================
 
     /// @notice TreasuryOS policy engine enforcing internal treasury controls for this account.
-    ITreasuryPolicyEngine public immutable policyEngine;
+    ITreasuryPolicyEngine public policyEngine;
     /// @notice MUSD token used for debt repayment and treasury destination allocations.
-    IERC20 public immutable musdToken;
+    IERC20 public musdToken;
     /// @notice Connected Mezo borrower operations contract used for position lifecycle calls.
     IBorrowerOperations public borrowerOperations;
     /// @notice Trusted allocation router allowed to orchestrate governed destination flows.
@@ -406,20 +408,29 @@ contract TreasuryAccount is Ownable2Step {
     mapping(address destination => uint256 amount) public destinationAllocations;
     /// @notice BTC principal tracked per BTC-denominated sleeve.
     mapping(address sleeve => uint256 amount) public btcSleevePrincipalAllocations;
+    /// @notice Whether this clone has been initialized.
+    bool public initialized;
 
     // =============================================================
     // Constructor
     // =============================================================
 
-    /// @param _owner Treasury administrator and initial owner for the account.
+    constructor() Ownable(address(this)) { }
+
+    /// @notice Initializes a Treasury Account clone.
+    /// @param _owner Treasury administrator and owner for the account.
     /// @param _policyEngine Policy engine enforcing TreasuryOS internal controls.
     /// @param _musdToken MUSD token used by this Treasury Account.
-    constructor(address _owner, ITreasuryPolicyEngine _policyEngine, IERC20 _musdToken) Ownable(_owner) {
+    function initialize(address _owner, ITreasuryPolicyEngine _policyEngine, IERC20 _musdToken) external {
+        require(!initialized, AlreadyInitialized());
+        require(_owner != address(0), Ownable.OwnableInvalidOwner(_owner));
         require(address(_policyEngine) != address(0), InvalidPolicyEngine(address(_policyEngine)));
         require(address(_musdToken) != address(0), InvalidMUSDToken(address(_musdToken)));
 
+        initialized = true;
         policyEngine = _policyEngine;
         musdToken = _musdToken;
+        _transferOwnership(_owner);
     }
 
     // =============================================================

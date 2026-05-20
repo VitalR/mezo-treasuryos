@@ -22,10 +22,17 @@ const automationExecutorAddress = envAddress(
   "TREASURY_AUTOMATION_EXECUTOR",
   envAddress("RISK_KEEPER_AUTOMATION_EXECUTOR", validationManifest?.contracts?.treasuryAutomationExecutor ?? null),
 );
+const protocolFeeVaultAddress = envAddress("PROTOCOL_FEE_VAULT", validationManifest?.contracts?.protocolFeeVault ?? null);
+const protocolFeeManagerAddress = envAddress(
+  "PROTOCOL_FEE_MANAGER",
+  validationManifest?.contracts?.protocolFeeManager ?? null,
+);
 
 const checks = await Promise.all([
   contractStatus("BTC sleeve validation TreasuryAccount", validationTreasuryAddress),
   contractStatus("TreasuryAutomationExecutor", automationExecutorAddress),
+  contractStatus("ProtocolFeeVault", protocolFeeVaultAddress),
+  contractStatus("ProtocolFeeManager", protocolFeeManagerAddress),
   contractStatus("MUSD Savings Vault", envAddress("MEZO_MUSD_SAVINGS_RATE", config.musd.savingsRate.address)),
   contractStatus("Tigris MUSD/mUSDC pool", envAddress("MEZO_TIGRIS_MUSD_MUSDC_POOL", config.tigris.pools.musdMusdc.address)),
   contractStatus("Tigris mcbBTC/BTC pool", envAddress("MEZO_TIGRIS_MCBTC_BTC_POOL", config.tigris.pools.mcbtcBtc.address)),
@@ -37,11 +44,24 @@ const checks = await Promise.all([
   ),
 ]);
 
-const [validationTreasury, automationExecutor, savings, musdMusdc, mcbtcBtc, btcPolicy, btcRouter, btcHandler] = checks;
+const [
+  validationTreasury,
+  automationExecutor,
+  protocolFeeVault,
+  protocolFeeManager,
+  savings,
+  musdMusdc,
+  mcbtcBtc,
+  btcPolicy,
+  btcRouter,
+  btcHandler,
+] = checks;
 
 printStatus({
   selected,
   automationExecutor,
+  protocolFeeVault,
+  protocolFeeManager,
   savings,
   musdMusdc,
   mcbtcBtc,
@@ -73,6 +93,24 @@ function printStatus(status) {
   } else {
     console.log("Active RPC provider: none returned Mezo testnet chain ID 31611");
   }
+
+  console.log("");
+  console.log("Fee readiness:");
+  console.log(
+    `- ProtocolFeeVault: ${
+      status.protocolFeeVault.address
+        ? `${codePhrase(status.protocolFeeVault)} at ${status.protocolFeeVault.address}`
+        : "not configured in env/manifest"
+    }`,
+  );
+  console.log(
+    `- ProtocolFeeManager: ${
+      status.protocolFeeManager.address
+        ? `${codePhrase(status.protocolFeeManager)} at ${status.protocolFeeManager.address}`
+        : "not configured in env/manifest"
+    }`,
+  );
+  console.log("- Fees: disabled by default; no treasury execution flow depends on fee contracts.");
 
   console.log("");
   console.log("Sleeve readiness:");

@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Test } from "forge-std/Test.sol";
 
+import { TreasuryAccount } from "../../src/core/TreasuryAccount.sol";
 import { TreasuryAccountFactory } from "../../src/core/TreasuryAccountFactory.sol";
 import { TreasuryPolicyEngine } from "../../src/core/TreasuryPolicyEngine.sol";
 import { ITreasuryPolicyEngine } from "../../src/interfaces/ITreasuryPolicyEngine.sol";
@@ -23,7 +24,9 @@ contract TreasuryAccountFactoryTest is Test {
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
-        _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _factory = new TreasuryAccountFactory(
+            IERC20(_borrowerOperations.musdToken()), _policyEngine, address(new TreasuryAccount())
+        );
     }
 
     function test_SetTreasuryAdminApproval_OwnerCanApproveTreasuryAdmin() public {

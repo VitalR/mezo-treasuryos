@@ -5,7 +5,10 @@ libs = ["lib"]
 
 solc = "0.8.34"
 optimizer = true
-optimizer_runs = 1000
+optimizer_runs = 1
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
 
 remappings = [
   "@forge-std/=lib/forge-std/src/",

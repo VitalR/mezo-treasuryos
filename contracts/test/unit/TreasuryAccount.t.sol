@@ -36,7 +36,9 @@ contract TreasuryAccountTest is Test {
     function setUp() public {
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
-        _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _factory = new TreasuryAccountFactory(
+            IERC20(_borrowerOperations.musdToken()), _policyEngine, address(new TreasuryAccount())
+        );
         _factory.setTreasuryAdminApproval(_TREASURY_ADMIN, true);
         _mockSavingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _allocationRouter = new AllocationRouter(_TREASURY_ADMIN);

@@ -203,6 +203,14 @@ export function buildKeeperActionPlan(report, env = process.env) {
     };
   }
 
+  if (!isAddress(executor) || !isAddress(treasuryAccount) || !isAddress(upperHint) || !isAddress(lowerHint)) {
+    return {
+      available: false,
+      reason: "executor, treasury account, and hint values must be valid 0x addresses",
+      recommendationType: recommendation.type,
+    };
+  }
+
   const base = {
     available: true,
     target: executor,
@@ -422,6 +430,10 @@ function castCalldataCommand(signature, args) {
 
 function quoteShell(value) {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function isAddress(value) {
+  return /^0x[0-9a-fA-F]{40}$/u.test(String(value ?? ""));
 }
 
 function toWeiDecimal(value, decimals = 18) {

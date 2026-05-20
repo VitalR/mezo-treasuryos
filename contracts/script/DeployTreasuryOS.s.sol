@@ -9,8 +9,8 @@ import { MUSDSavingsRateHandler } from "../src/adapters/MUSDSavingsRateHandler.s
 import { TigrisStablePoolHandler } from "../src/adapters/TigrisStablePoolHandler.sol";
 import { BTCReservePolicy } from "../src/core/BTCReservePolicy.sol";
 import { TreasuryAccount } from "../src/core/TreasuryAccount.sol";
-import { TreasuryAutomationExecutor } from "../src/core/TreasuryAutomationExecutor.sol";
 import { TreasuryAccountFactory } from "../src/core/TreasuryAccountFactory.sol";
+import { TreasuryAutomationExecutor } from "../src/core/TreasuryAutomationExecutor.sol";
 import { TreasuryPolicyEngine } from "../src/core/TreasuryPolicyEngine.sol";
 import { ExternalMUSDSavingsRateMock } from "../src/external/ExternalMUSDSavingsRateMock.sol";
 import { ProtocolFeeManager } from "../src/fees/ProtocolFeeManager.sol";
@@ -102,6 +102,7 @@ contract DeployTreasuryOS is Script {
         address protocolFeeManager;
         address treasuryPolicyEngine;
         address btcReservePolicy;
+        address treasuryAccountImplementation;
         address treasuryAccountFactory;
         address treasuryAutomationExecutor;
         address treasuryMultisig;
@@ -322,8 +323,10 @@ contract DeployTreasuryOS is Script {
         ProtocolFeeManager protocolFeeManager = new ProtocolFeeManager(config.deployer, address(protocolFeeVault));
         TreasuryPolicyEngine treasuryPolicyEngine = new TreasuryPolicyEngine();
         BTCReservePolicy btcReservePolicy = new BTCReservePolicy(treasuryPolicyEngine);
-        TreasuryAccountFactory treasuryAccountFactory =
-            new TreasuryAccountFactory(IERC20(config.musdToken), treasuryPolicyEngine);
+        TreasuryAccount treasuryAccountImplementation = new TreasuryAccount();
+        TreasuryAccountFactory treasuryAccountFactory = new TreasuryAccountFactory(
+            IERC20(config.musdToken), treasuryPolicyEngine, address(treasuryAccountImplementation)
+        );
         TreasuryAutomationExecutor treasuryAutomationExecutor = new TreasuryAutomationExecutor(treasuryOwner);
         AllocationRouter allocationRouter = new AllocationRouter(treasuryOwner);
 
@@ -331,6 +334,7 @@ contract DeployTreasuryOS is Script {
         artifacts.protocolFeeManager = address(protocolFeeManager);
         artifacts.treasuryPolicyEngine = address(treasuryPolicyEngine);
         artifacts.btcReservePolicy = address(btcReservePolicy);
+        artifacts.treasuryAccountImplementation = address(treasuryAccountImplementation);
         artifacts.treasuryAccountFactory = address(treasuryAccountFactory);
         artifacts.treasuryAutomationExecutor = address(treasuryAutomationExecutor);
         artifacts.allocationRouter = address(allocationRouter);
@@ -662,6 +666,8 @@ contract DeployTreasuryOS is Script {
             vm.toString(artifacts.protocolFeeManager),
             '","btcReservePolicy":"',
             vm.toString(artifacts.btcReservePolicy),
+            '","treasuryAccountImplementation":"',
+            vm.toString(artifacts.treasuryAccountImplementation),
             '","treasuryAccountFactory":"',
             vm.toString(artifacts.treasuryAccountFactory),
             '","treasuryAutomationExecutor":"',

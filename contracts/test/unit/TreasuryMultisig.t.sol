@@ -52,7 +52,9 @@ contract TreasuryMultisigTest is Test {
         _multisig = new TreasuryMultisig(_defaultOwners(), 2, 0, 7 days);
         _policyEngine = new TreasuryPolicyEngine();
         _borrowerOperations = new MockBorrowerOperations();
-        _factory = new TreasuryAccountFactory(IERC20(_borrowerOperations.musdToken()), _policyEngine);
+        _factory = new TreasuryAccountFactory(
+            IERC20(_borrowerOperations.musdToken()), _policyEngine, address(new TreasuryAccount())
+        );
         _automationExecutor = new TreasuryAutomationExecutor(address(_multisig));
         _savingsVault = new MockMUSDSavingsRate(_borrowerOperations.musdTokenContract());
         _allocationRouter = new AllocationRouter(address(_multisig));

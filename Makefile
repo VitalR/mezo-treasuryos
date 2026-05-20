@@ -1,6 +1,12 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+NVM_NODE_BIN := $(dir $(firstword $(wildcard $(HOME)/.nvm/versions/node/v20*/bin/node)))
+ifneq ($(strip $(NVM_NODE_BIN)),)
+export PATH := $(NVM_NODE_BIN):$(PATH)
+endif
+NODE_BIN := $(if $(strip $(NVM_NODE_BIN)),$(NVM_NODE_BIN)node,node)
+
 ENV_FILE := .env
 CONTRACTS_ROOT := contracts
 DEPLOY_SCRIPT := script/DeployTreasuryOS.s.sol:DeployTreasuryOS
@@ -26,6 +32,8 @@ help:
 	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
 	@echo "  make btc-sleeve-targets           - inspect mcbBTC/BTC BTC sleeve mechanics through selected RPC"
 	@echo "  make demo-status                  - print final demo readiness and live validation status"
+	@echo "  make predeploy-check              - validate Mezo RPC/env/policy defaults before testnet deploy"
+	@echo "  make post-deploy-smoke            - print post-deploy status and keeper proposal readiness"
 	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
 	@echo "  make btc-sleeve-broadcast-dry-run - simulate tiny guarded mcbBTC/BTC deposit/unwind"
 	@echo "  make btc-sleeve-broadcast-validation - broadcast tiny guarded mcbBTC/BTC deposit/unwind"
@@ -190,7 +198,7 @@ define require_mezo_rpc_candidate
 endef
 
 define select_active_mezo_rpc
-	eval "$$(node services/spectrum-state/rpc-health.mjs --shell)"; \
+	eval "$$($(NODE_BIN) services/spectrum-state/rpc-health.mjs --shell)"; \
 	ACTIVE_MEZO_RPC_URL="$${!ACTIVE_MEZO_RPC_ENV}"; \
 	[ -n "$$ACTIVE_MEZO_RPC_URL" ] || { echo "Selected Mezo RPC env is empty: $$ACTIVE_MEZO_RPC_ENV"; exit 1; }; \
 	export ACTIVE_MEZO_RPC_URL ACTIVE_MEZO_RPC_PROVIDER ACTIVE_MEZO_RPC_ENV ACTIVE_MEZO_RPC_KIND; \
@@ -307,6 +315,56 @@ check-client-env:
 		echo "Required TreasuryOS client onboarding env vars are set."; \
 		if [ -n "$$MEZO_MUSDC_TOKEN" ]; then echo "MEZO_MUSDC_TOKEN=SET"; else echo "MEZO_MUSDC_TOKEN=MISSING (Tigris handler will be skipped)"; fi; \
 		if [ -n "$$MEZO_MUSD_SAVINGS_RATE" ]; then echo "MEZO_MUSD_SAVINGS_RATE=SET"; else echo "MEZO_MUSD_SAVINGS_RATE=MISSING (MUSD Savings handler will be skipped; set the real Mezo testnet vault for final demo)"; fi; \
+	'
+
+.PHONY: predeploy-check
+predeploy-check:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_testnet_env) \
+		$(call select_active_mezo_rpc) \
+		DEPLOYER_ADDRESS="$$(cast wallet address --private-key "$$DEPLOYER_PRIVATE_KEY")"; \
+		DEPLOYER_BALANCE="$$(cast balance "$$DEPLOYER_ADDRESS" --rpc-url "$$ACTIVE_MEZO_RPC_URL")"; \
+		echo "Deployer: $$DEPLOYER_ADDRESS"; \
+		echo "Deployer native BTC balance: $$DEPLOYER_BALANCE wei"; \
+		[ "$$DEPLOYER_BALANCE" != "0" ] || { echo "Deployer has zero native BTC for gas"; exit 1; }; \
+		MIN_OPEN="$${DEMO_TREASURY_MIN_OPEN_COLLATERAL_RATIO_BPS:-18000}"; \
+		TARGET="$${DEMO_TREASURY_TARGET_COLLATERAL_RATIO_BPS:-20000}"; \
+		STRESS="$${DEMO_TREASURY_STRESS_DROP_BPS:-2500}"; \
+		POST="$${DEMO_TREASURY_MIN_POST_STRESS_COLLATERAL_RATIO_BPS:-14000}"; \
+		MAX_TOP_UP="$${DEMO_TREASURY_MAX_AUTO_IDLE_BTC_TOP_UP:-250000000000000000}"; \
+		[ "$$TARGET" -ge "$$MIN_OPEN" ] || { echo "Invalid policy: target CR below min open CR"; exit 1; }; \
+		[ "$$STRESS" -le 10000 ] || { echo "Invalid policy: stress drop above 10000 bps"; exit 1; }; \
+		[ "$$POST" -gt 0 ] || { echo "Invalid policy: min post-stress CR is zero"; exit 1; }; \
+		echo "Policy defaults: minOpen=$$MIN_OPEN target=$$TARGET stressDrop=$$STRESS minPostStress=$$POST maxAutoIdleBTCTopUp=$$MAX_TOP_UP"; \
+		if [ "$${RISK_KEEPER_MODE:-dry-run}" = "execute" ] || [ -n "$${RISK_KEEPER_PRIVATE_KEY:-}" ]; then \
+			[ -n "$${RISK_KEEPER_TREASURY_ACCOUNT:-$${TREASURY_ACCOUNT:-}}" ] || { echo "Keeper configured but missing RISK_KEEPER_TREASURY_ACCOUNT/TREASURY_ACCOUNT"; exit 1; }; \
+			[ -n "$${TREASURY_AUTOMATION_EXECUTOR:-$${RISK_KEEPER_AUTOMATION_EXECUTOR:-}}" ] || { echo "Keeper configured but missing TREASURY_AUTOMATION_EXECUTOR/RISK_KEEPER_AUTOMATION_EXECUTOR"; exit 1; }; \
+			[ "$${RISK_KEEPER_MAX_ACTIONS_PER_RUN:-1}" = "1" ] || { echo "Keeper max actions must be 1"; exit 1; }; \
+			if [ "$${RISK_KEEPER_MODE:-dry-run}" = "execute" ]; then [ "$${RISK_KEEPER_EXECUTE_CONFIRM:-false}" = "true" ] || { echo "Execute mode requires RISK_KEEPER_EXECUTE_CONFIRM=true"; exit 1; }; fi; \
+			echo "Keeper env: complete for configured mode $${RISK_KEEPER_MODE:-dry-run}"; \
+		else \
+			echo "Keeper env: dry-run/propose only"; \
+		fi; \
+		if [ "$${BTC_SLEEVE_BROADCAST_CONFIRM:-false}" = "true" ]; then \
+			[ -n "$${BTC_SLEEVE_TREASURY_ACCOUNT:-}" ] || { echo "BTC sleeve validation enabled but missing BTC_SLEEVE_TREASURY_ACCOUNT"; exit 1; }; \
+			[ -n "$${BTC_SLEEVE_VALIDATOR_PRIVATE_KEY:-}" ] || { echo "BTC sleeve validation enabled but missing BTC_SLEEVE_VALIDATOR_PRIVATE_KEY"; exit 1; }; \
+			echo "BTC sleeve validation env: complete for guarded tiny broadcast"; \
+		else \
+			echo "BTC sleeve validation env: disabled or dry-run only"; \
+		fi; \
+		echo "Fee contracts: deployed by core/full scripts, disabled by default, not wired into treasury execution."; \
+	'
+
+.PHONY: post-deploy-smoke
+post-deploy-smoke:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_mezo_rpc_candidate) \
+		$(call select_active_mezo_rpc) \
+		$(NODE_BIN) services/spectrum-state/demo-status.mjs; \
+		echo ""; \
+		RISK_KEEPER_MODE=propose $(NODE_BIN) services/treasury-risk-keeper/run.mjs services/treasury-risk-keeper/sample-warning-repay-snapshot.json; \
 	'
 
 .PHONY: deploy-mezo-testnet
