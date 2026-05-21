@@ -162,6 +162,7 @@ const btcReserveState =
     ? await readBTCReserveState(rpc.url, btcReservePolicy, treasuryAccount, proposedBTCSleeve, proposedBTCAmountWei(args))
         .catch(() => null)
     : null;
+const normalizedBTCReserveState = normalizeBTCReserveState(btcReserveState, position);
 
 const blockNumber = await rpcRequest(rpc.url, "eth_blockNumber", []);
 const snapshot = {
@@ -188,7 +189,17 @@ const snapshot = {
   },
   sleeves,
   allocationDecision,
-  ...(btcReserveState ?? {}),
+  riskKeeper: {
+    strategyProfile: args.strategyProfile ?? "balanced",
+    btcPriceMUSD: args.btcPriceMusd ?? args.btcPriceMUSD ?? undefined,
+    overrides: {
+      musdOperatingBuffer: formatUnits(policy.liquidityBuffer, 18),
+      warningCollateralRatioBps: health?.warningCollateralRatioBps,
+      criticalCollateralRatioBps: health?.criticalCollateralRatioBps,
+      minIdleBTCReserve: normalizedBTCReserveState?.btcReservePolicy?.minIdleBTCReserve ?? "0",
+    },
+  },
+  ...(normalizedBTCReserveState ?? {}),
 };
 
 emitResult(snapshot);
@@ -445,6 +456,21 @@ async function readBTCReserveState(url, btcReservePolicy, treasuryAccount, propo
   }
 
   return state;
+}
+
+function normalizeBTCReserveState(state, position) {
+  if (!state?.btcReserveBuckets) return state;
+
+  const positionCollateralBTC = formatUnits(position.collateral, 18);
+  if (positionCollateralBTC === "0" || state.btcReserveBuckets.collateralBTC !== "0") return state;
+
+  return {
+    ...state,
+    btcReserveBuckets: {
+      ...state.btcReserveBuckets,
+      collateralBTC: positionCollateralBTC,
+    },
+  };
 }
 
 async function readBTCReserveBuckets(url, btcReservePolicy, treasuryAccount) {
