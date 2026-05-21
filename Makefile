@@ -43,6 +43,7 @@ help:
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
 	@echo "  make risk-keeper-demo             - render warning idle-MUSD repayment keeper report"
 	@echo "  make risk-keeper-propose          - render keeper calldata/proposal for demo action"
+	@echo "  make risk-keeper-propose-critical - render critical sleeve-funded repayment proposal"
 	@echo "  make anvil                        - start local Anvil node"
 	@echo "  make deploy-anvil                 - deploy simplified local TreasuryOS stack"
 	@echo "  make check-env                    - verify required Mezo testnet env vars are set"
@@ -178,6 +179,10 @@ risk-keeper-demo:
 .PHONY: risk-keeper-propose
 risk-keeper-propose:
 	npm run risk-keeper:propose
+
+.PHONY: risk-keeper-propose-critical
+risk-keeper-propose-critical:
+	npm run risk-keeper:propose-critical
 
 .PHONY: anvil
 anvil:

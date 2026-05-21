@@ -31,6 +31,41 @@ This prints the judge-facing scenario matrix from the current live/internal snap
 
 The command is read-only. It does not move funds.
 
+## Judge Flow
+
+Run this sequence for the final proof. Steps 1-5 are read-only and are the preferred judge flow.
+
+```bash
+make demo-status
+make scenario-proof
+node services/treasury-advisor/run.mjs draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json
+node services/yield-console/render.mjs draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json
+make risk-keeper-propose-critical
+```
+
+Talk track:
+
+1. `make demo-status`
+   - Shows Spectrum RPC on Mezo testnet, deployed fee contracts, MUSD Savings readiness, BTC sleeve status, and keeper readiness.
+   - State clearly that fees are deployed but disabled, and BTC sleeve execution is not part of the core live demo.
+
+2. `make scenario-proof`
+   - Shows the live TreasuryAccount, multisig ownership, deployed addresses, active MUSD debt, MUSD Savings exposure, policy block, and live keeper tx proof.
+   - Anchor the narrative on the execution boundary: TreasuryAccount owns positions and assets; keeper only calls bounded executor methods.
+
+3. Advisor memo
+   - Shows the advisor can explain current state and recommend allocation using policy-aware facts.
+   - State clearly: the advisor is reporting only. It does not sign, custody, or bypass policy.
+
+4. Yield console
+   - Shows idle MUSD, required buffer, approved sleeve caps, current allocation, and BTC reserve/collateral split.
+   - Use this to explain operating capital vs collateral vs BTC sleeve planning.
+
+5. Critical keeper proposal
+   - Shows the read-only calldata/proposal for `deRiskByRepayingFromSleeve`.
+   - Uses `.env` to resolve `TREASURY_AUTOMATION_EXECUTOR`, `TREASURY_ACCOUNT`, and the MUSD Savings destination.
+   - Do not execute this on the live tiny position; it is a proposal proof for the critical scenario, while live execution has already proven `restoreBufferFromSavings` and `repayDebtFromIdleMUSD`.
+
 ## Live Transactions
 
 | Scenario | Tx |

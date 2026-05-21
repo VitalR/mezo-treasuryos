@@ -1,0 +1,118 @@
+{
+  "treasuryName": "Mezo TreasuryOS Live Treasury - Critical Sleeve Replay",
+  "rpc": {
+    "provider": "Spectrum Nodes",
+    "env": "SPECTRUM_MEZO_RPC_URL_1",
+    "chainId": 31611,
+    "chainIdHex": "0x7b7b",
+    "blockNumber": 13191777,
+    "spectrumActive": true,
+    "fallbackUsed": false,
+    "attempts": [
+      {
+        "provider": "Spectrum Nodes",
+        "env": "SPECTRUM_MEZO_RPC_URL_1",
+        "status": "selected",
+        "chainId": "0x7b7b"
+      }
+    ]
+  },
+  "treasuryAccount": "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+  "composition": {
+    "idleMUSD": "500",
+    "idleBTC": "0",
+    "liquidityBufferMUSD": "500",
+    "deployableSurplusMUSD": "0",
+    "approvalThresholdMUSD": "250"
+  },
+  "position": {
+    "collateralBTC": "0.05",
+    "totalDebtMUSD": "2001.8",
+    "closeDebtMUSD": "1801.8"
+  },
+  "health": {
+    "collateralRatioBps": "14500",
+    "warningCollateralRatioBps": "18000",
+    "criticalCollateralRatioBps": "15000",
+    "belowWarningRatio": true,
+    "belowCriticalRatio": true,
+    "riskDataAvailable": true,
+    "automationEnabled": true,
+    "paused": false
+  },
+  "sleeves": [
+    {
+      "label": "MUSD Savings Vault",
+      "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+      "handler": "0x801e185bcb70705b3cf3494caca948b6c48bc0ff",
+      "approved": true,
+      "allocatedMUSD": "1000",
+      "capMUSD": "10000",
+      "remainingCapacityMUSD": "9000",
+      "receiptBalance": "1000",
+      "riskTier": "low",
+      "unwindDays": "0",
+      "supportsSavingsRate": true,
+      "automationEligible": true
+    },
+    {
+      "label": "Tigris Basic Stable MUSD/mUSDC",
+      "destination": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+      "handler": "0x4b761376fe6abb6fc00138217b3d7656c82fe785",
+      "approved": true,
+      "allocatedMUSD": "0",
+      "capMUSD": "5000",
+      "remainingCapacityMUSD": "5000",
+      "receiptBalance": "0"
+    }
+  ],
+  "allocationDecision": {
+    "allowed": false,
+    "code": "ApprovalRequired",
+    "actor": "0xda2c01980bb59dd6b7cb4d800007ea67c7282280",
+    "destination": "0x6f461c68b2c5492c0f5ccec5a264d692aa7a8e16",
+    "amountMUSD": "300",
+    "idleMUSD": "800",
+    "liquidityBufferMUSD": "500",
+    "deployableSurplusMUSD": "300",
+    "approvalThresholdMUSD": "250",
+    "currentAllocationMUSD": "1000",
+    "allocationCapMUSD": "10000",
+    "remainingCapacityMUSD": "9000",
+    "nextIdleMUSD": "500",
+    "nextAllocationMUSD": "1300"
+  },
+  "riskKeeper": {
+    "strategyProfile": "balanced",
+    "overrides": {
+      "musdOperatingBuffer": "500",
+      "warningCollateralRatioBps": "18000",
+      "criticalCollateralRatioBps": "15000",
+      "minIdleBTCReserve": "0",
+      "targetCollateralRatioBps": "20000",
+      "preferIdleBTCForCollateralTopUp": false
+    },
+    "btcPriceMUSD": "77800"
+  },
+  "btcReservePolicyAddress": "0x4d6054bb0BFDEcBDA3599681EfEa383c1F63afAe",
+  "btcReserveBuckets": {
+    "idleBTCReserve": "0",
+    "collateralBTC": "0.05",
+    "emergencyBTCReserve": "0",
+    "yieldActiveBTC": "0",
+    "pendingWithdrawBTC": "0"
+  },
+  "btcReservePolicy": {
+    "minIdleBTCReserve": "0",
+    "emergencyBTCReserve": "0",
+    "maxYieldBTCBps": "0",
+    "maxPerSleeveBTCBps": "0",
+    "maxDirectionalBTCBps": "0",
+    "maxBTCAssetDepegBps": "0",
+    "maxSwapPriceImpactBps": "0",
+    "maxSlippageBps": "0",
+    "collateralWarningCRBps": "0",
+    "btcYieldPaused": false,
+    "initialized": false
+  }
+}

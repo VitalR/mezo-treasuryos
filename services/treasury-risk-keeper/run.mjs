@@ -10,6 +10,8 @@ import { buildKeeperActionPlan, buildRiskKeeperReport, renderRiskKeeperReport } 
 const DEFAULT_SNAPSHOT_PATH = "services/treasury-risk-keeper/sample-snapshot.json";
 
 export function main(argv = process.argv.slice(2), env = process.env, io = console) {
+  loadDotEnv(env);
+
   const snapshotPath = snapshotPathFromArgs(argv);
   const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
   const report = buildRiskKeeperReport(snapshot);
@@ -101,6 +103,34 @@ export function executeActionPlan(plan, env = process.env, runner = spawnSync, i
 
 function snapshotPathFromArgs(argv) {
   return argv.find((arg) => !arg.startsWith("--")) ?? DEFAULT_SNAPSHOT_PATH;
+}
+
+function loadDotEnv(env, path = ".env") {
+  try {
+    const content = readFileSync(path, "utf8");
+    for (const line of content.split(/\r?\n/u)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const separator = trimmed.indexOf("=");
+      if (separator === -1) continue;
+
+      const key = trimmed.slice(0, separator).trim();
+      let value = trimmed.slice(separator + 1).trim();
+      if (!key || env[key] != null) continue;
+
+      if (
+        (value.startsWith("'") && value.endsWith("'"))
+        || (value.startsWith('"') && value.endsWith('"'))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      env[key] = value;
+    }
+  } catch {
+    // .env is optional for pure fixture rendering.
+  }
 }
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {
