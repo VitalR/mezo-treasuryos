@@ -34,6 +34,24 @@ The current TreasuryMultisig supports a one-shot native BTC proposal flow:
 demo multisig this executes immediately, so a new client can connect with BTC and open a Mezo-backed TreasuryOS
 position without first pre-funding the multisig in a separate transaction.
 
+For live MUSD sleeve deposits, route through the client `AllocationRouter`, not the direct accounting-only
+`TreasuryAccount.allocate(...)` function. The savings execution path is:
+
+```bash
+DATA=$(cast calldata "deposit(address,address,uint256)" "$TREASURY_ACCOUNT" "$MEZO_MUSD_SAVINGS_RATE" 1000000000000000000000)
+cast send "$CLIENT_TREASURY_MULTISIG" \
+  "proposeTransaction(address,uint256,bytes,bytes32)(uint256)" \
+  "$ALLOCATION_ROUTER" 0 "$DATA" \
+  0x0000000000000000000000000000000000000000000000000000000000000000 \
+  --rpc-url "$MEZO_RPC" \
+  --private-key "$OWNER_PRIVATE_KEY"
+```
+
+The expected proof is both token-level and accounting-level: MUSD transfers from `TreasuryAccount` into
+`MEZO_MUSD_SAVINGS_RATE`, `MEZO_MUSD_SAVINGS_RATE.balanceOf(TREASURY_ACCOUNT)` increases, `idleMUSD` decreases, and
+`destinationAllocations(MEZO_MUSD_SAVINGS_RATE)` increases. `TreasuryAccount.allocate(...)` is only internal/demo
+accounting and does not move MUSD into a live destination.
+
 ## Fee Status
 
 Fee infrastructure is deployed and available to the system, but fees are disabled for the demo:
