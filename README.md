@@ -179,6 +179,7 @@ Demo renderer:
 
 ```sh
 npm run demo:status
+npm run demo:scenarios
 npm run demo:yield-console
 npm run advisor:demo
 npm run risk-keeper:demo
@@ -186,6 +187,9 @@ npm run risk-keeper:propose
 npm run demo:term-planner
 npm run demo:btc-sleeve-plan
 ```
+
+For the current live judge proof, use `make scenario-proof`. The final runbook is in
+`docs/FINAL_DEMO_RUNBOOK.md`.
 
 Live RPC state probe:
 

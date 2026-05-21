@@ -32,6 +32,7 @@ help:
 	@echo "  make yield-targets                - inspect Mezo yield sleeve targets through selected RPC"
 	@echo "  make btc-sleeve-targets           - inspect mcbBTC/BTC BTC sleeve mechanics through selected RPC"
 	@echo "  make demo-status                  - print final demo readiness and live validation status"
+	@echo "  make scenario-proof               - print live scenario matrix for judge/demo proof"
 	@echo "  make predeploy-check              - validate Mezo RPC/env/policy defaults before testnet deploy"
 	@echo "  make post-deploy-smoke            - print post-deploy status and keeper proposal readiness"
 	@echo "  make mezo-yield-fork-test         - simulate Mezo yield integrations on a live testnet fork"
@@ -106,6 +107,13 @@ btc-sleeve-targets:
 .PHONY: demo-status
 demo-status:
 	npm run demo:status
+
+.PHONY: scenario-proof
+scenario-proof:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(NODE_BIN) services/scenario-proof/run.mjs; \
+	'
 
 .PHONY: mezo-yield-fork-test
 mezo-yield-fork-test:
