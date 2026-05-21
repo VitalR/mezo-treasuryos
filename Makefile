@@ -135,9 +135,8 @@ btc-sleeve-broadcast-dry-run:
 	@bash -lc '$(call load_env) \
 		$(call require_mezo_rpc_candidate) \
 		$(call select_active_mezo_rpc) \
-		BTC_SLEEVE_DRY_RUN=true \
+		cd $(CONTRACTS_ROOT) && BTC_SLEEVE_DRY_RUN=true \
 			forge script $(BTC_SLEEVE_BROADCAST_SCRIPT) \
-			--root $(CONTRACTS_ROOT) \
 			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 			-vvvv \
 	'
@@ -149,8 +148,8 @@ btc-sleeve-broadcast-validation:
 		[ "$${BTC_SLEEVE_BROADCAST_CONFIRM:-false}" = "true" ] || { echo "Set BTC_SLEEVE_BROADCAST_CONFIRM=true in .env for the tiny live BTC sleeve validation."; exit 1; }; \
 		$(call require_mezo_rpc_candidate) \
 		$(call select_active_mezo_rpc) \
+		cd $(CONTRACTS_ROOT) && \
 		forge script $(BTC_SLEEVE_BROADCAST_SCRIPT) \
-			--root $(CONTRACTS_ROOT) \
 			--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 			--broadcast \
 			-vvvv \
