@@ -611,6 +611,8 @@ verify-mezo-testnet-status:
 			if [ -z "$$addr" ]; then echo "$$label missing"; continue; fi; \
 			res=$$(curl -sS "$${BLOCKSCOUT_API_URL}?module=contract&action=getsourcecode&address=$$addr"); \
 			name=$$(printf "%s" "$$res" | jq -r ".result[0].ContractName // empty"); \
-			if [ -n "$$name" ]; then echo "$$label $$addr verified as $$name"; else echo "$$label $$addr not verified"; fi; \
+			if [ -n "$$name" ]; then echo "$$label $$addr verified as $$name"; \
+			elif [ "$$label" = "TreasuryAccountClone" ]; then echo "$$label $$addr is an EIP-1167 clone; verify TreasuryAccountImplementation for source"; \
+			else echo "$$label $$addr not verified"; fi; \
 		done; \
 	'

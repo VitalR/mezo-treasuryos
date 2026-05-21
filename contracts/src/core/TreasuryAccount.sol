@@ -84,6 +84,8 @@ contract TreasuryAccount is Ownable2Step {
     event IdleMUSDFunded(address indexed funder, uint256 amount, uint256 idleBalanceAfter);
     /// @notice Emitted when BTC is explicitly funded into idle treasury reserve accounting.
     event IdleBTCFunded(address indexed funder, uint256 amount, uint256 idleBTCAfter);
+    /// @notice Emitted when idle BTC is withdrawn by the treasury owner.
+    event IdleBTCWithdrawn(address indexed actor, address indexed recipient, uint256 amount, uint256 idleBTCAfter);
     /// @notice Emitted when idle BTC reserve is allocated into a BTC-denominated sleeve.
     event BTCAllocationExecuted(
         address indexed actor,
@@ -183,6 +185,13 @@ contract TreasuryAccount is Ownable2Step {
     /// @notice Raised when a treasury disbursement recipient is invalid.
     /// @param recipient Invalid treasury recipient.
     error InvalidTreasuryRecipient(address recipient);
+    /// @notice Raised when a treasury BTC recipient is invalid.
+    /// @param recipient Invalid treasury BTC recipient.
+    error InvalidBTCRecipient(address recipient);
+    /// @notice Raised when native BTC transfer fails.
+    /// @param recipient Recipient that could not receive native BTC.
+    /// @param amount Amount that failed to transfer.
+    error NativeTransferFailed(address recipient, uint256 amount);
     /// @notice Raised when a savings destination uses an unexpected yield token.
     /// @param expected Expected MUSD token address.
     /// @param actual Actual vault yield token address.
@@ -639,6 +648,24 @@ contract TreasuryAccount is Ownable2Step {
         emit IdleBTCFunded(msg.sender, msg.value, idleBTC);
     }
 
+    /// @notice Withdraws idle BTC reserve to a treasury-controlled recipient.
+    /// @dev Intended for owner/multisig treasury movements, including collateral returned after closing a trove.
+    /// @param _recipient Recipient receiving native BTC.
+    /// @param _amount Amount of idle BTC to withdraw.
+    function withdrawIdleBTC(address payable _recipient, uint256 _amount) external onlyOwner {
+        require(_recipient != address(0), InvalidBTCRecipient(_recipient));
+        require(_amount > 0, InvalidAmount(_amount));
+        require(idleBTC >= _amount, InsufficientIdleBTC(_amount, idleBTC));
+        require(address(this).balance >= _amount, InsufficientIdleBTC(_amount, address(this).balance));
+
+        idleBTC -= _amount;
+
+        (bool _success,) = _recipient.call{ value: _amount }("");
+        require(_success, NativeTransferFailed(_recipient, _amount));
+
+        emit IdleBTCWithdrawn(msg.sender, _recipient, _amount, idleBTC);
+    }
+
     /// @notice Disburses idle MUSD to an external operating recipient.
     /// @param _recipient Recipient receiving the treasury cash movement.
     /// @param _amount Amount of MUSD being disbursed.
@@ -981,9 +1008,17 @@ contract TreasuryAccount is Ownable2Step {
     // =============================================================
 
     /// @notice Allocates idle MUSD into an approved destination.
+    /// @dev If a live handler is registered, this routes through AllocationRouter and moves funds. Without a handler,
+    ///      this remains a manual accounting-only allocation path for offchain or externally settled destinations.
     /// @param _destination Destination receiving funds.
     /// @param _amount Amount being allocated.
     function allocate(address _destination, uint256 _amount) external {
+        address _handler = _registeredAllocationHandler(_destination);
+        if (_handler != address(0)) {
+            IAllocationRouter(allocationRouter).depositFor(address(this), msg.sender, _destination, _amount);
+            return;
+        }
+
         uint256 currentAllocation = destinationAllocations[_destination];
 
         policyEngine.validateAllocate(address(this), msg.sender, _destination, _amount, idleMUSD, currentAllocation);
@@ -1012,9 +1047,17 @@ contract TreasuryAccount is Ownable2Step {
     }
 
     /// @notice Withdraws previously allocated MUSD back into the idle treasury balance.
+    /// @dev If a live handler is registered, this routes through AllocationRouter and unwinds funds. Without a handler,
+    ///      this remains a manual accounting-only withdrawal path for offchain or externally settled destinations.
     /// @param _destination Destination being withdrawn from.
     /// @param _amount Amount being withdrawn.
     function withdrawFromDestination(address _destination, uint256 _amount) external {
+        address _handler = _registeredAllocationHandler(_destination);
+        if (_handler != address(0)) {
+            IAllocationRouter(allocationRouter).withdrawFor(address(this), msg.sender, _destination, _amount);
+            return;
+        }
+
         uint256 currentAllocation = destinationAllocations[_destination];
 
         policyEngine.validateWithdraw(address(this), msg.sender, _destination, _amount, currentAllocation);
@@ -1529,6 +1572,19 @@ contract TreasuryAccount is Ownable2Step {
         idleMUSD -= _amount;
 
         emit DebtRepaid(_amount, idleMUSD, positionTotalDebt());
+    }
+
+    /// @notice Returns the registered live allocation handler for a destination, if the router is configured.
+    function _registeredAllocationHandler(address _destination) internal view returns (address _handler) {
+        if (allocationRouter == address(0) || allocationRouter.code.length == 0) {
+            return address(0);
+        }
+
+        try IAllocationRouterView(allocationRouter).handlers(_destination) returns (address _registeredHandler) {
+            return _registeredHandler;
+        } catch {
+            return address(0);
+        }
     }
 
     /// @notice Returns the protocol-backed treasury position snapshot from Mezo state.

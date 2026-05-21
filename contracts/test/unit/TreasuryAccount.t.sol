@@ -674,6 +674,21 @@ contract TreasuryAccountTest is Test {
         assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 100 ether);
     }
 
+    function test_Allocate_RoutesThroughRegisteredSavingsHandler() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_OPERATOR);
+        _account.allocate(address(_mockSavingsVault), 100 ether);
+
+        assertEq(_account.idleMUSD(), 500 ether);
+        assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 100 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_account)), 500 ether);
+        assertEq(_mockSavingsVault.balanceOf(address(_account)), 100 ether);
+    }
+
     function test_Allocate_InsufficientIdleBalanceUsesPolicyError() public {
         TreasuryAccount _account = _deployConfiguredTreasuryAccount();
 
@@ -768,6 +783,43 @@ contract TreasuryAccountTest is Test {
 
         assertEq(_account.idleMUSD(), 540 ether);
         assertEq(_account.destinationAllocations(_SAVINGS_VAULT), 60 ether);
+    }
+
+    function test_WithdrawFromDestination_RoutesThroughRegisteredSavingsHandler() public {
+        TreasuryAccount _account = _deployConfiguredSavingsRouterTreasuryAccount();
+
+        vm.prank(_APPROVER);
+        _account.openTrove{ value: 6 ether }(600 ether, _UPPER_HINT, _LOWER_HINT);
+
+        vm.prank(_OPERATOR);
+        _account.allocate(address(_mockSavingsVault), 100 ether);
+
+        vm.prank(_OPERATOR);
+        _account.withdrawFromDestination(address(_mockSavingsVault), 40 ether);
+
+        assertEq(_account.idleMUSD(), 540 ether);
+        assertEq(_account.destinationAllocations(address(_mockSavingsVault)), 60 ether);
+        assertEq(_borrowerOperations.musdTokenContract().balanceOf(address(_account)), 540 ether);
+        assertEq(_mockSavingsVault.balanceOf(address(_account)), 60 ether);
+    }
+
+    function test_WithdrawIdleBTC_OnlyOwnerCanWithdrawIdleBTC() public {
+        TreasuryAccount _account = _deployConfiguredTreasuryAccount();
+        address payable _recipient = payable(address(0xB7C));
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.fundIdleBTC{ value: 2 ether }();
+
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _OPERATOR));
+        vm.prank(_OPERATOR);
+        _account.withdrawIdleBTC(_recipient, 1 ether);
+
+        vm.prank(_TREASURY_ADMIN);
+        _account.withdrawIdleBTC(_recipient, 1 ether);
+
+        assertEq(_account.idleBTC(), 1 ether);
+        assertEq(_recipient.balance, 1 ether);
+        assertEq(address(_account).balance, 1 ether);
     }
 
     function test_RestoreLiquidityBuffer_TreasuryAdminRestoresShortfallFromSavings() public {

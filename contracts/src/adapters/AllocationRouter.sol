@@ -135,6 +135,25 @@ contract AllocationRouter is Ownable2Step, IAllocationRouterAuthority {
         result = IAllocationHandler(_handler).withdraw(_treasuryAccount, msg.sender, _amount);
     }
 
+    /// @notice Dispatches a deposit request while preserving the explicit treasury actor.
+    /// @dev Only the Treasury Account itself may use this forwarding path.
+    /// @param _treasuryAccount Treasury Account providing funds and receiving downstream position tokens.
+    /// @param _actor Treasury actor on whose behalf the deposit is being executed.
+    /// @param _destination Destination being entered.
+    /// @param _amount Amount requested for deposit.
+    /// @return result Destination-specific result such as shares or liquidity minted.
+    function depositFor(address _treasuryAccount, address _actor, address _destination, uint256 _amount)
+        external
+        returns (uint256 result)
+    {
+        require(msg.sender == _treasuryAccount, UnauthorizedForwarder(msg.sender, _treasuryAccount));
+
+        address _handler = handlers[_destination];
+        require(_handler != address(0), MissingHandler(_destination));
+
+        result = IAllocationHandler(_handler).deposit(_treasuryAccount, _actor, _amount);
+    }
+
     /// @notice Dispatches a withdrawal request while preserving the explicit treasury actor.
     /// @dev Only the Treasury Account itself may use this forwarding path.
     /// @param _treasuryAccount Treasury Account receiving the withdrawal proceeds.
