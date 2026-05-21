@@ -9,6 +9,7 @@ import { buildKeeperActionPlan, buildRiskKeeperReport } from "../treasury-risk-k
 loadDotEnv();
 
 const SNAPSHOTS = {
+  liveAfterRepay: "draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json",
   liveAfterRestore: "draft/internal/live-fixed-stack-after-keeper-restore-snapshot.json",
   liveAfterAllocation: "draft/internal/live-fixed-stack-snapshot.json",
   warningReplay: "draft/internal/live-warning-idle-repay-snapshot.json",
@@ -20,16 +21,18 @@ const TXS = {
   savingsAllocation: "0x7e730bb74b46b20585890124a458aa0fe7d4414caf1cac83e0826061f4ebd96b",
   operatingDisbursement: "0xc5e12729a6f2faa17d3f54e435d3ab930d9e6143d63779014c742615768dd641",
   keeperRestore: "0x88006ce0bdbb0c1e433b9df31f99d11b85ccd2e0cd89e4e059112d88bf7087be",
+  bufferDebtDraw: "0x721de359cf1e00def213f4024a6a37ea359f9fe6a4f8497c5b53986f0176490b",
+  keeperIdleRepay: "0x25441e1ec5309673d6515f63d628913350741192c1ec23f9f62a0a557d984933",
 };
 
 const CHECK = "OK";
-const WARN = "WARN";
 
 main();
 
 function main() {
   const snapshots = loadSnapshots(SNAPSHOTS);
-  const live = snapshots.liveAfterRestore;
+  const live = snapshots.liveAfterRepay;
+  const restored = snapshots.liveAfterRestore;
   const allocated = snapshots.liveAfterAllocation;
   const warning = snapshots.warningReplay;
   const critical = snapshots.criticalReplay;
@@ -43,7 +46,7 @@ function main() {
   printNetwork(live);
   printDeployment();
   printLiveState(live);
-  printScenarioMatrix({ live, allocated, warningKeeper, criticalKeeper });
+  printScenarioMatrix({ live, restored, allocated, warningKeeper, criticalKeeper });
   printKeeperPlans({ liveKeeper, warningKeeper, criticalKeeper });
   printAdvisor(advisor);
   printTransactions();
@@ -137,7 +140,7 @@ function printLiveState(snapshot) {
   console.log("");
 }
 
-function printScenarioMatrix({ live, allocated, warningKeeper, criticalKeeper }) {
+function printScenarioMatrix({ live, restored, allocated, warningKeeper, criticalKeeper }) {
   console.log("Scenario matrix");
   scenario(
     CHECK,
@@ -157,8 +160,16 @@ function printScenarioMatrix({ live, allocated, warningKeeper, criticalKeeper })
   scenario(CHECK, "Healthy keeper", `live state recommends ${buildRiskKeeperReport(live).recommendation.type}`);
   scenario(CHECK, "Warning keeper", `replay recommends ${warningKeeper.recommendation.type}`);
   scenario(CHECK, "Critical keeper", `replay recommends ${criticalKeeper.recommendation.type}`);
-  scenario(CHECK, "Live keeper execution", "keeper restored operating buffer from MUSD Savings onchain");
-  scenario(WARN, "Debt repayment execution", "proposal works, live tiny trove is blocked by Mezo min net-debt floor");
+  scenario(
+    CHECK,
+    "Live keeper buffer restore",
+    `keeper restored idle MUSD to ${restored.composition?.idleMUSD ?? "n/a"} MUSD from Savings onchain`,
+  );
+  scenario(
+    CHECK,
+    "Live keeper debt repayment",
+    `keeper repaid idle MUSD onchain; close debt now ${live.position?.closeDebtMUSD ?? "n/a"} MUSD`,
+  );
   console.log("");
 }
 
@@ -196,6 +207,8 @@ function printTransactions() {
   line("Savings allocation", TXS.savingsAllocation);
   line("Operating disbursement to create buffer shortfall", TXS.operatingDisbursement);
   line("Keeper buffer restore", TXS.keeperRestore);
+  line("Multisig draw to create repayment headroom", TXS.bufferDebtDraw);
+  line("Keeper idle-MUSD debt repayment", TXS.keeperIdleRepay);
   console.log("");
 }
 
@@ -205,7 +218,7 @@ function printClaims() {
   console.log("- MUSD stays inside TreasuryAccount/Savings vault boundaries; keeper never custodies funds.");
   console.log("- TreasuryAccount is the product execution boundary for live Savings allocation.");
   console.log("- Policy can block unsafe or over-threshold allocation previews.");
-  console.log("- Keeper supports monitor, warning, critical, and live bounded restore flows.");
+  console.log("- Keeper supports monitor, warning, critical, live bounded restore, and live idle-MUSD repayment flows.");
   console.log("- Fees are deployed for monetization, but disabled for the demo.");
 }
 
