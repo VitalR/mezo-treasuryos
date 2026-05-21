@@ -59,6 +59,8 @@ help:
 	@echo "  make deploy-mezo-testnet-2of3     - deploy verified stack with client 2-of-3 TreasuryMultisig owner"
 	@echo "  make deploy-mezo-testnet-external - deploy verified stack for external client multisig/custody owner"
 	@echo "  make multisig-confirm-batch-mezo  - confirm a pending TreasuryMultisig setup batch"
+	@echo "  make verify-mezo-testnet-deployed - verify current deployed TreasuryOS contracts on Mezo Blockscout"
+	@echo "  make verify-mezo-testnet-status   - query Blockscout source status for deployed contracts"
 	@echo "  make verify-mezo-testnet-resume   - resume verification for the latest deployment"
 
 .PHONY: build
@@ -261,7 +263,7 @@ define forge_deploy_testnet_verified
 		--broadcast \
 		--verify \
 		--verifier blockscout \
-		--verifier-url "$(BLOCKSCOUT_API)" \
+		--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \
 		-vvvv
 endef
 
@@ -273,7 +275,7 @@ define forge_deploy_core_verified
 		--broadcast \
 		--verify \
 		--verifier blockscout \
-		--verifier-url "$(BLOCKSCOUT_API)" \
+		--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \
 		-vvvv
 endef
 
@@ -285,7 +287,7 @@ define forge_onboard_client_verified
 		--broadcast \
 		--verify \
 		--verifier blockscout \
-		--verifier-url "$(BLOCKSCOUT_API)" \
+		--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \
 		-vvvv
 endef
 
@@ -537,6 +539,75 @@ verify-mezo-testnet-resume:
 			--resume \
 			--verify \
 			--verifier blockscout \
-			--verifier-url "$(BLOCKSCOUT_API)" \
+			--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \
 			-vvvv \
+	'
+
+.PHONY: verify-mezo-testnet-deployed
+verify-mezo-testnet-deployed:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(call require_mezo_rpc_candidate) \
+		$(call select_active_mezo_rpc) \
+		BLOCKSCOUT_API_URL="$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}"; \
+		[ -n "$$BLOCKSCOUT_API_URL" ] || { echo "Missing BLOCKSCOUT_API"; exit 1; }; \
+		for var in PROTOCOL_FEE_VAULT PROTOCOL_FEE_MANAGER TREASURY_POLICY_ENGINE BTC_RESERVE_POLICY TREASURY_ACCOUNT_IMPLEMENTATION TREASURY_ACCOUNT_FACTORY CLIENT_TREASURY_MULTISIG TREASURY_AUTOMATION_EXECUTOR ALLOCATION_ROUTER MUSD_SAVINGS_RATE_HANDLER TIGRIS_STABLE_POOL_HANDLER; do \
+			value="$${!var:-}"; \
+			[ -n "$$value" ] || { echo "Missing $$var"; exit 1; }; \
+		done; \
+		verify_old() { \
+			local addr="$$1"; local contract="$$2"; \
+			echo "Verifying old-profile $$contract at $$addr"; \
+			FOUNDRY_OPTIMIZER_RUNS=1000 FOUNDRY_VIA_IR=false FOUNDRY_BYTECODE_HASH=ipfs FOUNDRY_CBOR_METADATA=true \
+				forge verify-contract --root $(CONTRACTS_ROOT) --chain 31611 --rpc-url "$$ACTIVE_MEZO_RPC_URL" \
+					--verifier blockscout --verifier-url "$$BLOCKSCOUT_API_URL" \
+					--compiler-version v0.8.34+commit.2a4b3df4 --num-of-optimizations 1000 \
+					--guess-constructor-args --flatten --force "$$addr" "$$contract" --watch; \
+		}; \
+		verify_current() { \
+			local addr="$$1"; local contract="$$2"; \
+			echo "Verifying current-profile $$contract at $$addr"; \
+			forge verify-contract --root $(CONTRACTS_ROOT) --chain 31611 --rpc-url "$$ACTIVE_MEZO_RPC_URL" \
+				--verifier blockscout --verifier-url "$$BLOCKSCOUT_API_URL" \
+				--compiler-version v0.8.34+commit.2a4b3df4 --num-of-optimizations 1 --via-ir \
+				--guess-constructor-args "$$addr" "$$contract" --watch; \
+		}; \
+		verify_old "$$PROTOCOL_FEE_VAULT" src/fees/ProtocolFeeVault.sol:ProtocolFeeVault; \
+		verify_old "$$PROTOCOL_FEE_MANAGER" src/fees/ProtocolFeeManager.sol:ProtocolFeeManager; \
+		verify_old "$$TREASURY_POLICY_ENGINE" src/core/TreasuryPolicyEngine.sol:TreasuryPolicyEngine; \
+		verify_old "$$BTC_RESERVE_POLICY" src/core/BTCReservePolicy.sol:BTCReservePolicy; \
+		verify_current "$$TREASURY_ACCOUNT_IMPLEMENTATION" src/core/TreasuryAccount.sol:TreasuryAccount; \
+		verify_current "$$TREASURY_ACCOUNT_FACTORY" src/core/TreasuryAccountFactory.sol:TreasuryAccountFactory; \
+		verify_current "$$CLIENT_TREASURY_MULTISIG" src/multisig/TreasuryMultisig.sol:TreasuryMultisig; \
+		verify_current "$$TREASURY_AUTOMATION_EXECUTOR" src/core/TreasuryAutomationExecutor.sol:TreasuryAutomationExecutor; \
+		verify_current "$$ALLOCATION_ROUTER" src/adapters/AllocationRouter.sol:AllocationRouter; \
+		verify_current "$$MUSD_SAVINGS_RATE_HANDLER" src/adapters/MUSDSavingsRateHandler.sol:MUSDSavingsRateHandler; \
+		verify_current "$$TIGRIS_STABLE_POOL_HANDLER" src/adapters/TigrisStablePoolHandler.sol:TigrisStablePoolHandler; \
+	'
+
+.PHONY: verify-mezo-testnet-status
+verify-mezo-testnet-status:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		BLOCKSCOUT_API_URL="$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}"; \
+		[ -n "$$BLOCKSCOUT_API_URL" ] || { echo "Missing BLOCKSCOUT_API"; exit 1; }; \
+		for item in \
+			"ProtocolFeeVault:$$PROTOCOL_FEE_VAULT" \
+			"ProtocolFeeManager:$$PROTOCOL_FEE_MANAGER" \
+			"TreasuryPolicyEngine:$$TREASURY_POLICY_ENGINE" \
+			"BTCReservePolicy:$$BTC_RESERVE_POLICY" \
+			"TreasuryAccountImplementation:$$TREASURY_ACCOUNT_IMPLEMENTATION" \
+			"TreasuryAccountFactory:$$TREASURY_ACCOUNT_FACTORY" \
+			"ClientTreasuryMultisig:$$CLIENT_TREASURY_MULTISIG" \
+			"TreasuryAutomationExecutor:$$TREASURY_AUTOMATION_EXECUTOR" \
+			"AllocationRouter:$$ALLOCATION_ROUTER" \
+			"MUSDSavingsRateHandler:$$MUSD_SAVINGS_RATE_HANDLER" \
+			"TigrisStablePoolHandler:$$TIGRIS_STABLE_POOL_HANDLER" \
+			"TreasuryAccountClone:$$TREASURY_ACCOUNT"; do \
+			label="$${item%%:*}"; addr="$${item#*:}"; \
+			if [ -z "$$addr" ]; then echo "$$label missing"; continue; fi; \
+			res=$$(curl -sS "$${BLOCKSCOUT_API_URL}?module=contract&action=getsourcecode&address=$$addr"); \
+			name=$$(printf "%s" "$$res" | jq -r ".result[0].ContractName // empty"); \
+			if [ -n "$$name" ]; then echo "$$label $$addr verified as $$name"; else echo "$$label $$addr not verified"; fi; \
+		done; \
 	'

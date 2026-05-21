@@ -44,17 +44,28 @@ Fee receiver is the protocol vault contract, not an EOA.
 
 ## Source Verification Status
 
-All listed TreasuryOS contracts have deployed bytecode on Mezo Testnet. Source publication is still pending.
+All listed TreasuryOS contracts have deployed bytecode on Mezo Testnet and have verified source on Blockscout.
 
-Attempted verification paths:
+Verification endpoint:
 
-- `forge verify-contract --verifier blockscout --verifier-url https://explorer.test.mezo.org/api` returns the
-  Blockscout frontend 404 page instead of a verification API response.
-- Sourcify rejects Mezo Testnet chain ID `31611` as unsupported.
+- `https://api.explorer.test.mezo.org/api/`
 
-The next verification step is to use the Mezo explorer's manual contract verification UI or obtain the correct
-Blockscout backend API endpoint for Mezo Testnet. The TreasuryAccount clone itself is a 45-byte EIP-1167 proxy; verify
-the `TreasuryAccount` implementation address and document the clone relationship.
+Verification profile notes:
+
+- `ProtocolFeeVault`, `ProtocolFeeManager`, `TreasuryPolicyEngine`, and `BTCReservePolicy` were deployed before the
+  clone-size compiler profile change. They verify with optimizer runs `1000`, no via-IR, and flattened source.
+- `TreasuryAccount` implementation, `TreasuryAccountFactory`, `TreasuryMultisig`, `TreasuryAutomationExecutor`,
+  `AllocationRouter`, `MUSDSavingsRateHandler`, and `TigrisStablePoolHandler` verify with optimizer runs `1`, via-IR,
+  and standard JSON source.
+- `TreasuryAccount` clone is a 45-byte EIP-1167 proxy. Blockscout reports it with the verified `TreasuryAccount` ABI;
+  the canonical source address remains the `TreasuryAccount` implementation.
+
+Use:
+
+```bash
+make verify-mezo-testnet-status
+make verify-mezo-testnet-deployed
+```
 
 ## Local Environment Addresses
 
