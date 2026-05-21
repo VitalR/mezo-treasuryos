@@ -183,6 +183,12 @@ interface IBorrowerOperations {
     /// @notice Returns the governable variables contract used by BorrowerOperations.
     function governableVariables() external view returns (IGovernableVariables);
 
+    /// @notice Returns the active TroveManager used by BorrowerOperations.
+    function troveManager() external view returns (address);
+
+    /// @notice Returns the active price feed used by BorrowerOperations.
+    function priceFeed() external view returns (address);
+
     /// @notice Returns the borrowing fee for a proposed debt amount.
     /// @param _debt Proposed debt amount.
     /// @return Borrowing fee charged by the protocol.

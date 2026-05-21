@@ -86,6 +86,27 @@ contract TreasuryMultisigTest is Test {
         assertEq(_operatingRecipient.balance, _transferAmount);
     }
 
+    function test_ProposeTransaction_CanAttachNativeValueForOneShotExecution() public {
+        TreasuryMultisig _singleSignerMultisig = new TreasuryMultisig(_singleOwner(), 1, 0, 7 days);
+        uint256 _transferAmount = 1 ether;
+
+        vm.prank(_ownerOne);
+        _singleSignerMultisig.proposeTransaction{ value: _transferAmount }(
+            _operatingRecipient, _transferAmount, "", bytes32(0)
+        );
+
+        assertEq(_operatingRecipient.balance, _transferAmount);
+        assertEq(address(_singleSignerMultisig).balance, 0);
+    }
+
+    function test_ProposeTransaction_AttachedNativeValueMustMatchProposalValue() public {
+        TreasuryMultisig _singleSignerMultisig = new TreasuryMultisig(_singleOwner(), 1, 0, 7 days);
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NativeValueMismatch.selector, 1 ether, 2 ether));
+        vm.prank(_ownerOne);
+        _singleSignerMultisig.proposeTransaction{ value: 1 ether }(_operatingRecipient, 2 ether, "", bytes32(0));
+    }
+
     function test_ProposeTransaction_CanTransferERC20Funds() public {
         IERC20 _musdToken = IERC20(_borrowerOperations.musdToken());
         uint256 _transferAmount = 100 ether;
@@ -438,6 +459,38 @@ contract TreasuryMultisigTest is Test {
         _multisig.confirmBatchTransaction(_batchId);
     }
 
+    function test_BatchTransaction_CanAttachNativeValueForOneShotExecution() public {
+        TreasuryMultisig _singleSignerMultisig = new TreasuryMultisig(_singleOwner(), 1, 0, 7 days);
+        address _recipientTwo = makeAddr("recipientTwo");
+        address[] memory _targets = new address[](2);
+        uint256[] memory _values = new uint256[](2);
+        bytes[] memory _payloads = new bytes[](2);
+        _targets[0] = _operatingRecipient;
+        _targets[1] = _recipientTwo;
+        _values[0] = 1 ether;
+        _values[1] = 2 ether;
+
+        vm.prank(_ownerOne);
+        _singleSignerMultisig.proposeBatchTransaction{ value: 3 ether }(_targets, _values, _payloads, bytes32(0));
+
+        assertEq(_operatingRecipient.balance, 1 ether);
+        assertEq(_recipientTwo.balance, 2 ether);
+        assertEq(address(_singleSignerMultisig).balance, 0);
+    }
+
+    function test_BatchTransaction_AttachedNativeValueMustMatchBatchValues() public {
+        TreasuryMultisig _singleSignerMultisig = new TreasuryMultisig(_singleOwner(), 1, 0, 7 days);
+        address[] memory _targets = new address[](1);
+        uint256[] memory _values = new uint256[](1);
+        bytes[] memory _payloads = new bytes[](1);
+        _targets[0] = _operatingRecipient;
+        _values[0] = 2 ether;
+
+        vm.expectRevert(abi.encodeWithSelector(TreasuryMultisig.NativeValueMismatch.selector, 1 ether, 2 ether));
+        vm.prank(_ownerOne);
+        _singleSignerMultisig.proposeBatchTransaction{ value: 1 ether }(_targets, _values, _payloads, bytes32(0));
+    }
+
     function test_BatchTransaction_RejectionsCancelWhenThresholdImpossible() public {
         address[] memory _targets = new address[](1);
         uint256[] memory _values = new uint256[](1);
@@ -655,6 +708,11 @@ contract TreasuryMultisigTest is Test {
         _owners[0] = _ownerOne;
         _owners[1] = _ownerTwo;
         _owners[2] = _ownerThree;
+    }
+
+    function _singleOwner() internal view returns (address[] memory _owners) {
+        _owners = new address[](1);
+        _owners[0] = _ownerOne;
     }
 
     function _defaultConfig() internal view returns (ITreasuryPolicyEngine.AccountPolicyConfig memory config) {

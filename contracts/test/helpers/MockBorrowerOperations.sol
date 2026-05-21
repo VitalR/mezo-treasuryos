@@ -25,8 +25,8 @@ contract MockTroveManager is ITroveManager {
         entireCollaterals[_borrower] = _collateral;
     }
 
-    function getEntireDebtAndColl(address _borrower) external view returns (uint256 debt, uint256 coll) {
-        return (entireDebts[_borrower], entireCollaterals[_borrower]);
+    function getEntireDebtAndColl(address _borrower) external view returns (uint256 coll, uint256 debt) {
+        return (entireCollaterals[_borrower], entireDebts[_borrower]);
     }
 }
 
@@ -111,6 +111,14 @@ contract MockBorrowerOperations is IBorrowerOperations {
 
     function totalCollateral(address _borrower) external view returns (uint256) {
         return troveManagerContract.entireCollaterals(_borrower);
+    }
+
+    function troveManager() external view returns (address) {
+        return address(troveManagerContract);
+    }
+
+    function priceFeed() external view returns (address) {
+        return address(priceFeedContract);
     }
 
     function setAddresses(address[13] memory) external { }

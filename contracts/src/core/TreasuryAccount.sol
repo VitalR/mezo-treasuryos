@@ -1165,22 +1165,20 @@ contract TreasuryAccount is Ownable2Step {
 
     /// @notice Returns the active TroveManager used for protocol-backed position reads.
     function troveManager() public view returns (ITroveManager) {
-        IGovernableVariables _governableVariables = governableVariables();
-        if (address(_governableVariables) == address(0)) {
+        if (address(borrowerOperations) == address(0)) {
             return ITroveManager(address(0));
         }
 
-        return ITroveManager(_governableVariables.troveManager());
+        return ITroveManager(borrowerOperations.troveManager());
     }
 
     /// @notice Returns the active protocol price feed used for treasury health reads.
     function priceFeed() public view returns (IPriceFeed) {
-        IGovernableVariables _governableVariables = governableVariables();
-        if (address(_governableVariables) == address(0)) {
+        if (address(borrowerOperations) == address(0)) {
             return IPriceFeed(address(0));
         }
 
-        return IPriceFeed(_governableVariables.priceFeed());
+        return IPriceFeed(borrowerOperations.priceFeed());
     }
 
     /// @notice Returns the full protocol debt for the active position, including fee, gas compensation, and accrual.
@@ -1547,7 +1545,7 @@ contract TreasuryAccount is Ownable2Step {
             return (0, 0, false);
         }
 
-        (_positionDebt, _positionCollateral) = _troveManager.getEntireDebtAndColl(address(this));
+        (_positionCollateral, _positionDebt) = _troveManager.getEntireDebtAndColl(address(this));
         _active = _positionDebt > 0 || _positionCollateral > 0;
     }
 

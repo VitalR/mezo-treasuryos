@@ -261,6 +261,7 @@ define forge_deploy_testnet_verified
 		--root $(CONTRACTS_ROOT) \
 		--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 		--broadcast \
+		--slow \
 		--verify \
 		--verifier blockscout \
 		--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \
@@ -273,6 +274,7 @@ define forge_deploy_core_verified
 		--root $(CONTRACTS_ROOT) \
 		--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 		--broadcast \
+		--slow \
 		--verify \
 		--verifier blockscout \
 		--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \
@@ -285,6 +287,7 @@ define forge_onboard_client_verified
 		--root $(CONTRACTS_ROOT) \
 		--rpc-url "$$ACTIVE_MEZO_RPC_URL" \
 		--broadcast \
+		--slow \
 		--verify \
 		--verifier blockscout \
 		--verifier-url "$${BLOCKSCOUT_API:-$(BLOCKSCOUT_API)}" \

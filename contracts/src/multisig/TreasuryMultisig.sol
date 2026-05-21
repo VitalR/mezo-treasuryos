@@ -185,6 +185,10 @@ contract TreasuryMultisig {
     error LengthMismatch();
     /// @notice Raised when a batch proposal has no calls.
     error EmptyBatch();
+    /// @notice Raised when native BTC attached to a proposal does not match the proposed execution value.
+    /// @param sent Native BTC sent with the proposal.
+    /// @param expected Native BTC required by the proposal.
+    error NativeValueMismatch(uint256 sent, uint256 expected);
     /// @notice Raised when a signer submits consecutive confirmations on the same proposal.
     /// @param signer Consecutive signer.
     error ConsecutiveConfirmation(address signer);
@@ -307,10 +311,12 @@ contract TreasuryMultisig {
     /// @return txId Internal transaction id.
     function proposeTransaction(address _target, uint256 _value, bytes calldata _data, bytes32 _txIdOffchain)
         external
+        payable
         onlyOwner
         returns (uint256 txId)
     {
         require(_target != address(0), InvalidTarget(_target));
+        _requireMatchingNativeValue(_value);
 
         txId = transactions.length;
         Transaction storage txn = transactions.push();
@@ -429,9 +435,10 @@ contract TreasuryMultisig {
         uint256[] calldata _values,
         bytes[] calldata _payloads,
         bytes32 _txIdOffchain
-    ) external onlyOwner returns (uint256 batchId) {
+    ) external payable onlyOwner returns (uint256 batchId) {
         require(_targets.length == _values.length && _values.length == _payloads.length, LengthMismatch());
         require(_targets.length > 0, EmptyBatch());
+        _requireMatchingNativeValue(_sumNativeValues(_values));
 
         batchId = batchTransactions.length;
         BatchTransaction storage batch = batchTransactions.push();
@@ -922,6 +929,25 @@ contract TreasuryMultisig {
         }
 
         return _proposedAt + maxPending;
+    }
+
+    /// @notice Allows pre-funded multisig execution when msg.value is zero and one-shot funded proposals otherwise.
+    /// @param _expectedValue Native BTC value encoded in the proposal.
+    function _requireMatchingNativeValue(uint256 _expectedValue) internal view {
+        if (msg.value == 0) {
+            return;
+        }
+
+        require(msg.value == _expectedValue, NativeValueMismatch(msg.value, _expectedValue));
+    }
+
+    /// @notice Sums native BTC values for a batch proposal.
+    /// @param _values Per-call native values.
+    /// @return sum Aggregate native BTC required by the batch.
+    function _sumNativeValues(uint256[] calldata _values) internal pure returns (uint256 sum) {
+        for (uint256 i = 0; i < _values.length; i++) {
+            sum += _values[i];
+        }
     }
 
     /// @notice Validates timing controls against a proposed threshold.
