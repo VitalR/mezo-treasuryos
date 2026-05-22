@@ -64,8 +64,8 @@ Talk track:
 
 3. Advisor memo
    - Shows the advisor can explain current state and recommend allocation using policy-aware facts and the selected `balanced` profile.
-   - Reviews MUSD Savings, Tigris MUSD/mUSDC, and Tigris mcbBTC/BTC as Mezo opportunities.
-   - Explains why mcbBTC/BTC is not used for current testnet execution: shallow liquidity, high price impact, no validated live BTC sleeve path for the main treasury.
+   - Reads live Mezo opportunity metadata for MUSD Savings, Tigris MUSD/mUSDC, and Tigris mcbBTC/BTC.
+   - Explains why mcbBTC/BTC is or is not usable from the current live quote, BTC policy/validation state, and treasury profile.
    - State clearly: the advisor is reporting only. It does not sign, custody, or bypass policy.
 
 4. Yield console

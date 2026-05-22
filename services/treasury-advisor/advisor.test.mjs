@@ -191,4 +191,5 @@ test("buildTreasuryAdvisorReport reviews live Mezo opportunities without treatin
   assert.equal(report.opportunityReview[1].decision, "OPTIONAL_LIMITED_ALLOCATION");
   assert.equal(report.opportunityReview[2].decision, "BLOCK_FOR_NOW");
   assert.match(report.opportunityReview[2].reason, /48.51%/);
+  assert.match(report.opportunityReview[2].reason, /current live quote impact/);
 });

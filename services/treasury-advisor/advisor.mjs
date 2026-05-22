@@ -459,13 +459,15 @@ function buildOpportunityReview({ sleeves, btcSleeves, btcSleevePlan, opportunit
     if (opportunity.kind === "btc-correlated") {
       const sleeve = btcSleeves.find((candidate) => /mcbbtc|btc/i.test(candidate.label));
       const planBlocked = btcSleevePlan && !btcSleevePlan.policy?.allowed;
-      const shallow = opportunity.priceImpactBps > 0 && opportunity.priceImpactBps >= 500;
-      const noExecution = !sleeve?.executable;
+      const hasQuoteImpact = opportunity.priceImpactBps != null;
+      const shallow = hasQuoteImpact && opportunity.priceImpactBps >= 500;
+      const noExecution = !sleeve?.executable && !opportunity.executionValidated;
       const decision = profile.btcYieldEnabled && !planBlocked && !shallow && !noExecution
         ? "MULTISIG_PREVIEW_ONLY"
         : "BLOCK_FOR_NOW";
       const blockers = [];
-      if (shallow) blockers.push(`current quote impact is ${formatBps(opportunity.priceImpactBps)}`);
+      if (opportunity.quoteError) blockers.push(`live quote failed: ${opportunity.quoteError}`);
+      if (shallow) blockers.push(`current live quote impact is ${formatBps(opportunity.priceImpactBps)}`);
       if (planBlocked) blockers.push(`BTC policy blocks with ${btcSleevePlan.policy?.reason ?? "unknown"}`);
       if (noExecution) blockers.push("main demo treasury has no validated live BTC sleeve execution path");
       reviews.push({
@@ -525,7 +527,9 @@ function normalizeOpportunity(opportunity) {
     label: opportunity.label ?? "Mezo opportunity",
     kind: String(opportunity.kind ?? "unknown").toLowerCase(),
     address: opportunity.address ?? null,
-    priceImpactBps: asNumber(opportunity.priceImpactBps),
+    priceImpactBps: opportunity.priceImpactBps == null ? null : asNumber(opportunity.priceImpactBps),
+    quoteError: opportunity.quoteError ?? null,
+    executionValidated: Boolean(opportunity.executionValidated),
     note: opportunity.note ?? "",
   };
 }

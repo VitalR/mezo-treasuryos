@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 
 import { buildTreasuryAdvisorReport, formatAdvisorReport } from "./advisor.mjs";
+import { buildLiveMezoOpportunities } from "./live-opportunities.mjs";
 
 loadDotEnv();
 
@@ -10,13 +11,17 @@ const args = parseArgs(process.argv.slice(2));
 
 if (!args.snapshotPath) {
   console.error(
-    "Usage: node services/treasury-advisor/run.mjs <snapshot.json> [--profile balanced] [--opportunities path] [--ai]",
+    "Usage: node services/treasury-advisor/run.mjs <snapshot.json> [--profile balanced] [--opportunities path|--live-opportunities] [--ai]",
   );
   process.exit(1);
 }
 
 const snapshot = JSON.parse(readFileSync(args.snapshotPath, "utf8"));
-const opportunities = args.opportunitiesPath ? JSON.parse(readFileSync(args.opportunitiesPath, "utf8")) : undefined;
+const opportunities = args.liveOpportunities
+  ? await buildLiveMezoOpportunities()
+  : args.opportunitiesPath
+    ? JSON.parse(readFileSync(args.opportunitiesPath, "utf8"))
+    : undefined;
 const report = buildTreasuryAdvisorReport(snapshot, {
   profileName: args.profileName,
   opportunities,
@@ -36,6 +41,7 @@ function parseArgs(argv) {
     snapshotPath: null,
     profileName: process.env.TREASURY_PROFILE ?? process.env.DEMO_TREASURY_PROFILE ?? "balanced",
     opportunitiesPath: null,
+    liveOpportunities: false,
     ai: false,
   };
 
@@ -47,6 +53,8 @@ function parseArgs(argv) {
     } else if (arg === "--opportunities") {
       parsed.opportunitiesPath = argv[index + 1] ?? null;
       index += 1;
+    } else if (arg === "--live-opportunities") {
+      parsed.liveOpportunities = true;
     } else if (arg === "--ai") {
       parsed.ai = true;
     } else if (!arg.startsWith("--") && !parsed.snapshotPath) {
@@ -74,7 +82,7 @@ async function buildAIMemo(report) {
         {
           role: "system",
           content:
-            "You write concise institutional BTC treasury memos from supplied JSON only. Do not invent dates, APRs, balances, or transaction authority. Preserve all numbers exactly. You are advisory only. Do not imply that AI signs, controls funds, bypasses policy, or executes transactions.",
+            "You write concise institutional BTC treasury memos from supplied JSON only. Do not invent dates, APRs, balances, or transaction authority. Preserve all numbers exactly. Use six short bullets or fewer and complete the memo. You are advisory only. Do not imply that AI signs, controls funds, bypasses policy, or executes transactions.",
         },
         {
           role: "user",
@@ -94,12 +102,16 @@ async function buildAIMemo(report) {
               "Say current MUSD Savings allocation is 900 MUSD if that is present in sleeves.",
               "Say recommended new allocation is 25 MUSD if that is present in allocationPlan.",
               "Do not claim positive yield when annualYieldBps is 0.",
-              "Explain mcbBTC/BTC is blocked for now due current quote impact and no validated live BTC sleeve path.",
+              "Do not say 'no yield reduction' or imply yield improvement when projected yield is 0.",
+              "If discussing yield, say projected 30d yield is 0 MUSD when that is present in allocationPlan.",
+              "Explain mcbBTC/BTC using the supplied opportunityReview reason; do not use stale quote-impact values.",
+              "In the Opportunity Review section, preserve each supplied opportunityReview decision and reason exactly.",
+              "Do not say a BTC handler is missing or undeveloped unless the supplied reason says that.",
             ],
           }),
         },
       ],
-      max_output_tokens: 500,
+      max_output_tokens: 750,
     }),
   });
 
