@@ -41,6 +41,7 @@ help:
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
 	@echo "  make advisor-opportunities        - render profile-aware Mezo opportunity advisor"
+	@echo "  make advisor-cfo                  - render AI-CFO recommendation and proposal packet"
 	@echo "  make advisor-opportunities-ai     - render advisor plus optional OpenAI memo"
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
 	@echo "  make risk-keeper-demo             - render warning idle-MUSD repayment keeper report"
@@ -173,6 +174,10 @@ term-planner-demo:
 .PHONY: advisor-opportunities
 advisor-opportunities:
 	npm run advisor:opportunities
+
+.PHONY: advisor-cfo
+advisor-cfo:
+	npm run advisor:cfo
 
 .PHONY: advisor-opportunities-ai
 advisor-opportunities-ai:

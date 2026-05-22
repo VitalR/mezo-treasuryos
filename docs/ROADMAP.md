@@ -349,6 +349,7 @@ producing reporting, while TreasuryOS contracts enforce the hard limits.
 
 - deterministic advisor ranks opportunities from a treasury snapshot and live Mezo reads
 - profiles map client intent into conservative, balanced, active, or aggressive-demo recommendations
+- AI-CFO packet prepares recommendation id, proposed action details, calldata helper, and blocked-opportunity reasons
 - optional OpenAI memo summarizes deterministic facts for treasury admins and judges
 - keeper recommendations stay bounded to already-whitelisted defensive workflows
 - no AI signer, no AI custody, no arbitrary agent swaps
@@ -356,8 +357,8 @@ producing reporting, while TreasuryOS contracts enforce the hard limits.
 ### V1.1 Scope
 
 - `advisor:plan` pre-action what-if command for onboarding and rebalancing proposals
-- structured recommendation JSON with input sources, profile, proposed action, blocked actions, and policy reasons
-- multisig proposal export that includes memo text, calldata, expected state change, and risk notes
+- richer structured recommendation JSON with input sources, profile, proposed action, blocked actions, and policy reasons
+- Safe/external custody proposal export that includes memo text, calldata, expected state change, and risk notes
 - recommendation id or memo hash in proposal artifacts for auditability
 - dashboard view that shows "Recommended / Optional / Blocked" opportunities before the user acts
 

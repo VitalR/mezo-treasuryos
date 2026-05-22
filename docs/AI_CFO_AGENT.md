@@ -68,6 +68,7 @@ Implemented today:
 - deterministic treasury advisor
 - profile-aware opportunity review
 - live Mezo opportunity reads for MUSD Savings, Tigris MUSD/mUSDC, and mcbBTC/BTC
+- AI-CFO proposal packet with recommendation id, prepared action details, calldata helper, and blocked-opportunity reasons
 - optional OpenAI-written memo over deterministic facts
 - Treasury Risk Keeper dry-run, propose, and guarded execute mode
 - live keeper execution proofs for buffer restoration and idle-MUSD debt repayment
@@ -79,6 +80,7 @@ Current V1 boundary:
 - AI/advisor does not execute transactions.
 - AI memo is not the source of truth.
 - Deterministic advisor output and onchain policy are the source of truth.
+- Prepared actions are proposal artifacts, not broadcasts.
 - BTC sleeve execution is not part of the main live demo until validation is complete.
 
 ## Recommended Product Flow
@@ -88,8 +90,9 @@ Pre-action:
 1. Client selects profile.
 2. AI-CFO reads treasury state and live Mezo opportunities.
 3. Deterministic advisor ranks actions.
-4. AI-CFO writes a memo explaining the recommendation.
-5. Treasury admin reviews proposal.
+4. AI-CFO prepares a recommendation packet with proposal details and blocked-opportunity reasons.
+5. AI-CFO writes a memo explaining the recommendation.
+6. Treasury admin reviews proposal.
 
 Execution:
 
@@ -108,7 +111,6 @@ V1.1:
 
 - add `advisor:plan` command for pre-action what-if planning before funds move
 - add profile preset renderer that maps `TREASURY_PROFILE` into onboarding policy env values
-- add structured recommendation JSON for dashboard/API consumption
 - add memo hash or recommendation id to proposal artifacts for auditability
 
 V1.5:

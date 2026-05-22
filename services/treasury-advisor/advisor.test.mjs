@@ -5,6 +5,7 @@ import { buildTreasuryAdvisorReport } from "./advisor.mjs";
 
 const BASE_SNAPSHOT = {
   treasuryName: "Test Treasury",
+  treasuryAccount: "0x0000000000000000000000000000000000000abc",
   composition: {
     idleMUSD: "1000",
     idleBTC: "0.25",
@@ -75,6 +76,13 @@ test("buildTreasuryAdvisorReport allocates surplus across approved sleeves withi
   assert.equal(report.allocationPlan.length, 1);
   assert.equal(report.allocationPlan[0].label, "MUSD Savings Vault");
   assert.equal(report.allocationPlan[0].amountMUSD, 500);
+  assert.match(report.cfoPacket.recommendationId, /^cfo-[a-f0-9]{16}$/);
+  assert.equal(report.cfoPacket.preparedActions.length, 1);
+  assert.equal(report.cfoPacket.preparedActions[0].type, "ALLOCATE_SURPLUS_MUSD");
+  assert.equal(report.cfoPacket.preparedActions[0].target, BASE_SNAPSHOT.treasuryAccount);
+  assert.equal(report.cfoPacket.preparedActions[0].signature, "allocate(address,uint256)");
+  assert.equal(report.cfoPacket.preparedActions[0].args[1], "500000000000000000000");
+  assert.match(report.cfoPacket.preparedActions[0].castCalldataCommand, /cast calldata/);
   assert.equal(report.automationAction.action, "NO_AUTOMATION_NEEDED");
   assert.match(report.memo, /primary conservative MUSD sleeve/);
 });
@@ -94,6 +102,8 @@ test("buildTreasuryAdvisorReport recommends buffer restoration during shortfall"
   assert.equal(report.automationAction.action, "RESTORE_BUFFER_FROM_SLEEVE");
   assert.equal(report.automationAction.sleeve, "MUSD Savings Vault");
   assert.equal(report.automationAction.amountMUSD, 100);
+  assert.equal(report.cfoPacket.preparedActions[0].type, "RESTORE_BUFFER_FROM_SLEEVE");
+  assert.equal(report.cfoPacket.preparedActions[0].status, "handoff_to_risk_keeper_proposal");
 });
 
 test("buildTreasuryAdvisorReport blocks new allocation when collateral health weakens", () => {
@@ -192,4 +202,6 @@ test("buildTreasuryAdvisorReport reviews live Mezo opportunities without treatin
   assert.equal(report.opportunityReview[2].decision, "BLOCK_FOR_NOW");
   assert.match(report.opportunityReview[2].reason, /48.51%/);
   assert.match(report.opportunityReview[2].reason, /current live quote impact/);
+  assert.equal(report.cfoPacket.blockedOpportunities.length, 1);
+  assert.equal(report.cfoPacket.blockedOpportunities[0].label, "Tigris mcbBTC/BTC");
 });

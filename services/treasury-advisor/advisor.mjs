@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 const DAY_COUNT = [7, 30, 60];
 
 const RISK_WEIGHT = {
@@ -78,8 +80,9 @@ export function buildTreasuryAdvisorReport(snapshot, options = {}) {
     surplusMUSD,
   });
 
-  return {
+  const report = {
     treasuryName: snapshot.treasuryName ?? "Mezo TreasuryOS Treasury",
+    treasuryAccount: snapshot.treasuryAccount ?? null,
     profile,
     summary: {
       idleMUSD,
@@ -106,6 +109,9 @@ export function buildTreasuryAdvisorReport(snapshot, options = {}) {
       "Automation may only execute bounded restore/de-risk workflows already approved onchain.",
     ],
   };
+
+  report.cfoPacket = buildCfoPacket(report, snapshot);
+  return report;
 }
 
 export function formatAdvisorReport(report) {
@@ -207,6 +213,136 @@ export function formatAdvisorReport(report) {
   for (const guardrail of report.guardrails) lines.push(`- ${guardrail}`);
 
   return lines.join("\n");
+}
+
+export function formatCfoPacket(packet) {
+  const lines = [];
+  lines.push(`AI-CFO packet: ${packet.recommendationId}`);
+  lines.push(`Mode: ${packet.mode}`);
+  lines.push(`Treasury account: ${packet.treasuryAccount ?? "unknown"}`);
+  lines.push(`Profile: ${packet.profile}`);
+  lines.push(`Source of truth: ${packet.sourceOfTruth}`);
+  lines.push("");
+  lines.push("Prepared actions:");
+
+  if (packet.preparedActions.length === 0) {
+    lines.push("- No transaction proposal prepared.");
+  } else {
+    for (const action of packet.preparedActions) {
+      lines.push(`- ${action.type}: ${action.status}`);
+      lines.push(`  Target: ${action.target}`);
+      lines.push(`  Value: ${action.value}`);
+      lines.push(`  Signature: ${action.signature}`);
+      lines.push(`  Args: ${action.args.join(", ")}`);
+      lines.push(`  Human amount: ${action.humanAmount}`);
+      lines.push(`  Approval path: ${action.approvalPath}`);
+      lines.push(`  Reason: ${action.reason}`);
+      lines.push(`  Calldata helper: ${action.castCalldataCommand}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("Blocked or watch-only opportunities:");
+  if (packet.blockedOpportunities.length === 0) {
+    lines.push("- None.");
+  } else {
+    for (const opportunity of packet.blockedOpportunities) {
+      lines.push(`- ${opportunity.label}: ${opportunity.decision} - ${opportunity.reason}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("Execution boundary:");
+  for (const boundary of packet.executionBoundary) lines.push(`- ${boundary}`);
+  return lines.join("\n");
+}
+
+function buildCfoPacket(report, snapshot) {
+  const preparedActions = [
+    ...buildAllocationProposalActions(report, snapshot),
+    ...buildAutomationProposalActions(report),
+  ];
+  const blockedOpportunities = report.opportunityReview.filter((opportunity) =>
+    ["BLOCK_FOR_NOW", "WATCH_ONLY", "CONFIGURE_BEFORE_USE"].includes(opportunity.decision),
+  );
+  const recommendationPayload = {
+    treasuryName: report.treasuryName,
+    treasuryAccount: report.treasuryAccount,
+    profile: report.profile.key,
+    summary: report.summary,
+    allocationPlan: report.allocationPlan.map((row) => ({
+      destination: row.destination,
+      amountMUSD: row.amountMUSD,
+    })),
+    automationAction: report.automationAction.action,
+    blockedOpportunities,
+  };
+
+  return {
+    recommendationId: `cfo-${createHash("sha256")
+      .update(JSON.stringify(recommendationPayload))
+      .digest("hex")
+      .slice(0, 16)}`,
+    mode: "advisory_proposal",
+    treasuryName: report.treasuryName,
+    treasuryAccount: report.treasuryAccount,
+    profile: report.profile.key,
+    sourceOfTruth: "deterministic advisor report plus onchain TreasuryOS policy checks",
+    preparedActions,
+    blockedOpportunities,
+    executionBoundary: [
+      "AI-CFO does not sign, custody, broadcast, or bypass policy.",
+      "Prepared owner actions must be executed by the TreasuryAccount owner, TreasuryMultisig, Safe, or external custody path.",
+      "Keeper actions must go through TreasuryAutomationExecutor and remain capped, allowlisted, and policy-checked.",
+      "BTC principal movement stays proposal-only unless the guarded BTC handler path is validated for the treasury.",
+    ],
+  };
+}
+
+function buildAllocationProposalActions(report, snapshot) {
+  if (!report.treasuryAccount || report.allocationPlan.length === 0) return [];
+
+  const approvalThresholdMUSD = asNumber(snapshot.composition?.approvalThresholdMUSD);
+  return report.allocationPlan
+    .filter((row) => row.destination)
+    .map((row) => {
+      const amountUnits = decimalToUnits(row.amountMUSD);
+      const approvalPath = approvalThresholdMUSD > 0 && row.amountMUSD <= approvalThresholdMUSD
+        ? "TreasuryAccount policy-approved actor; multisig remains acceptable"
+        : "treasury owner or multisig approval";
+      return {
+        type: "ALLOCATE_SURPLUS_MUSD",
+        status: "prepared_not_executed",
+        target: report.treasuryAccount,
+        value: "0",
+        signature: "allocate(address,uint256)",
+        args: [row.destination, amountUnits],
+        humanAmount: formatMUSD(row.amountMUSD),
+        approvalPath,
+        reason: row.reason,
+        castCalldataCommand: buildCastCalldataCommand("allocate(address,uint256)", [row.destination, amountUnits]),
+      };
+    });
+}
+
+function buildAutomationProposalActions(report) {
+  const action = report.automationAction;
+  if (!action || action.action === "NO_AUTOMATION_NEEDED") return [];
+
+  return [
+    {
+      type: action.action,
+      status: "handoff_to_risk_keeper_proposal",
+      target: "TreasuryAutomationExecutor",
+      value: "0",
+      signature: "see risk keeper proposal mode",
+      args: [],
+      humanAmount: action.amountMUSD == null ? "n/a" : formatMUSD(action.amountMUSD),
+      approvalPath: "allowlisted keeper or multisig proposal through TreasuryAutomationExecutor",
+      reason: action.reason,
+      castCalldataCommand: "RISK_KEEPER_MODE=propose npm run risk-keeper:demo",
+    },
+  ];
 }
 
 function buildAllocationPlan(surplusMUSD, riskState, sleeves, profile) {
@@ -628,6 +764,22 @@ function projectYield(amountMUSD, annualYieldBps) {
 function asNumber(value, fallback = 0) {
   const parsed = Number(value ?? fallback);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function decimalToUnits(value, decimals = 18) {
+  const [wholeRaw, fractionRaw = ""] = String(value).split(".");
+  const whole = wholeRaw || "0";
+  const fraction = fractionRaw.padEnd(decimals, "0").slice(0, decimals);
+  const units = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fraction || "0");
+  return units.toString();
+}
+
+function buildCastCalldataCommand(signature, args) {
+  return `cast calldata "${signature}" ${args.map((arg) => quoteShell(String(arg))).join(" ")}`;
+}
+
+function quoteShell(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 function formatMUSD(value) {

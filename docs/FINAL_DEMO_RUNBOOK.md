@@ -38,6 +38,7 @@ Run this sequence for the final proof. Steps 1-5 are read-only and are the prefe
 ```bash
 make demo-status
 make scenario-proof
+make advisor-cfo
 make advisor-opportunities
 node services/yield-console/render.mjs draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json
 make risk-keeper-propose-critical
@@ -68,6 +69,7 @@ Talk track:
    - Shows the advisor can explain current state and recommend allocation using policy-aware facts and the selected `balanced` profile.
    - Position it as an AI-CFO workflow: monitor, rank, explain, prepare proposals, and report.
    - Reads live Mezo opportunity metadata for MUSD Savings, Tigris MUSD/mUSDC, and Tigris mcbBTC/BTC.
+   - Shows a prepared proposal packet with recommendation id, target, signature, args, and calldata helper.
    - Explains why mcbBTC/BTC is or is not usable from the current live quote, BTC policy/validation state, and treasury profile.
    - State clearly: the advisor is not a signer or custodian. It does not bypass policy.
 

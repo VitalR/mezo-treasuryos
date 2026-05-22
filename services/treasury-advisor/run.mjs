@@ -2,7 +2,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 
-import { buildTreasuryAdvisorReport, formatAdvisorReport } from "./advisor.mjs";
+import { buildTreasuryAdvisorReport, formatAdvisorReport, formatCfoPacket } from "./advisor.mjs";
 import { buildLiveMezoOpportunities } from "./live-opportunities.mjs";
 
 loadDotEnv();
@@ -11,7 +11,7 @@ const args = parseArgs(process.argv.slice(2));
 
 if (!args.snapshotPath) {
   console.error(
-    "Usage: node services/treasury-advisor/run.mjs <snapshot.json> [--profile balanced] [--opportunities path|--live-opportunities] [--ai]",
+    "Usage: node services/treasury-advisor/run.mjs <snapshot.json> [--profile balanced] [--opportunities path|--live-opportunities] [--ai] [--cfo] [--json]",
   );
   process.exit(1);
 }
@@ -27,7 +27,17 @@ const report = buildTreasuryAdvisorReport(snapshot, {
   opportunities,
 });
 
+if (args.json) {
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(0);
+}
+
 console.log(formatAdvisorReport(report));
+
+if (args.cfo) {
+  console.log("");
+  console.log(formatCfoPacket(report.cfoPacket));
+}
 
 if (args.ai) {
   const aiMemo = await buildAIMemo(report).catch((error) => `AI memo unavailable: ${error.message}`);
@@ -43,6 +53,8 @@ function parseArgs(argv) {
     opportunitiesPath: null,
     liveOpportunities: false,
     ai: false,
+    cfo: false,
+    json: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -57,6 +69,10 @@ function parseArgs(argv) {
       parsed.liveOpportunities = true;
     } else if (arg === "--ai") {
       parsed.ai = true;
+    } else if (arg === "--cfo") {
+      parsed.cfo = true;
+    } else if (arg === "--json") {
+      parsed.json = true;
     } else if (!arg.startsWith("--") && !parsed.snapshotPath) {
       parsed.snapshotPath = arg;
     }
@@ -95,6 +111,7 @@ async function buildAIMemo(report) {
             allocationPlan: report.allocationPlan,
             automationAction: report.automationAction,
             opportunityReview: report.opportunityReview,
+            cfoPacket: report.cfoPacket,
             btcMemo: report.btcMemo,
             guardrails: report.guardrails,
             memoRules: [
@@ -107,6 +124,7 @@ async function buildAIMemo(report) {
               "Explain mcbBTC/BTC using the supplied opportunityReview reason; do not use stale quote-impact values.",
               "In the Opportunity Review section, preserve each supplied opportunityReview decision and reason exactly.",
               "Do not say a BTC handler is missing or undeveloped unless the supplied reason says that.",
+              "If cfoPacket.preparedActions is non-empty, mention that the action is prepared_not_executed and must be approved/executed through the stated approval path.",
             ],
           }),
         },

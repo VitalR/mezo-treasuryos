@@ -10,6 +10,7 @@ It consumes the same snapshot shape produced by `services/spectrum-state` and pr
 - BTC reserve, BTC collateral, and BTC-denominated sleeve-candidate notes
 - bounded automation suggestions such as buffer restoration or de-risk repayment
 - profile-aware opportunity review across MUSD Savings, Tigris MUSD/mUSDC, and mcbBTC/BTC
+- AI-CFO proposal packets with recommendation id, prepared action details, calldata helper, and blocked-opportunity reasons
 - optional OpenAI-written memo generated from deterministic advisor facts
 
 BTC sleeve notes are advisory and reporting-only unless a snapshot explicitly marks a BTC sleeve as approved and executable. V1 keeps BTC reserve accounting separate from MUSD sleeve allocation.
@@ -24,6 +25,27 @@ Run the live demo opportunity advisor:
 
 ```sh
 make advisor-opportunities
+```
+
+Run the AI-CFO packet:
+
+```sh
+make advisor-cfo
+```
+
+This adds a proposal-oriented packet to the deterministic advisor output:
+
+- recommendation id for audit/logging
+- prepared `TreasuryAccount.allocate(address,uint256)` action for recommended surplus MUSD allocation
+- calldata helper for a TreasuryMultisig/Safe/external custody proposal
+- keeper handoff when the recommended action is defensive automation
+- blocked/watch-only opportunity list with deterministic reasons
+- execution boundary stating that AI does not sign, custody, or broadcast
+
+Structured output for dashboard/API consumption:
+
+```sh
+npm run advisor:cfo:json
 ```
 
 This command reads the current treasury snapshot from `draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json`
