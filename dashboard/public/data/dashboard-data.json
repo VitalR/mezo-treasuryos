@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-22T18:59:40.976Z",
+  "generatedAt": "2026-05-22T21:15:41.220Z",
   "mode": "read-only",
   "treasuryName": "Mezo TreasuryOS Live Treasury",
   "network": {
@@ -631,7 +631,7 @@
       "note": "Goldsky is planned for indexed event history; this read-only demo uses generated snapshots and live service reads."
     },
     "dataSources": [
-      "draft/internal live snapshots",
+      "TreasuryOS live demo snapshots",
       "treasury-advisor deterministic report",
       "treasury-risk-keeper reports",
       "live Mezo opportunity reads"

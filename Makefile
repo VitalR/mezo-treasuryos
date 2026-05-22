@@ -44,7 +44,10 @@ help:
 	@echo "  make advisor-cfo                  - render AI-CFO recommendation and proposal packet"
 	@echo "  make advisor-opportunities-ai     - render advisor plus optional OpenAI memo"
 	@echo "  make dashboard-data               - generate read-only dashboard JSON"
+	@echo "  make dashboard-build              - build static dashboard artifact"
 	@echo "  make dashboard-dev                - serve read-only dashboard locally"
+	@echo "  make dashboard-preview            - serve built dashboard artifact locally"
+	@echo "  make dashboard-vercel-check       - run dashboard build and public-data secret scan"
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
 	@echo "  make risk-keeper-demo             - render warning idle-MUSD repayment keeper report"
 	@echo "  make risk-keeper-propose          - render keeper calldata/proposal for demo action"
@@ -195,6 +198,22 @@ dashboard-data:
 .PHONY: dashboard-dev
 dashboard-dev:
 	npm run dashboard:dev
+
+.PHONY: dashboard-build
+dashboard-build:
+	npm run dashboard:build
+
+.PHONY: dashboard-preview
+dashboard-preview:
+	npm run dashboard:preview
+
+.PHONY: dashboard-secret-scan
+dashboard-secret-scan:
+	npm run dashboard:secret-scan
+
+.PHONY: dashboard-vercel-check
+dashboard-vercel-check:
+	npm run dashboard:vercel-check
 
 .PHONY: btc-sleeve-plan-demo
 btc-sleeve-plan-demo:

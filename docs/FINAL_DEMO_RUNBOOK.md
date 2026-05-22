@@ -89,9 +89,11 @@ Talk track:
    - Do not execute this on the live tiny position; it is a proposal proof for the critical scenario, while live execution has already proven `restoreBufferFromSavings` and `repayDebtFromIdleMUSD`.
 
 6. Dashboard
-   - Run `make dashboard-data` and `make dashboard-dev`.
+   - Run `make dashboard-data`, `make dashboard-vercel-check`, and `make dashboard-dev`.
    - Show the same proof through the read-only TreasuryOS Client Treasury Workspace.
    - State clearly that the dashboard has no transaction buttons, wallet connect, policy editing, BTC sleeve execution UI, or fee payment UI.
+   - For hosted review, use Vercel with Root Directory `dashboard`, Framework Preset `Other`, Build Command `npm run build`, and Output Directory `dist`.
+   - Do not configure private keys, keeper keys, OpenAI keys, or private RPC URLs in Vercel.
 
 ## Live Transactions
 

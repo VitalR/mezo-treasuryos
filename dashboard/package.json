@@ -4,7 +4,11 @@
   "type": "module",
   "scripts": {
     "data": "node scripts/build-data.mjs",
+    "build": "node scripts/build.mjs",
     "dev": "node scripts/serve.mjs",
-    "check": "node --check scripts/build-data.mjs && node --check scripts/serve.mjs"
+    "preview": "DASHBOARD_ROOT=dist node scripts/serve.mjs",
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "vercel-check": "npm run check && npm run build && npm run secret-scan",
+    "check": "node --check scripts/build-data.mjs && node --check scripts/build.mjs && node --check scripts/serve.mjs && node --check scripts/secret-scan.mjs"
   }
 }

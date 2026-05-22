@@ -2,9 +2,11 @@
 
 import { createReadStream, existsSync } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, normalize, resolve } from "node:path";
+import { dirname, extname, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve("dashboard/public");
+const dashboardRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = resolve(dashboardRoot, process.env.DASHBOARD_ROOT ?? "public");
 const port = Number(process.env.DASHBOARD_PORT ?? process.env.PORT ?? 5173);
 
 const types = {
@@ -30,4 +32,5 @@ createServer((request, response) => {
   createReadStream(filePath).pipe(response);
 }).listen(port, () => {
   console.log(`TreasuryOS dashboard: http://127.0.0.1:${port}`);
+  console.log(`Serving: ${root}`);
 });

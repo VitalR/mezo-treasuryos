@@ -91,6 +91,7 @@ AGENTS.md
 bin
 draft
 notes.txt
+.vercel
 
 # Generated deployment manifests
 deployments/*.json

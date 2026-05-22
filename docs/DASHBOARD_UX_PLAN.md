@@ -18,10 +18,13 @@ Run:
 ```bash
 make dashboard-data
 make dashboard-dev
+make dashboard-vercel-check
 ```
 
-For static hosting, deploy `dashboard/public` as a read-only artifact. The hosted dashboard should not receive `.env`
-values, private keys, RPC credentials, or signing capability.
+For static hosting, deploy the `dashboard` project root with `npm run build` and `dist` as the output directory. The
+hosted dashboard should not receive `.env` values, private keys, RPC credentials, OpenAI keys, or signing capability.
+Data should be generated locally from TreasuryOS CLI snapshots and public Mezo testnet state, then scanned before
+publishing.
 
 ## Product Boundary
 

@@ -2,12 +2,17 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { buildTreasuryAdvisorReport } from "../../services/treasury-advisor/advisor.mjs";
 import { buildLiveMezoOpportunities } from "../../services/treasury-advisor/live-opportunities.mjs";
 import { buildKeeperActionPlan, buildRiskKeeperReport } from "../../services/treasury-risk-keeper/keeper.mjs";
 
-const OUT_PATH = "dashboard/public/data/dashboard-data.json";
+const DASHBOARD_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const REPO_ROOT = resolve(DASHBOARD_ROOT, "..");
+const OUT_PATH = resolve(DASHBOARD_ROOT, "public/data/dashboard-data.json");
+
+process.chdir(REPO_ROOT);
 const SNAPSHOTS = {
   liveAfterRepay: "draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json",
   liveAfterRestore: "draft/internal/live-fixed-stack-after-keeper-restore-snapshot.json",
@@ -24,7 +29,7 @@ const TXS = {
   keeperIdleRepay: "0x25441e1ec5309673d6515f63d628913350741192c1ec23f9f62a0a557d984933",
 };
 
-loadDotEnv();
+loadDotEnv(resolve(REPO_ROOT, ".env"));
 
 const snapshots = loadSnapshots(SNAPSHOTS);
 const live = snapshots.liveAfterRepay;
@@ -102,13 +107,13 @@ const dashboard = {
   policyExplainers: buildPolicyExplainers(advisor, keeper),
   timeline: buildTimeline(snapshots),
   infrastructure: {
-    rpc: live.rpc ?? null,
+    rpc: sanitizeRpc(live.rpc),
     goldsky: {
       status: "scaffolded",
       note: "Goldsky is planned for indexed event history; this read-only demo uses generated snapshots and live service reads.",
     },
     dataSources: [
-      "draft/internal live snapshots",
+      "TreasuryOS live demo snapshots",
       "treasury-advisor deterministic report",
       "treasury-risk-keeper reports",
       opportunities?.source === "live-mezo-testnet" ? "live Mezo opportunity reads" : "static opportunity fallback",
@@ -213,8 +218,9 @@ function check(pass, label) {
 function loadSnapshots(paths) {
   return Object.fromEntries(
     Object.entries(paths).map(([label, path]) => {
-      if (!existsSync(path)) throw new Error(`Missing snapshot ${label}: ${path}`);
-      return [label, JSON.parse(readFileSync(resolve(path), "utf8"))];
+      const snapshotPath = resolve(REPO_ROOT, path);
+      if (!existsSync(snapshotPath)) throw new Error(`Missing snapshot ${label}: ${path}`);
+      return [label, JSON.parse(readFileSync(snapshotPath, "utf8"))];
     }),
   );
 }
@@ -239,6 +245,25 @@ function loadDotEnv(path = ".env") {
 
 function env(key, fallback = null) {
   return process.env[key] || fallback;
+}
+
+function sanitizeRpc(rpc) {
+  if (!rpc) return null;
+  return {
+    provider: rpc.provider ?? null,
+    env: rpc.env ?? null,
+    chainId: rpc.chainId ?? null,
+    chainIdHex: rpc.chainIdHex ?? null,
+    blockNumber: rpc.blockNumber ?? null,
+    spectrumActive: Boolean(rpc.spectrumActive),
+    fallbackUsed: Boolean(rpc.fallbackUsed),
+    attempts: (rpc.attempts ?? []).map((attempt) => ({
+      provider: attempt.provider ?? null,
+      env: attempt.env ?? null,
+      status: attempt.status ?? null,
+      chainId: attempt.chainId ?? null,
+    })),
+  };
 }
 
 function formatMUSD(value) {

@@ -191,6 +191,19 @@ npm run demo:btc-sleeve-plan
 For the current live judge proof, use `make scenario-proof`. The final runbook is in
 `docs/FINAL_DEMO_RUNBOOK.md`.
 
+Read-only dashboard:
+
+```sh
+make dashboard-data
+make dashboard-vercel-check
+make dashboard-dev
+```
+
+The dashboard is a static one-tenant TreasuryOS workspace generated from sanitized CLI snapshots and public Mezo
+testnet contract data. For Vercel, use Root Directory `dashboard`, Framework Preset `Other`, Build Command
+`npm run build`, and Output Directory `dist`. Do not configure private keys, keeper keys, OpenAI keys, or private RPC
+URLs in the hosted dashboard. Full instructions are in `dashboard/README.md`.
+
 Live RPC state probe:
 
 ```sh
