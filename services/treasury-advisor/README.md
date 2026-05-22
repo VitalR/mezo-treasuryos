@@ -2,6 +2,10 @@
 
 Deterministic advisory layer for TreasuryOS reporting and demo flows.
 
+The advisor is the deterministic engine behind the AI-CFO workflow. It can be called from CLI for the hackathon demo or
+from a hosted worker/cron in production. Either way, it prepares recommendations and proposal artifacts only; policy,
+multisig, and whitelisted keeper caps decide what can move.
+
 It consumes the same snapshot shape produced by `services/spectrum-state` and produces:
 
 - policy-aware allocation recommendations across approved MUSD-denominated sleeves

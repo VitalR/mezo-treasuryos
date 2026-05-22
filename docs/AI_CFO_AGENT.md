@@ -10,6 +10,10 @@ The product thesis is:
 This gives small teams, DAOs, and BTC-heavy companies a treasury operator experience without hiring a full DeFi-native
 finance team, while keeping institutional guardrails intact.
 
+TreasuryOS includes scheduler-ready AI-CFO and keeper workflows. In the demo, trigger them from CLI so judges can
+inspect every decision. In production, the same commands run from a hosted worker or cron, but execution remains gated
+by policy, multisig, and whitelisted keeper caps.
+
 ## What The AI-CFO Does
 
 The AI-CFO monitors the treasury and prepares recommendations:

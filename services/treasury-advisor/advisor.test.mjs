@@ -190,7 +190,17 @@ test("buildTreasuryAdvisorReport reviews live Mezo opportunities without treatin
       items: [
         { label: "MUSD Savings Vault", kind: "musd-savings" },
         { label: "Tigris Basic Stable MUSD/mUSDC", kind: "stable-lp" },
-        { label: "Tigris mcbBTC/BTC", kind: "btc-correlated", priceImpactBps: 4851 },
+        {
+          label: "Tigris mcbBTC/BTC",
+          kind: "btc-correlated",
+          reserve0: "0.05717113",
+          reserve1: "0.30459953420169977",
+          token0Symbol: "mcbBTC",
+          token1Symbol: "BTC",
+          quoteInputBTC: "0.0001",
+          quoteOutputMCBTC: "0.00005149",
+          priceImpactBps: 4851,
+        },
       ],
     },
   });
@@ -201,7 +211,9 @@ test("buildTreasuryAdvisorReport reviews live Mezo opportunities without treatin
   assert.equal(report.opportunityReview[1].decision, "OPTIONAL_LIMITED_ALLOCATION");
   assert.equal(report.opportunityReview[2].decision, "BLOCK_FOR_NOW");
   assert.match(report.opportunityReview[2].reason, /48.51%/);
-  assert.match(report.opportunityReview[2].reason, /current live quote impact/);
+  assert.match(report.opportunityReview[2].reason, /live quote impact/);
+  assert.match(report.opportunityReview[2].reason, /pool liquidity is shallow/);
+  assert.match(report.opportunityReview[2].reason, /0.0001 BTC quotes to 0.00005149 mcbBTC/);
   assert.equal(report.cfoPacket.blockedOpportunities.length, 1);
   assert.equal(report.cfoPacket.blockedOpportunities[0].label, "Tigris mcbBTC/BTC");
 });

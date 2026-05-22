@@ -113,15 +113,15 @@ function printNetwork(snapshot) {
 
 function printDeployment() {
   console.log("Deployment");
-  line("ProtocolFeeVault", process.env.PROTOCOL_FEE_VAULT);
-  line("ProtocolFeeManager", process.env.PROTOCOL_FEE_MANAGER);
   line("TreasuryAccount implementation", process.env.TREASURY_ACCOUNT_IMPLEMENTATION);
   line("TreasuryAccount", process.env.TREASURY_ACCOUNT);
   line("Client TreasuryMultisig", process.env.CLIENT_TREASURY_MULTISIG);
   line("TreasuryAutomationExecutor", process.env.TREASURY_AUTOMATION_EXECUTOR);
   line("AllocationRouter", process.env.ALLOCATION_ROUTER);
   line("MUSD Savings handler", process.env.MUSD_SAVINGS_RATE_HANDLER);
-  console.log("- Fees: deployed, disabled by default, not wired into treasury execution");
+  console.log("- Fee infrastructure: deployed for future monetization, disabled, not wired into treasury execution");
+  console.log(`  - ProtocolFeeVault: ${process.env.PROTOCOL_FEE_VAULT || "not set"}`);
+  console.log(`  - ProtocolFeeManager: ${process.env.PROTOCOL_FEE_MANAGER || "not set"}`);
   console.log("");
 }
 

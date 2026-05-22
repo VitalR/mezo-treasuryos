@@ -603,7 +603,7 @@ function buildOpportunityReview({ sleeves, btcSleeves, btcSleevePlan, opportunit
         : "BLOCK_FOR_NOW";
       const blockers = [];
       if (opportunity.quoteError) blockers.push(`live quote failed: ${opportunity.quoteError}`);
-      if (shallow) blockers.push(`current live quote impact is ${formatBps(opportunity.priceImpactBps)}`);
+      if (shallow) blockers.push(describeShallowBTCLiquidity(opportunity));
       if (planBlocked) blockers.push(`BTC policy blocks with ${btcSleevePlan.policy?.reason ?? "unknown"}`);
       if (noExecution) blockers.push("main demo treasury has no validated live BTC sleeve execution path");
       reviews.push({
@@ -666,8 +666,26 @@ function normalizeOpportunity(opportunity) {
     priceImpactBps: opportunity.priceImpactBps == null ? null : asNumber(opportunity.priceImpactBps),
     quoteError: opportunity.quoteError ?? null,
     executionValidated: Boolean(opportunity.executionValidated),
+    reserve0: opportunity.reserve0 ?? null,
+    reserve1: opportunity.reserve1 ?? null,
+    token0Symbol: opportunity.token0Symbol ?? null,
+    token1Symbol: opportunity.token1Symbol ?? null,
+    quoteInputBTC: opportunity.quoteInputBTC ?? null,
+    quoteOutputMCBTC: opportunity.quoteOutputMCBTC ?? null,
     note: opportunity.note ?? "",
   };
+}
+
+function describeShallowBTCLiquidity(opportunity) {
+  const reserves = opportunity.reserve0 != null && opportunity.reserve1 != null
+    ? `pool liquidity is shallow (${opportunity.reserve0} ${opportunity.token0Symbol ?? "token0"} and ${
+      opportunity.reserve1
+    } ${opportunity.token1Symbol ?? "token1"})`
+    : "pool liquidity is shallow";
+  const quote = opportunity.quoteInputBTC != null && opportunity.quoteOutputMCBTC != null
+    ? `; ${opportunity.quoteInputBTC} BTC quotes to ${opportunity.quoteOutputMCBTC} mcbBTC`
+    : "";
+  return `${reserves}${quote}, creating ${formatBps(opportunity.priceImpactBps)} live quote impact versus a near 1:1 BTC-correlated route`;
 }
 
 function normalizeBTC(snapshot, btcSleeves) {

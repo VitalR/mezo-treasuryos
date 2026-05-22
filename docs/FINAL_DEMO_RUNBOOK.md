@@ -13,6 +13,10 @@ Show TreasuryOS as a policy-governed BTC treasury operating layer on Mezo:
 - AI-CFO/advisor output analyzes live opportunities, writes memos, and prepares recommendations without controlling funds
 - protocol fees are deployed but disabled
 
+TreasuryOS includes scheduler-ready AI-CFO and keeper workflows. In the demo, trigger them from CLI so judges can
+inspect every decision. In production, the same commands run from a hosted worker or cron, but execution remains gated
+by policy, multisig, and whitelisted keeper caps.
+
 ## Primary Proof Command
 
 ```bash
@@ -70,7 +74,7 @@ Talk track:
    - Position it as an AI-CFO workflow: monitor, rank, explain, prepare proposals, and report.
    - Reads live Mezo opportunity metadata for MUSD Savings, Tigris MUSD/mUSDC, and Tigris mcbBTC/BTC.
    - Shows a prepared proposal packet with recommendation id, target, signature, args, and calldata helper.
-   - Explains why mcbBTC/BTC is or is not usable from the current live quote, BTC policy/validation state, and treasury profile.
+   - Explains why mcbBTC/BTC is or is not usable from current live liquidity, exchange-rate/quote impact, BTC policy/validation state, and treasury profile.
    - State clearly: the advisor is not a signer or custodian. It does not bypass policy.
 
 4. Yield console

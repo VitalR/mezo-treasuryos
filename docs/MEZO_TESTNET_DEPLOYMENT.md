@@ -6,8 +6,6 @@ Current deployed TreasuryOS stack for Mezo Testnet, chain ID `31611`.
 
 | Contract | Address |
 | --- | --- |
-| ProtocolFeeVault | `0x78c29c1A7BE2cd2F770AC88DF7a169aD3910EE3d` |
-| ProtocolFeeManager | `0x5227B80cb9D23d0004e947777782fe9EB13Fa019` |
 | TreasuryPolicyEngine | `0xe43737328BB3C20bE484B1376F931391062cC2e7` |
 | BTCReservePolicy | `0x4d6054bb0BFDEcBDA3599681EfEa383c1F63afAe` |
 | TreasuryAccount implementation | `0xCc54C379A3f6A410BFC2cCeeB947953E1DD8BB36` |
@@ -30,6 +28,16 @@ address for clone ABI/source verification.
 Client control mode is a one-signer TreasuryMultisig for the beginning. The TreasuryAccount owner is the
 TreasuryMultisig, not an EOA. The keeper EOA is the protocol-operated gas payer and is allowlisted on this client's
 `TreasuryAutomationExecutor`.
+
+## Fee Infrastructure
+
+These contracts are deployed for future monetization and subscription/service accounting, but they are disabled for the
+hackathon demo and are not core treasury execution contracts.
+
+| Contract | Address |
+| --- | --- |
+| ProtocolFeeVault | `0x78c29c1A7BE2cd2F770AC88DF7a169aD3910EE3d` |
+| ProtocolFeeManager | `0x5227B80cb9D23d0004e947777782fe9EB13Fa019` |
 
 ## Allocation UX
 

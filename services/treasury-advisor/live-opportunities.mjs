@@ -72,6 +72,8 @@ export async function buildLiveMezoOpportunities(env = process.env) {
         compatible: mcbtcBtc.factoryMatchesConfig && mcbtcBtc.stable,
         reserve0: mcbtcBtc.reserve0Formatted,
         reserve1: mcbtcBtc.reserve1Formatted,
+        token0Symbol: mcbtcBtc.token0.symbol,
+        token1Symbol: mcbtcBtc.token1.symbol,
         quoteInputBTC,
         quoteOutputMCBTC: mcbtcQuote.outputMCBTC ?? null,
         priceImpactBps: mcbtcQuote.priceImpactBpsVsOneToOne ?? null,

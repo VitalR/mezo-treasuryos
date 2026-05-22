@@ -95,24 +95,6 @@ function printStatus(status) {
   }
 
   console.log("");
-  console.log("Fee readiness:");
-  console.log(
-    `- ProtocolFeeVault: ${
-      status.protocolFeeVault.address
-        ? `${codePhrase(status.protocolFeeVault)} at ${status.protocolFeeVault.address}`
-        : "not configured in env/manifest"
-    }`,
-  );
-  console.log(
-    `- ProtocolFeeManager: ${
-      status.protocolFeeManager.address
-        ? `${codePhrase(status.protocolFeeManager)} at ${status.protocolFeeManager.address}`
-        : "not configured in env/manifest"
-    }`,
-  );
-  console.log("- Fees: disabled by default; no treasury execution flow depends on fee contracts.");
-
-  console.log("");
   console.log("Sleeve readiness:");
   console.log(
     `- MUSD Savings Vault: V1 executable, ${codePhrase(status.savings)}, address ${status.savings.address ?? "missing"}`,
@@ -160,6 +142,24 @@ function printStatus(status) {
   console.log(`- Execute confirmation: ${status.riskKeeper.executeConfirm ? "true" : "false"}`);
   console.log(`- Max actions per run: ${status.riskKeeper.maxActionsPerRun}`);
   console.log("- Keeper key should hold native BTC for gas only; TreasuryAccount remains the BTC/MUSD custody boundary.");
+
+  console.log("");
+  console.log("Fee readiness:");
+  console.log(
+    `- ProtocolFeeVault: ${
+      status.protocolFeeVault.address
+        ? `${codePhrase(status.protocolFeeVault)} at ${status.protocolFeeVault.address}`
+        : "not configured in env/manifest"
+    }`,
+  );
+  console.log(
+    `- ProtocolFeeManager: ${
+      status.protocolFeeManager.address
+        ? `${codePhrase(status.protocolFeeManager)} at ${status.protocolFeeManager.address}`
+        : "not configured in env/manifest"
+    }`,
+  );
+  console.log("- Fees: disabled by default; no treasury execution flow depends on fee contracts.");
 
   console.log("");
   console.log("Broadcast validation:");
