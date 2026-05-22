@@ -90,7 +90,7 @@ Talk track:
 
 6. Dashboard
    - Run `make dashboard-data` and `make dashboard-dev`.
-   - Show the same proof through the read-only TreasuryOS Command Center.
+   - Show the same proof through the read-only TreasuryOS Client Treasury Workspace.
    - State clearly that the dashboard has no transaction buttons, wallet connect, policy editing, BTC sleeve execution UI, or fee payment UI.
 
 ## Live Transactions

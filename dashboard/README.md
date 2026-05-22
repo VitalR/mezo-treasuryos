@@ -1,6 +1,6 @@
-# TreasuryOS Command Center
+# TreasuryOS Client Treasury Workspace
 
-Read-only institutional dashboard for the Mezo TreasuryOS final demo.
+Read-only institutional client treasury workspace for the Mezo TreasuryOS final demo.
 
 The dashboard is intentionally a reporting and review surface. It does not connect a wallet, sign transactions, edit
 policy, execute keeper actions, move BTC principal, or collect fees.
@@ -55,7 +55,7 @@ DASHBOARD_PORT=5174 make dashboard-dev
 - AI-CFO memo, proposal packet, blocked opportunity reasons, and guardrails.
 - Yield console focused on buffer and surplus, not APY hype.
 - Policy Decision Explainer for allowed, monitor, and blocked/proposal-only actions.
-- Scenario proof timeline with live transaction hashes.
+- Audit trail with scenario activity timeline and live transaction hashes.
 - Infrastructure status: RPC, Spectrum, Goldsky scaffold, fees disabled.
 
 ## What It Does Not Do

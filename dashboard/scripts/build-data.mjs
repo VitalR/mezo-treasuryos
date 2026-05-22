@@ -191,7 +191,7 @@ function buildTimeline(snapshots) {
     event("LIVE", "multisig", "Small draw created repayment headroom for demo", TXS.bufferDebtDraw),
     event("LIVE", "keeper", "Keeper repaid debt from idle MUSD", TXS.keeperIdleRepay),
     event("PROPOSED", "keeper", "Critical scenario prepares sleeve-funded repayment calldata", null),
-    event("BLOCKED", "advisor", "mcbBTC/BTC stays guarded due shallow liquidity and pending validation", null),
+    event("BLOCKED", "advisor", "mcbBTC/BTC stays guarded due to shallow liquidity and pending validation", null),
   ];
 }
 

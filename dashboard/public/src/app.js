@@ -109,7 +109,7 @@ function topStrip(data) {
     <header class="top-strip">
       <div>
         <p class="eyebrow">Institutional client workspace</p>
-        <strong>Treasury Command Center</strong>
+        <strong>Client Treasury Workspace</strong>
         <small>Generated from live Mezo testnet state and TreasuryOS CLI snapshots</small>
       </div>
       ${stripItem("Network", `Mezo Testnet / ${data.network.chainId}`)}
@@ -159,11 +159,11 @@ function controlsPanel(data) {
       <p class="eyebrow">Policy and controls</p>
       <h2>Execution boundaries</h2>
       <div class="address-list">
-        ${addressRow("TreasuryAccount", d.treasuryAccount)}
+        ${addressRow("Treasury Account", d.treasuryAccount)}
         ${addressRow("TreasuryMultisig owner", d.treasuryMultisig)}
-        ${addressRow("PolicyEngine", d.treasuryPolicyEngine)}
-        ${addressRow("AutomationExecutor", d.automationExecutor)}
-        ${addressRow("AllocationRouter", d.allocationRouter)}
+        ${addressRow("Policy Engine", d.treasuryPolicyEngine)}
+        ${addressRow("Automation Executor", d.automationExecutor)}
+        ${addressRow("Allocation Router", d.allocationRouter)}
         ${addressRow("MUSD Savings handler", d.musdSavingsHandler)}
       </div>
       <div class="control-badges">
@@ -220,7 +220,7 @@ function advisorPanel(data) {
         <div>
           <p class="eyebrow">AI-CFO Agent</p>
           <h2>Recommendation packet ${escapeHtml(cfo.recommendationId)}</h2>
-          <p class="panel-subtitle">Treasury advisor memo generated from deterministic policy data.</p>
+          <p class="panel-subtitle">AI-generated treasury advisor memo from deterministic policy data.</p>
         </div>
         ${badge("Advisory only", "neutral")}
       </div>
@@ -312,8 +312,8 @@ function policyExplainerPanel(data) {
 function timelinePanel(data) {
   return `
     <section class="panel full-width">
-      <p class="eyebrow">Scenario proof</p>
-      <h2>Activity timeline</h2>
+      <p class="eyebrow">Audit trail</p>
+      <h2>Scenario activity timeline</h2>
       <div class="timeline">
       ${data.timeline.map((item) => `
           <article class="timeline-item">
@@ -321,6 +321,7 @@ function timelinePanel(data) {
             <div>
               <strong>${escapeHtml(item.title)}</strong>
               <p>Actor: ${escapeHtml(item.actor)}</p>
+              <p>Result: ${escapeHtml(timelineResult(item))}</p>
               ${item.tx ? txLink(item.tx) : ""}
               ${item.address ? addressLink(item.address) : ""}
             </div>
@@ -451,6 +452,14 @@ function txLink(tx) {
     label: shortHash(tx),
     kind: "tx",
   });
+}
+
+function timelineResult(item) {
+  if (item.tx) return "Explorer-verifiable live transaction";
+  if (item.status === "BLOCKED") return "Policy/advisor block preserved";
+  if (item.status === "PROPOSED") return "Proposal-ready, not executed";
+  if (item.address) return "Deployed address recorded";
+  return "Recorded in TreasuryOS scenario proof";
 }
 
 function proofLink({ href, value, label, kind }) {
