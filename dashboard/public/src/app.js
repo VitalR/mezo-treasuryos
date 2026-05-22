@@ -50,7 +50,10 @@ function render(data) {
         <div class="panel-head">
           <div>
             <p class="eyebrow">Treasury health</p>
-            <h1>${statusPill(health.state)} ${escapeHtml(data.treasuryName)}</h1>
+            <div class="title-status-row">
+              <h1>${escapeHtml(data.treasuryName)}</h1>
+              ${statusPill(health.state)}
+            </div>
           </div>
           <span class="read-only">READ ONLY</span>
         </div>
@@ -68,9 +71,13 @@ function render(data) {
         </div>
         <div class="flow-row" aria-label="Bank on Bitcoin treasury flow">
           <span>BTC collateral</span>
+          <i aria-hidden="true">-&gt;</i>
           <span>MUSD operating capital</span>
+          <i aria-hidden="true">-&gt;</i>
           <span>Policy-governed allocation</span>
+          <i aria-hidden="true">-&gt;</i>
           <span>Keeper defense</span>
+          <i aria-hidden="true">-&gt;</i>
           <span>AI-CFO reporting</span>
         </div>
       </article>
@@ -108,7 +115,7 @@ function topStrip(data) {
   return `
     <header class="top-strip">
       <div>
-        <p class="eyebrow">Institutional client workspace</p>
+        <p class="eyebrow">Workspace</p>
         <strong>Client Treasury Workspace</strong>
         <small>Generated from live Mezo testnet state and TreasuryOS CLI snapshots</small>
       </div>
@@ -345,7 +352,7 @@ function systemPanel(data) {
         ${metric("Fee status", data.feeStatus.label, "Future monetization only")}
         ${metric("Generated", new Date(data.generatedAt).toLocaleString(), "Local dashboard data")}
         ${metric("Tenant", "Demo institutional client", "One TreasuryOS workspace")}
-        ${metric("Data source", "Live contracts + CLI snapshots", "Public testnet state")}
+        ${metric("Data source", "Live contracts + CLI snapshots", "Generated from live Mezo testnet state and TreasuryOS CLI snapshots")}
       </div>
       <p class="boundary">This dashboard shows one institutional TreasuryOS tenant on Mezo testnet. The client treasury holds BTC collateral, manages borrowed MUSD operating capital, preserves a required liquidity buffer, allocates approved surplus into MUSD Savings, and exposes policy-capped keeper defense plus AI-CFO reporting.</p>
       <p class="boundary">Execution is intentionally separated: client owner/multisig controls sensitive actions; bounded keeper actions are policy-capped; the dashboard is an operator and reviewer console.</p>

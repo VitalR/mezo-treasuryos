@@ -76,7 +76,7 @@ code {
 
 .top-strip {
   display: grid;
-  grid-template-columns: 1.4fr repeat(5, minmax(120px, 1fr));
+  grid-template-columns: minmax(420px, 2fr) repeat(5, minmax(118px, 1fr));
   gap: 1px;
   background: var(--line);
   margin-bottom: 18px;
@@ -97,12 +97,17 @@ code {
   text-overflow: ellipsis;
 }
 
+.top-strip > div:first-child {
+  padding-top: 10px;
+}
+
 .top-strip small {
   display: block;
-  margin-top: 6px;
+  margin-top: 3px;
   color: var(--faint);
-  font-size: 0.76rem;
-  line-height: 1.35;
+  font-size: 0.68rem;
+  line-height: 1.22;
+  white-space: normal;
 }
 
 .eyebrow,
@@ -199,7 +204,7 @@ p {
 }
 
 .status-pill {
-  margin-right: 10px;
+  margin-top: 4px;
 }
 
 .status-pill.healthy,
@@ -275,6 +280,13 @@ p {
   color: var(--faint);
 }
 
+.title-status-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  justify-content: space-between;
+}
+
 .threshold-row,
 .control-badges,
 .flow-row {
@@ -305,6 +317,14 @@ p {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.flow-row i {
+  align-self: center;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-style: normal;
 }
 
 .divider {
@@ -542,9 +562,14 @@ summary {
   .panel-head,
   .kv,
   .address-row,
-  .explainer-head {
+  .explainer-head,
+  .title-status-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .flow-row i {
+    display: none;
   }
 
   .kv strong,
