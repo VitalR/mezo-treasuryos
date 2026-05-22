@@ -1,6 +1,19 @@
 const EXPLORER_TX = "https://explorer.test.mezo.org/tx/";
+const EXPLORER_ADDRESS = "https://explorer.test.mezo.org/address/";
 
 const app = document.querySelector("#app");
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-copy]");
+  if (!button) return;
+  await navigator.clipboard?.writeText(button.dataset.copy).catch(() => {});
+  button.dataset.copied = "true";
+  button.textContent = "COPIED";
+  setTimeout(() => {
+    button.dataset.copied = "false";
+    button.textContent = "COPY";
+  }, 1100);
+});
 
 main().catch((error) => {
   app.innerHTML = `
@@ -53,9 +66,16 @@ function render(data) {
           <span>Critical ${bps(health.criticalCollateralRatioBps)}</span>
           <span>Profile ${escapeHtml(data.treasury.profile.label)}</span>
         </div>
+        <div class="flow-row" aria-label="Bank on Bitcoin treasury flow">
+          <span>BTC collateral</span>
+          <span>MUSD operating capital</span>
+          <span>Policy-governed allocation</span>
+          <span>Keeper defense</span>
+          <span>AI-CFO reporting</span>
+        </div>
       </article>
       <article class="action-panel">
-        <p class="eyebrow">Next action</p>
+        <p class="eyebrow">Operator recommendation</p>
         <h2>${escapeHtml(data.advisor.automationAction.action)}</h2>
         <p>${escapeHtml(data.advisor.automationAction.reason)}</p>
         <div class="divider"></div>
@@ -88,8 +108,9 @@ function topStrip(data) {
   return `
     <header class="top-strip">
       <div>
-        <p class="eyebrow">Mezo TreasuryOS</p>
+        <p class="eyebrow">Institutional client workspace</p>
         <strong>Treasury Command Center</strong>
+        <small>Generated from live Mezo testnet state and TreasuryOS CLI snapshots</small>
       </div>
       ${stripItem("Network", `Mezo Testnet / ${data.network.chainId}`)}
       ${stripItem("RPC", `${data.network.provider} ${data.network.spectrumActive ? "(Spectrum)" : ""}`)}
@@ -146,8 +167,11 @@ function controlsPanel(data) {
         ${addressRow("MUSD Savings handler", d.musdSavingsHandler)}
       </div>
       <div class="control-badges">
+        ${badge("Client-isolated account", "neutral")}
         ${badge("Multisig controls sensitive actions", "ok")}
+        ${badge("Policy enforced", "ok")}
         ${badge("Keeper allowlisted and capped", "ok")}
+        ${badge("Explorer verified", "neutral")}
         ${badge("Fees disabled", "neutral")}
         ${badge("BTC sleeve validation pending", "warn")}
       </div>
@@ -177,7 +201,7 @@ function keeperPanel(liveKeeper, criticalKeeper) {
       <details>
         <summary>Critical proposal calldata</summary>
         <div class="code-block">
-          <div>Target: ${escapeHtml(critical.target ?? "not available")}</div>
+          <div>Target: ${addressLink(critical.target, "not available")}</div>
           <div>Signature: ${escapeHtml(critical.signature ?? "not available")}</div>
           <div>Args: ${escapeHtml((critical.args ?? []).join(", "))}</div>
           <div>${escapeHtml(critical.castCalldataCommand ?? critical.reason ?? "No calldata")}</div>
@@ -194,8 +218,9 @@ function advisorPanel(data) {
     <article class="panel">
       <div class="panel-head">
         <div>
-          <p class="eyebrow">AI-CFO memo</p>
+          <p class="eyebrow">AI-CFO Agent</p>
           <h2>Recommendation packet ${escapeHtml(cfo.recommendationId)}</h2>
+          <p class="panel-subtitle">Treasury advisor memo generated from deterministic policy data.</p>
         </div>
         ${badge("Advisory only", "neutral")}
       </div>
@@ -262,7 +287,7 @@ function yieldPanel(data, savings, stableLp) {
 function policyExplainerPanel(data) {
   return `
     <article class="panel">
-      <p class="eyebrow">Policy decision explainer</p>
+      <p class="eyebrow">Policy decision trace</p>
       <h2>Why actions are allowed or blocked</h2>
       <div class="explainer-stack">
         ${data.policyExplainers.map((item) => `
@@ -290,14 +315,14 @@ function timelinePanel(data) {
       <p class="eyebrow">Scenario proof</p>
       <h2>Activity timeline</h2>
       <div class="timeline">
-        ${data.timeline.map((item) => `
+      ${data.timeline.map((item) => `
           <article class="timeline-item">
             <span class="timeline-status ${item.status.toLowerCase()}">${escapeHtml(item.status)}</span>
             <div>
               <strong>${escapeHtml(item.title)}</strong>
               <p>Actor: ${escapeHtml(item.actor)}</p>
-              ${item.tx ? `<a href="${EXPLORER_TX}${escapeHtml(item.tx)}" target="_blank" rel="noreferrer">${shortHash(item.tx)}</a>` : ""}
-              ${item.address ? `<code>${shortHash(item.address)}</code>` : ""}
+              ${item.tx ? txLink(item.tx) : ""}
+              ${item.address ? addressLink(item.address) : ""}
             </div>
           </article>
         `).join("")}
@@ -309,8 +334,8 @@ function timelinePanel(data) {
 function systemPanel(data) {
   return `
     <section class="panel full-width">
-      <p class="eyebrow">System infrastructure</p>
-      <h2>Read-only demo state</h2>
+      <p class="eyebrow">Data and infrastructure</p>
+      <h2>Tenant data snapshot</h2>
       <div class="system-grid">
         ${metric("Active RPC", data.network.provider, data.network.providerEnv)}
         ${metric("Spectrum", data.network.spectrumActive ? "active" : "fallback", "Preferred RPC path")}
@@ -318,8 +343,11 @@ function systemPanel(data) {
         ${metric("Goldsky", data.infrastructure.goldsky.status, "Indexer scaffold")}
         ${metric("Fee status", data.feeStatus.label, "Future monetization only")}
         ${metric("Generated", new Date(data.generatedAt).toLocaleString(), "Local dashboard data")}
+        ${metric("Tenant", "Demo institutional client", "One TreasuryOS workspace")}
+        ${metric("Data source", "Live contracts + CLI snapshots", "Public testnet state")}
       </div>
-      <p class="boundary">Read-only dashboard. No wallet connect, no policy edits, no transaction buttons, no BTC sleeve execution UI, no fee payment UI.</p>
+      <p class="boundary">This dashboard shows one institutional TreasuryOS tenant on Mezo testnet. The client treasury holds BTC collateral, manages borrowed MUSD operating capital, preserves a required liquidity buffer, allocates approved surplus into MUSD Savings, and exposes policy-capped keeper defense plus AI-CFO reporting.</p>
+      <p class="boundary">Execution is intentionally separated: client owner/multisig controls sensitive actions; bounded keeper actions are policy-capped; the dashboard is an operator and reviewer console.</p>
     </section>
   `;
 }
@@ -330,7 +358,7 @@ function proposalList(actions) {
     <div class="proposal">
       <strong>${escapeHtml(action.type)}</strong>
       <span>${escapeHtml(action.status)}</span>
-      ${kv("Target", shortHash(action.target))}
+      ${kvHtml("Target", addressLink(action.target))}
       ${kv("Signature", action.signature)}
       ${kv("Amount", action.humanAmount)}
       <details>
@@ -364,8 +392,12 @@ function kv(label, value, tone = "") {
   return `<div class="kv ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? "n/a")}</strong></div>`;
 }
 
+function kvHtml(label, html, tone = "") {
+  return `<div class="kv ${tone}"><span>${escapeHtml(label)}</span><strong>${html ?? "n/a"}</strong></div>`;
+}
+
 function addressRow(label, address) {
-  return `<div class="address-row"><span>${escapeHtml(label)}</span><code>${escapeHtml(shortHash(address))}</code></div>`;
+  return `<div class="address-row"><span>${escapeHtml(label)}</span>${addressLink(address)}</div>`;
 }
 
 function badge(label, tone = "neutral") {
@@ -399,6 +431,45 @@ function shortHash(value) {
   const text = String(value);
   if (text.length <= 18) return text;
   return `${text.slice(0, 8)}...${text.slice(-6)}`;
+}
+
+function addressLink(address, fallback = "not set") {
+  if (!isAddress(address)) return `<code>${escapeHtml(fallback)}</code>`;
+  return proofLink({
+    href: `${EXPLORER_ADDRESS}${address}`,
+    value: address,
+    label: shortHash(address),
+    kind: "address",
+  });
+}
+
+function txLink(tx) {
+  if (!isTx(tx)) return "";
+  return proofLink({
+    href: `${EXPLORER_TX}${tx}`,
+    value: tx,
+    label: shortHash(tx),
+    kind: "tx",
+  });
+}
+
+function proofLink({ href, value, label, kind }) {
+  return `
+    <span class="proof-link-wrap">
+      <a class="proof-link ${kind}" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" title="${escapeHtml(value)}">
+        <code>${escapeHtml(label)}</code><span aria-hidden="true">OPEN</span>
+      </a>
+      <button class="copy-button" type="button" data-copy="${escapeHtml(value)}" title="Copy ${escapeHtml(kind)}">COPY</button>
+    </span>
+  `;
+}
+
+function isAddress(value) {
+  return /^0x[a-fA-F0-9]{40}$/.test(String(value ?? ""));
+}
+
+function isTx(value) {
+  return /^0x[a-fA-F0-9]{64}$/.test(String(value ?? ""));
 }
 
 function escapeHtml(value) {

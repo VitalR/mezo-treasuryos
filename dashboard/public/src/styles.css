@@ -97,6 +97,14 @@ code {
   text-overflow: ellipsis;
 }
 
+.top-strip small {
+  display: block;
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .eyebrow,
 .strip-item span,
 .metric span,
@@ -268,7 +276,8 @@ p {
 }
 
 .threshold-row,
-.control-badges {
+.control-badges,
+.flow-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -280,6 +289,22 @@ p {
   padding-top: 10px;
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.flow-row {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+
+.flow-row span {
+  border: 1px solid var(--line-soft);
+  padding: 6px 9px;
+  background: #0d1114;
+  color: #c9bea8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .divider {
@@ -305,6 +330,47 @@ p {
 
 .address-list {
   border-bottom: 1px solid var(--line-soft);
+}
+
+.proof-link-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  max-width: 100%;
+}
+
+.proof-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #d7c79a;
+}
+
+.proof-link span {
+  color: var(--faint);
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.copy-button {
+  border: 1px solid var(--line-soft);
+  padding: 3px 6px;
+  background: #0b0f12;
+  color: var(--faint);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+.copy-button:hover,
+.copy-button[data-copied="true"] {
+  border-color: var(--gold-dim);
+  color: var(--gold);
 }
 
 .boundary {
@@ -335,6 +401,10 @@ summary {
   font-size: 0.78rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+
+.code-block .proof-link-wrap {
+  justify-content: flex-start;
 }
 
 .blocked-list {
@@ -480,5 +550,9 @@ summary {
   .kv strong,
   .address-row code {
     text-align: left;
+  }
+
+  .proof-link-wrap {
+    justify-content: flex-start;
   }
 }

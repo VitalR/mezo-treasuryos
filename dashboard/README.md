@@ -47,6 +47,7 @@ DASHBOARD_PORT=5174 make dashboard-dev
 
 ## What It Shows
 
+- one institutional client demo tenant on Mezo testnet
 - Treasury health: current CR, post-stress CR, thresholds, buffer, profile, and recommended action.
 - BTC and MUSD balance sheet buckets kept separate.
 - Policy and controls: TreasuryAccount, TreasuryMultisig, PolicyEngine, AutomationExecutor, AllocationRouter, handler.
@@ -68,3 +69,33 @@ DASHBOARD_PORT=5174 make dashboard-dev
 - no claim that keeper can move arbitrary assets
 
 The product line remains: the agent is not trusted; the policy is trusted.
+
+## Explorer Proof Links
+
+Contract addresses link to:
+
+```text
+https://explorer.test.mezo.org/address/<address>
+```
+
+Transaction hashes link to:
+
+```text
+https://explorer.test.mezo.org/tx/<txHash>
+```
+
+Addresses and hashes stay shortened in the UI, with the full value available in the link title and copy button.
+
+## Vercel / Static Hosting
+
+The hosted dashboard should be treated as a static, read-only one-tenant demo workspace generated from TreasuryOS CLI
+snapshots and public Mezo testnet contract data. It does not hold keys, request signatures, or broadcast transactions.
+
+Recommended Vercel settings:
+
+- Root Directory: `dashboard`
+- Build Command: empty
+- Output Directory: `public`
+
+Do not expose `.env`, RPC URLs, private keys, or deployer/keeper secrets to the hosted dashboard. Regenerate
+`dashboard/public/data/dashboard-data.json` locally before deploying when the demo state changes.

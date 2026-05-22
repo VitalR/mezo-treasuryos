@@ -11,6 +11,7 @@ The current scope is a lightweight operator dashboard backed by:
 - Goldsky-indexed event history once addresses, ABIs, and start blocks are filled;
 - existing service outputs from `spectrum-state`, `yield-console`, `treasury-risk-keeper`, and `treasury-advisor`.
 - generated dashboard JSON at `dashboard/public/data/dashboard-data.json`.
+- explorer proof links for deployed contracts and live transaction hashes.
 
 Run:
 
@@ -18,6 +19,9 @@ Run:
 make dashboard-data
 make dashboard-dev
 ```
+
+For static hosting, deploy `dashboard/public` as a read-only artifact. The hosted dashboard should not receive `.env`
+values, private keys, RPC credentials, or signing capability.
 
 ## Product Boundary
 
