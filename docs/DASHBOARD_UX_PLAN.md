@@ -2,13 +2,22 @@
 
 ## Decision
 
-Do not start a large dashboard before the testnet deployment is validated. The current CLI and service outputs already prove the product workflow, and the next UI should map directly to those outputs instead of inventing a separate demo surface.
+Build a small read-only command center now that maps directly to the validated CLI and service outputs. Do not build a
+transaction UI in V1.
 
-The right near-term scope is a lightweight operator dashboard after deployment, backed by:
+The current scope is a lightweight operator dashboard backed by:
 
 - deployed contract reads through the selected Mezo RPC provider;
 - Goldsky-indexed event history once addresses, ABIs, and start blocks are filled;
 - existing service outputs from `spectrum-state`, `yield-console`, `treasury-risk-keeper`, and `treasury-advisor`.
+- generated dashboard JSON at `dashboard/public/data/dashboard-data.json`.
+
+Run:
+
+```bash
+make dashboard-data
+make dashboard-dev
+```
 
 ## Product Boundary
 

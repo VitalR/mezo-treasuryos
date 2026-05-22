@@ -1,15 +1,70 @@
-# Dashboard
+# TreasuryOS Command Center
 
-This folder will contain the TreasuryOS product interface.
+Read-only institutional dashboard for the Mezo TreasuryOS final demo.
 
-Planned V1 surfaces:
+The dashboard is intentionally a reporting and review surface. It does not connect a wallet, sign transactions, edit
+policy, execute keeper actions, move BTC principal, or collect fees.
 
-- treasury setup
-- treasury overview
-- allocation view
-- Treasury Yield Console
-- operations view
-- reporting view
-- Term Yield Planner
+## Generate Data
 
-The dashboard should remain a workflow and reporting surface, not the place where treasury control logic lives.
+```bash
+make dashboard-data
+```
+
+This writes:
+
+```text
+dashboard/public/data/dashboard-data.json
+```
+
+The generator combines:
+
+- internal live demo snapshots under `draft/internal/`
+- deterministic treasury advisor / AI-CFO packet
+- Treasury Risk Keeper live, warning, and critical reports
+- current Mezo opportunity reads when RPC is available
+- static opportunity fallback when live reads are unavailable
+- deployed addresses from `.env`
+- known live proof transactions
+
+## Run Locally
+
+```bash
+make dashboard-dev
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173
+```
+
+Set a different port with:
+
+```bash
+DASHBOARD_PORT=5174 make dashboard-dev
+```
+
+## What It Shows
+
+- Treasury health: current CR, post-stress CR, thresholds, buffer, profile, and recommended action.
+- BTC and MUSD balance sheet buckets kept separate.
+- Policy and controls: TreasuryAccount, TreasuryMultisig, PolicyEngine, AutomationExecutor, AllocationRouter, handler.
+- Risk Keeper state and critical proposal calldata.
+- AI-CFO memo, proposal packet, blocked opportunity reasons, and guardrails.
+- Yield console focused on buffer and surplus, not APY hype.
+- Policy Decision Explainer for allowed, monitor, and blocked/proposal-only actions.
+- Scenario proof timeline with live transaction hashes.
+- Infrastructure status: RPC, Spectrum, Goldsky scaffold, fees disabled.
+
+## What It Does Not Do
+
+- no wallet connect
+- no transaction buttons
+- no policy editing
+- no BTC sleeve execution UI
+- no fee payment UI
+- no claim that AI controls funds
+- no claim that keeper can move arbitrary assets
+
+The product line remains: the agent is not trusted; the policy is trusted.

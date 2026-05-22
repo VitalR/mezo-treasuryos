@@ -21,6 +21,7 @@ These documents reflect the current product direction:
 - `ARCHITECTURE.md` — V1 system shape, control boundaries, and core components
 - `DEPLOYMENT.md` — testnet deployment modes, ownership paths, and Makefile commands
 - `PROTOCOL_FEES.md` — zero-default protocol fee architecture and future monetization model
+- `DASHBOARD_UX_PLAN.md` — read-only TreasuryOS Command Center scope and dashboard data flow
 - `TREASURY_PROFILES.md` — advisory/profile presets and their onboarding policy mapping
 - `AI_CFO_AGENT.md` — production AI-CFO / agentic treasury model and guardrails
 - `ROADMAP.md` — build sequence and scope discipline for a 6-week implementation

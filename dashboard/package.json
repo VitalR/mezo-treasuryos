@@ -1,0 +1,10 @@
+{
+  "name": "@mezo-treasuryos/dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "data": "node scripts/build-data.mjs",
+    "dev": "node scripts/serve.mjs",
+    "check": "node --check scripts/build-data.mjs && node --check scripts/serve.mjs"
+  }
+}

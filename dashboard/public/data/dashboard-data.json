@@ -1,0 +1,640 @@
+{
+  "generatedAt": "2026-05-22T15:32:57.792Z",
+  "mode": "read-only",
+  "treasuryName": "Mezo TreasuryOS Live Treasury",
+  "network": {
+    "provider": "Spectrum Nodes",
+    "providerEnv": "SPECTRUM_MEZO_RPC_URL_1",
+    "chainId": 31611,
+    "spectrumActive": true,
+    "snapshotBlock": 13194672
+  },
+  "deployment": {
+    "treasuryAccountImplementation": "0xCc54C379A3f6A410BFC2cCeeB947953E1DD8BB36",
+    "treasuryAccount": "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+    "treasuryPolicyEngine": "0xe43737328BB3C20bE484B1376F931391062cC2e7",
+    "btcReservePolicy": "0x4d6054bb0BFDEcBDA3599681EfEa383c1F63afAe",
+    "treasuryMultisig": "0x25a1FA3cF0597468eB35539712243d9e7B6FDBe3",
+    "automationExecutor": "0xD5b3Bc3515aEA5A94b997B0525a4B510E71d25bF",
+    "allocationRouter": "0xf6FC1ff6c6eE770Ff3e6A1f99B3DdD668538338E",
+    "musdSavingsHandler": "0x801E185bCB70705B3CF3494caca948b6C48bc0fF",
+    "feeVault": "0x78c29c1A7BE2cd2F770AC88DF7a169aD3910EE3d",
+    "feeManager": "0x5227B80cb9D23d0004e947777782fe9EB13Fa019"
+  },
+  "owner": {
+    "mode": "TreasuryMultisig",
+    "address": "0x25a1FA3cF0597468eB35539712243d9e7B6FDBe3"
+  },
+  "feeStatus": {
+    "enabled": false,
+    "label": "disabled",
+    "note": "Fee contracts are deployed for future monetization, but no treasury execution flow depends on them."
+  },
+  "treasury": {
+    "health": {
+      "state": "HEALTHY",
+      "currentCollateralRatioBps": 19165,
+      "postStressCollateralRatioBps": 18501,
+      "targetCollateralRatioBps": 20000,
+      "warningCollateralRatioBps": 18000,
+      "criticalCollateralRatioBps": 15000,
+      "minPostStressCollateralRatioBps": 14000
+    },
+    "profile": {
+      "key": "balanced",
+      "label": "Balanced Treasury",
+      "stableLpWeight": 0,
+      "savingsWeight": 6,
+      "maxStableLpShareBps": 2500,
+      "btcYieldEnabled": false,
+      "memo": "Use MUSD Savings as the default sleeve, with limited stable LP only when liquidity and policy are healthy."
+    },
+    "composition": {
+      "idleMUSD": "525",
+      "idleBTC": "0",
+      "liquidityBufferMUSD": "500",
+      "deployableSurplusMUSD": "25",
+      "approvalThresholdMUSD": "250"
+    },
+    "position": {
+      "collateralBTC": "0.05",
+      "totalDebtMUSD": "2026.858043100407796037",
+      "closeDebtMUSD": "1826.858043100407796037"
+    },
+    "btcReserveBuckets": {
+      "idleBTCReserve": "0",
+      "collateralBTC": "0.05",
+      "emergencyBTCReserve": "0",
+      "yieldActiveBTC": "0",
+      "pendingWithdrawBTC": "0"
+    },
+    "sleeves": [
+      {
+        "label": "MUSD Savings Vault",
+        "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+        "handler": "0x801e185bcb70705b3cf3494caca948b6c48bc0ff",
+        "approved": true,
+        "allocatedMUSD": "900",
+        "capMUSD": "10000",
+        "remainingCapacityMUSD": "9100",
+        "receiptBalance": "900"
+      },
+      {
+        "label": "Tigris Basic Stable MUSD/mUSDC",
+        "destination": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+        "handler": "0x4b761376fe6abb6fc00138217b3d7656c82fe785",
+        "approved": true,
+        "allocatedMUSD": "0",
+        "capMUSD": "5000",
+        "remainingCapacityMUSD": "5000",
+        "receiptBalance": "0"
+      }
+    ],
+    "allocationDecision": {
+      "allowed": true,
+      "code": "Allowed",
+      "actor": "0xda2c01980bb59dd6b7cb4d800007ea67c7282280",
+      "destination": "0x6f461c68b2c5492c0f5ccec5a264d692aa7a8e16",
+      "amountMUSD": "25",
+      "idleMUSD": "525",
+      "liquidityBufferMUSD": "500",
+      "deployableSurplusMUSD": "25",
+      "approvalThresholdMUSD": "250",
+      "currentAllocationMUSD": "900",
+      "allocationCapMUSD": "10000",
+      "remainingCapacityMUSD": "9100",
+      "nextIdleMUSD": "500",
+      "nextAllocationMUSD": "925"
+    }
+  },
+  "keeper": {
+    "live": {
+      "label": "Live healthy",
+      "report": {
+        "treasuryName": "Mezo TreasuryOS Live Treasury",
+        "strategyProfile": "balanced",
+        "profile": {
+          "label": "Balanced Treasury",
+          "targetCollateralRatioBps": 20000,
+          "warningCollateralRatioBps": "18000",
+          "criticalCollateralRatioBps": "15000",
+          "stressDropBps": 2500,
+          "minPostStressCollateralRatioBps": 14000,
+          "minIdleBTCReserve": "0",
+          "musdOperatingBuffer": "500",
+          "savingsDefenseHaircutBps": 9500,
+          "lpDefenseHaircutBps": 7500,
+          "btcDefenseHaircutBps": 9000,
+          "preferIdleBTCForCollateralTopUp": true,
+          "maxAutoIdleBTCTopUp": 0.25
+        },
+        "health": {
+          "currentCollateralRatioBps": 19165,
+          "warningCollateralRatioBps": 18000,
+          "criticalCollateralRatioBps": 15000,
+          "targetCollateralRatioBps": 20000,
+          "postStressCollateralRatioBps": 18501,
+          "minPostStressCollateralRatioBps": 14000,
+          "state": "HEALTHY"
+        },
+        "inputs": {
+          "btcPriceMUSD": 100000,
+          "idleMUSD": 525,
+          "idleBTC": 0,
+          "collateralBTC": 0.05,
+          "debtMUSD": 2026.8580431004077,
+          "fastWithdrawableMUSD": 0,
+          "lpWithdrawableMUSD": 900
+        },
+        "defenseCapacity": {
+          "idleMUSD": 25,
+          "fastMUSDSleeves": 0,
+          "liquidMUSDLP": 675,
+          "idleBTCValue": 0,
+          "totalMUSD": 700
+        },
+        "requiredDefense": {
+          "repayNeededToTargetMUSD": 0,
+          "btcTopUpNeededToTarget": 0,
+          "recoverableToTarget": true
+        },
+        "candidateActions": [],
+        "recommendation": {
+          "type": "MONITOR",
+          "memo": "Position is inside target and post-stress policy. No action required."
+        }
+      },
+      "actionPlan": {
+        "available": false,
+        "target": "0xD5b3Bc3515aEA5A94b997B0525a4B510E71d25bF",
+        "value": "0",
+        "recommendationType": "MONITOR",
+        "summary": "Position is inside target and post-stress policy. No action required.",
+        "reason": "recommendation MONITOR is not executable by the keeper"
+      }
+    },
+    "warning": {
+      "label": "Warning replay",
+      "report": {
+        "treasuryName": "Mezo TreasuryOS Live Treasury - Warning Replay",
+        "strategyProfile": "balanced",
+        "profile": {
+          "label": "Balanced Treasury",
+          "targetCollateralRatioBps": "20000",
+          "warningCollateralRatioBps": "18000",
+          "criticalCollateralRatioBps": "15000",
+          "stressDropBps": 2500,
+          "minPostStressCollateralRatioBps": 14000,
+          "minIdleBTCReserve": "0",
+          "musdOperatingBuffer": "500",
+          "savingsDefenseHaircutBps": 9500,
+          "lpDefenseHaircutBps": 7500,
+          "btcDefenseHaircutBps": 9000,
+          "preferIdleBTCForCollateralTopUp": true,
+          "maxAutoIdleBTCTopUp": 0.25
+        },
+        "health": {
+          "currentCollateralRatioBps": 17000,
+          "warningCollateralRatioBps": 18000,
+          "criticalCollateralRatioBps": 15000,
+          "targetCollateralRatioBps": 20000,
+          "postStressCollateralRatioBps": 14574,
+          "minPostStressCollateralRatioBps": 14000,
+          "state": "WARNING"
+        },
+        "inputs": {
+          "btcPriceMUSD": 77800,
+          "idleMUSD": 800,
+          "idleBTC": 0,
+          "collateralBTC": 0.05,
+          "debtMUSD": 2001.8,
+          "fastWithdrawableMUSD": 0,
+          "lpWithdrawableMUSD": 1000
+        },
+        "defenseCapacity": {
+          "idleMUSD": 300,
+          "fastMUSDSleeves": 0,
+          "liquidMUSDLP": 750,
+          "idleBTCValue": 0,
+          "totalMUSD": 1050
+        },
+        "requiredDefense": {
+          "repayNeededToTargetMUSD": 56.799999999999955,
+          "btcTopUpNeededToTarget": 0.0014601542416452437,
+          "recoverableToTarget": true
+        },
+        "candidateActions": [
+          {
+            "type": "REPAY_DEBT_FROM_IDLE_MUSD",
+            "amountMUSD": 56.799999999999955,
+            "expectedCollateralRatioBps": 20000,
+            "memo": "Repay debt from idle MUSD above the operating buffer."
+          },
+          {
+            "type": "WITHDRAW_SLOWER_MUSD_LP_AND_REPAY",
+            "amountMUSD": 56.799999999999955,
+            "sleeve": "MUSD Savings Vault",
+            "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+            "expectedCollateralRatioBps": 20000,
+            "memo": "Unwind a slower MUSD LP sleeve only if less disruptive defense paths are insufficient."
+          }
+        ],
+        "recommendation": {
+          "type": "REPAY_DEBT_FROM_IDLE_MUSD",
+          "amountMUSD": 56.799999999999955,
+          "expectedCollateralRatioBps": 20000,
+          "memo": "Repay debt from idle MUSD above the operating buffer."
+        }
+      },
+      "actionPlan": {
+        "available": true,
+        "target": "0xD5b3Bc3515aEA5A94b997B0525a4B510E71d25bF",
+        "value": "0",
+        "recommendationType": "REPAY_DEBT_FROM_IDLE_MUSD",
+        "summary": "Repay debt from idle MUSD above the operating buffer.",
+        "signature": "repayDebtFromIdleMUSD(address,uint256,address,address)",
+        "args": [
+          "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+          "56799999999999955000",
+          "0x0000000000000000000000000000000000000000",
+          "0x0000000000000000000000000000000000000000"
+        ],
+        "humanAmount": "57 MUSD",
+        "castCalldataCommand": "cast calldata \"repayDebtFromIdleMUSD(address,uint256,address,address)\" '0xaB79775A1995AD280B2A32cB0127734eEa677ac7' '56799999999999955000' '0x0000000000000000000000000000000000000000' '0x0000000000000000000000000000000000000000'"
+      }
+    },
+    "critical": {
+      "label": "Critical replay",
+      "report": {
+        "treasuryName": "Mezo TreasuryOS Live Treasury - Critical Sleeve Replay",
+        "strategyProfile": "balanced",
+        "profile": {
+          "label": "Balanced Treasury",
+          "targetCollateralRatioBps": "20000",
+          "warningCollateralRatioBps": "18000",
+          "criticalCollateralRatioBps": "15000",
+          "stressDropBps": 2500,
+          "minPostStressCollateralRatioBps": 14000,
+          "minIdleBTCReserve": "0",
+          "musdOperatingBuffer": "500",
+          "savingsDefenseHaircutBps": 9500,
+          "lpDefenseHaircutBps": 7500,
+          "btcDefenseHaircutBps": 9000,
+          "preferIdleBTCForCollateralTopUp": false,
+          "maxAutoIdleBTCTopUp": 0.25
+        },
+        "health": {
+          "currentCollateralRatioBps": 14500,
+          "warningCollateralRatioBps": 18000,
+          "criticalCollateralRatioBps": 15000,
+          "targetCollateralRatioBps": 20000,
+          "postStressCollateralRatioBps": 14574,
+          "minPostStressCollateralRatioBps": 14000,
+          "state": "CRITICAL"
+        },
+        "inputs": {
+          "btcPriceMUSD": 77800,
+          "idleMUSD": 500,
+          "idleBTC": 0,
+          "collateralBTC": 0.05,
+          "debtMUSD": 2001.8,
+          "fastWithdrawableMUSD": 1000,
+          "lpWithdrawableMUSD": 0
+        },
+        "defenseCapacity": {
+          "idleMUSD": 0,
+          "fastMUSDSleeves": 950,
+          "liquidMUSDLP": 0,
+          "idleBTCValue": 0,
+          "totalMUSD": 950
+        },
+        "requiredDefense": {
+          "repayNeededToTargetMUSD": 56.799999999999955,
+          "btcTopUpNeededToTarget": 0.0014601542416452437,
+          "recoverableToTarget": true
+        },
+        "candidateActions": [
+          {
+            "type": "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY",
+            "amountMUSD": 56.799999999999955,
+            "sleeve": "MUSD Savings Vault",
+            "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+            "expectedCollateralRatioBps": 20000,
+            "memo": "Withdraw from a fast MUSD sleeve and repay debt; use when idle BTC reserve should be preserved."
+          }
+        ],
+        "recommendation": {
+          "type": "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY",
+          "amountMUSD": 56.799999999999955,
+          "sleeve": "MUSD Savings Vault",
+          "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+          "expectedCollateralRatioBps": 20000,
+          "memo": "Withdraw from a fast MUSD sleeve and repay debt; use when idle BTC reserve should be preserved."
+        }
+      },
+      "actionPlan": {
+        "available": true,
+        "target": "0xD5b3Bc3515aEA5A94b997B0525a4B510E71d25bF",
+        "value": "0",
+        "recommendationType": "WITHDRAW_FAST_MUSD_SLEEVE_AND_REPAY",
+        "summary": "Withdraw from a fast MUSD sleeve and repay debt; use when idle BTC reserve should be preserved.",
+        "signature": "deRiskByRepayingFromSleeve(address,address,uint256,uint256,address,address)",
+        "args": [
+          "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+          "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+          "56799999999999955000",
+          "56799999999999955000",
+          "0x0000000000000000000000000000000000000000",
+          "0x0000000000000000000000000000000000000000"
+        ],
+        "humanAmount": "57 MUSD",
+        "castCalldataCommand": "cast calldata \"deRiskByRepayingFromSleeve(address,address,uint256,uint256,address,address)\" '0xaB79775A1995AD280B2A32cB0127734eEa677ac7' '0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16' '56799999999999955000' '56799999999999955000' '0x0000000000000000000000000000000000000000' '0x0000000000000000000000000000000000000000'"
+      }
+    }
+  },
+  "advisor": {
+    "summary": {
+      "idleMUSD": 525,
+      "requiredBufferMUSD": 500,
+      "surplusMUSD": 25,
+      "bufferShortfallMUSD": 0,
+      "totalAllocatedMUSD": 900,
+      "riskState": "healthy"
+    },
+    "memo": "Balanced Treasury: idle MUSD exceeds buffer by 25 MUSD. Allocate across approved sleeves according to caps and risk ranking. MUSD Savings Vault is the primary conservative MUSD sleeve; Tigris Basic Stable MUSD/mUSDC is optional stablecoin LP capacity within policy caps.",
+    "btcMemo": "Keep 0.05 BTC of BTC collateral governed by collateral-health policy before chasing yield. No approved BTC-denominated sleeve has a live execution path in this V1 snapshot; treat BTC sleeve ideas as policy previews and planning inputs only.",
+    "opportunityReview": [
+      {
+        "label": "MUSD Savings Vault",
+        "decision": "USE_AS_PRIMARY_MUSD_SLEEVE",
+        "reason": "Balanced Treasury can use this as the default idle-MUSD sleeve; capacity 9,100 MUSD."
+      },
+      {
+        "label": "Tigris Basic Stable MUSD/mUSDC",
+        "decision": "OPTIONAL_LIMITED_ALLOCATION",
+        "reason": "Balanced Treasury may allocate a limited share to stable LP after route/liquidity checks; cap share 25.00%."
+      },
+      {
+        "label": "Tigris mcbBTC/BTC",
+        "decision": "BLOCK_FOR_NOW",
+        "reason": "Do not use for current testnet execution: pool liquidity is shallow (0.05717113 mcbBTC and 0.30459953420169977 BTC); 0.0001 BTC quotes to 0.00005149 mcbBTC, creating 48.51% live quote impact versus a near 1:1 BTC-correlated route; main demo treasury has no validated live BTC sleeve execution path. Keep as guarded Bitcoin-yield research."
+      }
+    ],
+    "allocationPlan": [
+      {
+        "label": "MUSD Savings Vault",
+        "destination": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+        "amountMUSD": 25,
+        "annualYieldBps": 0,
+        "projectedYieldMUSD": {
+          "7d": 0,
+          "30d": 0,
+          "60d": 0
+        },
+        "reason": "approved sleeve with available cap and higher yield assumption"
+      }
+    ],
+    "automationAction": {
+      "action": "NO_AUTOMATION_NEEDED",
+      "reason": "Buffer is funded and collateral health is not in warning or critical state."
+    },
+    "cfoPacket": {
+      "recommendationId": "cfo-6444bde585ee2290",
+      "mode": "advisory_proposal",
+      "treasuryName": "Mezo TreasuryOS Live Treasury",
+      "treasuryAccount": "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+      "profile": "balanced",
+      "sourceOfTruth": "deterministic advisor report plus onchain TreasuryOS policy checks",
+      "preparedActions": [
+        {
+          "type": "ALLOCATE_SURPLUS_MUSD",
+          "status": "prepared_not_executed",
+          "target": "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+          "value": "0",
+          "signature": "allocate(address,uint256)",
+          "args": [
+            "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+            "25000000000000000000"
+          ],
+          "humanAmount": "25 MUSD",
+          "approvalPath": "TreasuryAccount policy-approved actor; multisig remains acceptable",
+          "reason": "approved sleeve with available cap and higher yield assumption",
+          "castCalldataCommand": "cast calldata \"allocate(address,uint256)\" '0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16' '25000000000000000000'"
+        }
+      ],
+      "blockedOpportunities": [
+        {
+          "label": "Tigris mcbBTC/BTC",
+          "decision": "BLOCK_FOR_NOW",
+          "reason": "Do not use for current testnet execution: pool liquidity is shallow (0.05717113 mcbBTC and 0.30459953420169977 BTC); 0.0001 BTC quotes to 0.00005149 mcbBTC, creating 48.51% live quote impact versus a near 1:1 BTC-correlated route; main demo treasury has no validated live BTC sleeve execution path. Keep as guarded Bitcoin-yield research."
+        }
+      ],
+      "executionBoundary": [
+        "AI-CFO does not sign, custody, broadcast, or bypass policy.",
+        "Prepared owner actions must be executed by the TreasuryAccount owner, TreasuryMultisig, Safe, or external custody path.",
+        "Keeper actions must go through TreasuryAutomationExecutor and remain capped, allowlisted, and policy-checked.",
+        "BTC principal movement stays proposal-only unless the guarded BTC handler path is validated for the treasury."
+      ]
+    },
+    "guardrails": [
+      "Advisor output is reporting only and does not control funds.",
+      "Every allocation still requires TreasuryPolicyEngine checks.",
+      "BTC-denominated sleeve recommendations are reporting-only until a guarded BTC execution handler is deployed and broadcast-validated for the treasury.",
+      "Automation may only execute bounded restore/de-risk workflows already approved onchain."
+    ]
+  },
+  "policyExplainers": [
+    {
+      "title": "Allocate 25 MUSD surplus MUSD",
+      "result": "POLICY-ALLOWED / PROPOSAL-PREPARED",
+      "tone": "ok",
+      "checks": [
+        {
+          "pass": true,
+          "label": "Treasury is not in warning or critical state"
+        },
+        {
+          "pass": true,
+          "label": "Idle MUSD exceeds required operating buffer"
+        },
+        {
+          "pass": true,
+          "label": "Destination is an approved TreasuryOS sleeve"
+        },
+        {
+          "pass": true,
+          "label": "Amount fits remaining sleeve capacity"
+        },
+        {
+          "pass": true,
+          "label": "Execution remains approval-bound; dashboard is read-only"
+        }
+      ]
+    },
+    {
+      "title": "Keeper defensive automation",
+      "result": "MONITOR",
+      "tone": "ok",
+      "checks": [
+        {
+          "pass": true,
+          "label": "TreasuryAutomationExecutor is configured"
+        },
+        {
+          "pass": true,
+          "label": "Keeper EOA is gas-only and does not custody assets"
+        },
+        {
+          "pass": true,
+          "label": "Actions are whitelisted on the executor"
+        },
+        {
+          "pass": true,
+          "label": "Execution is capped and policy-checked"
+        },
+        {
+          "pass": true,
+          "label": "Current live position is healthy"
+        }
+      ]
+    },
+    {
+      "title": "Allocate BTC to mcbBTC/BTC sleeve",
+      "result": "BLOCKED / PROPOSAL-ONLY",
+      "tone": "blocked",
+      "checks": [
+        {
+          "pass": true,
+          "label": "BTC sleeve candidate recognized"
+        },
+        {
+          "pass": true,
+          "label": "Live BTC -> mcbBTC quote reviewed"
+        },
+        {
+          "pass": false,
+          "label": "Do not use for current testnet execution: pool liquidity is shallow (0.05717113 mcbBTC and 0.30459953420169977 BTC); 0.0001 BTC quotes to 0.00005149 mcbBTC, creating 48.51% live quote impact versus a near 1:1 BTC-correlated route; main demo treasury has no validated live BTC sleeve execution path. Keep as guarded Bitcoin-yield research."
+        },
+        {
+          "pass": false,
+          "label": "Tiny broadcast validation is pending for the main treasury"
+        },
+        {
+          "pass": false,
+          "label": "BTC principal movement requires owner/multisig approval"
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "status": "LIVE",
+      "actor": "multisig",
+      "title": "Client TreasuryMultisig configured",
+      "tx": null,
+      "address": "0x25a1FA3cF0597468eB35539712243d9e7B6FDBe3",
+      "explorer": null
+    },
+    {
+      "status": "LIVE",
+      "actor": "treasury",
+      "title": "TreasuryAccount owns the Mezo position boundary",
+      "tx": null,
+      "address": "0xaB79775A1995AD280B2A32cB0127734eEa677ac7",
+      "explorer": null
+    },
+    {
+      "status": "LIVE",
+      "actor": "multisig",
+      "title": "BTC collateral deposited and MUSD debt opened",
+      "tx": "0xe0fe153b870514833ca3962bd38052cc2fbbd3ab659d298c0f3604614905c21a",
+      "address": null,
+      "explorer": "https://explorer.test.mezo.org/tx/0xe0fe153b870514833ca3962bd38052cc2fbbd3ab659d298c0f3604614905c21a"
+    },
+    {
+      "status": "LIVE",
+      "actor": "multisig",
+      "title": "MUSD allocated to MUSD Savings through TreasuryAccount.allocate",
+      "tx": "0x7e730bb74b46b20585890124a458aa0fe7d4414caf1cac83e0826061f4ebd96b",
+      "address": null,
+      "explorer": "https://explorer.test.mezo.org/tx/0x7e730bb74b46b20585890124a458aa0fe7d4414caf1cac83e0826061f4ebd96b"
+    },
+    {
+      "status": "LIVE",
+      "actor": "policy",
+      "title": "Operator allocation preview blocked as ApprovalRequired",
+      "tx": null,
+      "address": null,
+      "explorer": null
+    },
+    {
+      "status": "LIVE",
+      "actor": "keeper",
+      "title": "Keeper restored operating buffer from MUSD Savings",
+      "tx": "0x88006ce0bdbb0c1e433b9df31f99d11b85ccd2e0cd89e4e059112d88bf7087be",
+      "address": null,
+      "explorer": "https://explorer.test.mezo.org/tx/0x88006ce0bdbb0c1e433b9df31f99d11b85ccd2e0cd89e4e059112d88bf7087be"
+    },
+    {
+      "status": "LIVE",
+      "actor": "multisig",
+      "title": "Small draw created repayment headroom for demo",
+      "tx": "0x721de359cf1e00def213f4024a6a37ea359f9fe6a4f8497c5b53986f0176490b",
+      "address": null,
+      "explorer": "https://explorer.test.mezo.org/tx/0x721de359cf1e00def213f4024a6a37ea359f9fe6a4f8497c5b53986f0176490b"
+    },
+    {
+      "status": "LIVE",
+      "actor": "keeper",
+      "title": "Keeper repaid debt from idle MUSD",
+      "tx": "0x25441e1ec5309673d6515f63d628913350741192c1ec23f9f62a0a557d984933",
+      "address": null,
+      "explorer": "https://explorer.test.mezo.org/tx/0x25441e1ec5309673d6515f63d628913350741192c1ec23f9f62a0a557d984933"
+    },
+    {
+      "status": "PROPOSED",
+      "actor": "keeper",
+      "title": "Critical scenario prepares sleeve-funded repayment calldata",
+      "tx": null,
+      "address": null,
+      "explorer": null
+    },
+    {
+      "status": "BLOCKED",
+      "actor": "advisor",
+      "title": "mcbBTC/BTC stays guarded due shallow liquidity and pending validation",
+      "tx": null,
+      "address": null,
+      "explorer": null
+    }
+  ],
+  "infrastructure": {
+    "rpc": {
+      "provider": "Spectrum Nodes",
+      "env": "SPECTRUM_MEZO_RPC_URL_1",
+      "chainId": 31611,
+      "chainIdHex": "0x7b7b",
+      "blockNumber": 13194672,
+      "spectrumActive": true,
+      "fallbackUsed": false,
+      "attempts": [
+        {
+          "provider": "Spectrum Nodes",
+          "env": "SPECTRUM_MEZO_RPC_URL_1",
+          "status": "selected",
+          "chainId": "0x7b7b"
+        }
+      ]
+    },
+    "goldsky": {
+      "status": "scaffolded",
+      "note": "Goldsky is planned for indexed event history; this read-only demo uses generated snapshots and live service reads."
+    },
+    "dataSources": [
+      "draft/internal live snapshots",
+      "treasury-advisor deterministic report",
+      "treasury-risk-keeper reports",
+      "live Mezo opportunity reads"
+    ]
+  }
+}

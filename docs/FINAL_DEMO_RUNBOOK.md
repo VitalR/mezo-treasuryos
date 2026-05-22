@@ -43,6 +43,8 @@ Run this sequence for the final proof. Steps 1-5 are read-only and are the prefe
 make demo-status
 make scenario-proof
 make advisor-cfo
+make dashboard-data
+make dashboard-dev
 make advisor-opportunities
 node services/yield-console/render.mjs draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json
 make risk-keeper-propose-critical
@@ -85,6 +87,11 @@ Talk track:
    - Shows the read-only calldata/proposal for `deRiskByRepayingFromSleeve`.
    - Uses `.env` to resolve `TREASURY_AUTOMATION_EXECUTOR`, `TREASURY_ACCOUNT`, and the MUSD Savings destination.
    - Do not execute this on the live tiny position; it is a proposal proof for the critical scenario, while live execution has already proven `restoreBufferFromSavings` and `repayDebtFromIdleMUSD`.
+
+6. Dashboard
+   - Run `make dashboard-data` and `make dashboard-dev`.
+   - Show the same proof through the read-only TreasuryOS Command Center.
+   - State clearly that the dashboard has no transaction buttons, wallet connect, policy editing, BTC sleeve execution UI, or fee payment UI.
 
 ## Live Transactions
 

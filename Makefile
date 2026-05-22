@@ -43,6 +43,8 @@ help:
 	@echo "  make advisor-opportunities        - render profile-aware Mezo opportunity advisor"
 	@echo "  make advisor-cfo                  - render AI-CFO recommendation and proposal packet"
 	@echo "  make advisor-opportunities-ai     - render advisor plus optional OpenAI memo"
+	@echo "  make dashboard-data               - generate read-only dashboard JSON"
+	@echo "  make dashboard-dev                - serve read-only dashboard locally"
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
 	@echo "  make risk-keeper-demo             - render warning idle-MUSD repayment keeper report"
 	@echo "  make risk-keeper-propose          - render keeper calldata/proposal for demo action"
@@ -182,6 +184,17 @@ advisor-cfo:
 .PHONY: advisor-opportunities-ai
 advisor-opportunities-ai:
 	npm run advisor:opportunities:ai
+
+.PHONY: dashboard-data
+dashboard-data:
+	$(call require_env_file)
+	@bash -lc '$(call load_env) \
+		$(NODE_BIN) dashboard/scripts/build-data.mjs; \
+	'
+
+.PHONY: dashboard-dev
+dashboard-dev:
+	npm run dashboard:dev
 
 .PHONY: btc-sleeve-plan-demo
 btc-sleeve-plan-demo:
