@@ -61,7 +61,7 @@ V1 should add:
 
 - policy-governed yield allocation of surplus MUSD only
 - a Treasury Yield Console that shows idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, and the policy decision for a proposed allocation
-- AI-assisted treasury allocation memos that explain the policy-aware recommendation but never control funds
+- an AI-CFO advisory layer that reads state and live Mezo opportunities, ranks policy-aware actions, writes memos, and prepares proposals while never controlling funds
 - a lightweight Term Yield Planner for 7/30/60-day treasury planning, using projected assumptions, review dates, buffer constraints, and unwind conditions
 - BTC reserve and collateral reporting that distinguishes retained BTC-denominated exposure from borrowed MUSD operating capital
 - BTC-denominated sleeve candidates marked as planning-only unless a separate BTC accounting/policy path and verified handler target exist
@@ -76,6 +76,9 @@ V1 should not build:
 - executable BTC-principal allocation through the MUSD `AllocationRouter`
 
 The right posture is: TreasuryOS helps a treasury decide, approve, execute, and explain approved Mezo-native allocation of surplus MUSD, while accounting for BTC reserve and BTC collateral separately.
+
+The AI-CFO posture is deliberately constrained: AI can monitor, explain, rank, and draft proposals. `TreasuryPolicyEngine`,
+`TreasuryMultisig`, and `TreasuryAutomationExecutor` define what can actually execute.
 
 ---
 
@@ -283,8 +286,9 @@ The required protection is standard AMM execution hygiene:
 
 ### Notes
 
-If AI is used, it should support explanation and summarization only.
-Do not make AI the controlling authority for treasury actions.
+AI should support analysis, explanation, proposal drafting, and post-action reporting. It may act like an AI-CFO for
+small teams that lack a dedicated DeFi treasury operator, but it must not become the controlling authority for treasury
+actions. Deterministic advisor logic and onchain policy remain the source of truth.
 
 The keeper action model is strategy-aware, not a rigid ladder. Idle BTC collateral top-up may be preferred before unwinding MUSD Savings when the treasury explicitly reserves BTC for collateral defense. If idle BTC is scarce and MUSD Savings is immediately withdrawable, the keeper can prefer MUSD repayment. Offchain MUSD already disbursed for payroll, vendors, settlement, or business operations does not count as defense capacity unless explicitly imported.
 
@@ -307,9 +311,11 @@ The keeper action model is strategy-aware, not a rigid ladder. Idle BTC collater
 - Goldsky-powered event history for account, policy, sleeve, automation, and multisig activity
 - Treasury Yield Console
 - AI Treasury Allocation Advisor memo output
+- AI-CFO pre-action opportunity review over live Mezo opportunity reads
 - Term Yield Planner view for simulated 7/30/60-day plans
 - deterministic term-yield planner service for review dates, projected MUSD sleeve yield, and unwind conditions
 - deterministic treasury advisor service that recommends sleeve allocation and bounded automation actions from snapshot inputs
+- structured recommendation output for dashboard, API, and multisig proposal preparation
 - BTC reserve strategy notes documenting V1/V1.5/V2 boundaries
 - reviewer-facing treasury summary
 - documentation showing where Spectrum Nodes is used in the product architecture
@@ -330,6 +336,49 @@ The AI layer should produce treasury memos such as:
 - collateral health is weakening, so the next action should be buffer restoration or debt repayment rather than more allocation
 
 The Term Yield Planner should remain reporting-oriented in V1. It can model allocation windows, projected yield assumptions, maturity/review dates, and unwind conditions without creating new fixed-yield instruments.
+
+---
+
+## AI-CFO / Agentic Treasury Roadmap
+
+The valuable version of agentic treasury management is not a model that directly controls funds. It is an AI-CFO that
+does the expensive operator work: monitoring, comparing opportunities, explaining tradeoffs, drafting proposals, and
+producing reporting, while TreasuryOS contracts enforce the hard limits.
+
+### V1 Scope
+
+- deterministic advisor ranks opportunities from a treasury snapshot and live Mezo reads
+- profiles map client intent into conservative, balanced, active, or aggressive-demo recommendations
+- optional OpenAI memo summarizes deterministic facts for treasury admins and judges
+- keeper recommendations stay bounded to already-whitelisted defensive workflows
+- no AI signer, no AI custody, no arbitrary agent swaps
+
+### V1.1 Scope
+
+- `advisor:plan` pre-action what-if command for onboarding and rebalancing proposals
+- structured recommendation JSON with input sources, profile, proposed action, blocked actions, and policy reasons
+- multisig proposal export that includes memo text, calldata, expected state change, and risk notes
+- recommendation id or memo hash in proposal artifacts for auditability
+- dashboard view that shows "Recommended / Optional / Blocked" opportunities before the user acts
+
+### V1.5 Scope
+
+- Safe transaction builder export or module integration
+- EIP-712 signed recommendation intents from approved operators or agents
+- per-client agent registry with monitor, proposer, reporter, and keeper roles
+- explicit spending limits for routine MUSD allocations, separate from BTC principal movement
+- Goldsky-indexed recommendation and execution timeline
+
+### V2 Scope
+
+- MEZO-staked keeper or agent operators
+- governance-approved public strategy templates
+- paid AI/API/reporting credits
+- broader Mezo-native yield integrations after route, liquidity, and unwind validation
+
+Production line to preserve:
+
+> The AI-CFO can recommend and prepare. Policy, multisig, and bounded executors decide what can move.
 
 ---
 

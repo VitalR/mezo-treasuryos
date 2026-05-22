@@ -146,7 +146,7 @@ The yield angle is intentionally treasury-native:
 - model 7/30/60-day term plans with review dates, projected MUSD sleeve yield, and unwind conditions
 - report BTC reserve and BTC collateral separately from borrowed MUSD
 - treat BTC/stable LP as a directional planning candidate, not default treasury yield
-- generate an AI-assisted treasury memo that remains advisory
+- generate an AI-CFO treasury memo that remains advisory and proposal-oriented
 
 ---
 
@@ -170,16 +170,17 @@ This is treasury automation, not black-box AI capital management.
 
 The risk keeper is strategy-aware, not a fixed ladder. It can prefer direct idle-MUSD repayment, idle BTC collateral top-up when BTC was reserved for collateral defense, or MUSD sleeve unwind when idle reserves are insufficient. In execute mode it can send exactly one whitelisted `TreasuryAutomationExecutor` call per run, only from an allowlisted gas-only keeper EOA and only after explicit `RISK_KEEPER_EXECUTE_CONFIRM=true`. It does not assume MUSD already sent to payroll, vendors, OTC, or settlement is still available onchain.
 
-## AI Story
+## AI-CFO Story
 
-AI is not the signer, policy engine, or executor.
+TreasuryOS has an AI-CFO layer, not an unchecked AI trader.
 
-AI reads TreasuryOS state and generates an allocation memo:
+The AI-CFO reads TreasuryOS state and live Mezo opportunities before action, then generates a policy-aware recommendation:
 
 - current BTC-backed MUSD position
 - idle versus allocated MUSD
 - idle BTC reserve and BTC collateral
 - BTC-denominated sleeve candidates and whether they are execution-ready or planning-only
+- live opportunity metadata for MUSD Savings, Tigris MUSD/mUSDC, and mcbBTC/BTC
 - allocatable surplus above buffer
 - sleeve exposure and cap pressure
 - policy decisions and blocked actions
@@ -187,7 +188,17 @@ AI reads TreasuryOS state and generates an allocation memo:
 - post-stress collateral ratio and defense-capacity notes
 - recommended next treasury step
 
-That makes TreasuryOS feel like an operations product without weakening onchain controls.
+In the current demo, this is implemented as a deterministic profile-aware advisor with optional OpenAI memo generation over the deterministic facts. The deterministic report is the source of truth; AI helps explain the decision like a treasury operator would.
+
+Production posture:
+
+- AI can monitor, rank opportunities, explain tradeoffs, draft memos, and prepare proposal details
+- AI cannot hold keys, custody funds, bypass policy, or execute arbitrary swaps
+- `TreasuryPolicyEngine` enforces policy
+- `TreasuryMultisig` or external custody approves sensitive actions
+- `TreasuryAutomationExecutor` allows only whitelisted, capped defensive keeper calls
+
+That makes TreasuryOS feel like an AI-CFO for BTC treasuries without weakening onchain controls. The agent is not trusted; the policy is.
 
 ---
 
@@ -203,7 +214,7 @@ The strongest demo is:
 6. Keep an operating buffer and allocate only surplus MUSD into approved sleeves
 7. Trigger a stress or liquidity event
 8. Show TreasuryOS blocking new risky allocation, recommending a defense action, and preparing or executing a capped idle-MUSD debt repayment through policy
-9. Show the Treasury Yield Console, Treasury Risk Keeper output, and AI memo explaining what happened and why
+9. Show the Treasury Yield Console, Treasury Risk Keeper output, and AI-CFO memo explaining what happened, what is recommended next, and why blocked opportunities remain blocked
 
 Throughout the flow, show the selected Mezo testnet RPC provider. If `make rpc-health` selects Spectrum, call out that live reads, monitoring, and transaction execution are running through **Spectrum Nodes**; if not, show the official fallback honestly and keep Spectrum as the preferred provider path.
 

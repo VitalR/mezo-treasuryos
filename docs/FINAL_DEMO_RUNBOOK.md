@@ -10,7 +10,7 @@ Show TreasuryOS as a policy-governed BTC treasury operating layer on Mezo:
 - policy blocks unsafe or over-threshold actions
 - keeper can propose warning/critical actions
 - keeper can execute bounded live restore and debt-repayment actions while holding only gas
-- AI/advisor output is explanatory only
+- AI-CFO/advisor output analyzes live opportunities, writes memos, and prepares recommendations without controlling funds
 - protocol fees are deployed but disabled
 
 ## Primary Proof Command
@@ -27,7 +27,7 @@ This prints the judge-facing scenario matrix from the current live/internal snap
 - policy-block proof
 - keeper `MONITOR`, warning, and critical cases
 - live keeper restore and idle-MUSD repayment transactions
-- advisory memo summary
+- AI-CFO opportunity review and advisory memo summary
 
 The command is read-only. It does not move funds.
 
@@ -50,7 +50,9 @@ make advisor-opportunities-ai
 ```
 
 The AI memo uses the deterministic advisor report as source data. It is a narrative layer only; it does not calculate
-policy, sign, custody, or execute.
+policy, sign, custody, or execute. The valuable demo point is pre-action treasury analysis: the AI-CFO explains why the
+current recommendation is MUSD Savings, why stable LP is optional, and why BTC LP remains blocked or planning-only under
+current live liquidity and validation facts.
 
 Talk track:
 
@@ -62,11 +64,12 @@ Talk track:
    - Shows the live TreasuryAccount, multisig ownership, deployed addresses, active MUSD debt, MUSD Savings exposure, policy block, and live keeper tx proof.
    - Anchor the narrative on the execution boundary: TreasuryAccount owns positions and assets; keeper only calls bounded executor methods.
 
-3. Advisor memo
+3. AI-CFO advisor memo
    - Shows the advisor can explain current state and recommend allocation using policy-aware facts and the selected `balanced` profile.
+   - Position it as an AI-CFO workflow: monitor, rank, explain, prepare proposals, and report.
    - Reads live Mezo opportunity metadata for MUSD Savings, Tigris MUSD/mUSDC, and Tigris mcbBTC/BTC.
    - Explains why mcbBTC/BTC is or is not usable from the current live quote, BTC policy/validation state, and treasury profile.
-   - State clearly: the advisor is reporting only. It does not sign, custody, or bypass policy.
+   - State clearly: the advisor is not a signer or custodian. It does not bypass policy.
 
 4. Yield console
    - Shows idle MUSD, required buffer, approved sleeve caps, current allocation, and BTC reserve/collateral split.

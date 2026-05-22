@@ -22,6 +22,7 @@ These documents reflect the current product direction:
 - `DEPLOYMENT.md` — testnet deployment modes, ownership paths, and Makefile commands
 - `PROTOCOL_FEES.md` — zero-default protocol fee architecture and future monetization model
 - `TREASURY_PROFILES.md` — advisory/profile presets and their onboarding policy mapping
+- `AI_CFO_AGENT.md` — production AI-CFO / agentic treasury model and guardrails
 - `ROADMAP.md` — build sequence and scope discipline for a 6-week implementation
 - `JUDGE_PITCH.md` — compressed hackathon-facing narrative
 - `BTC_RESERVE_AND_YIELD_SLEEVES.md` — BTC reserve, BTC-denominated sleeve boundaries, and future yield roadmap
