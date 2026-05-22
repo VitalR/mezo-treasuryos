@@ -40,6 +40,8 @@ help:
 	@echo "  make btc-sleeve-broadcast-validation - broadcast tiny guarded mcbBTC/BTC deposit/unwind"
 	@echo "  make yield-console-demo           - render sample Treasury Yield Console"
 	@echo "  make term-planner-demo            - render sample 7/30/60-day Term Yield Planner"
+	@echo "  make advisor-opportunities        - render profile-aware Mezo opportunity advisor"
+	@echo "  make advisor-opportunities-ai     - render advisor plus optional OpenAI memo"
 	@echo "  make btc-sleeve-plan-demo         - render sample mcbBTC/BTC sleeve preview"
 	@echo "  make risk-keeper-demo             - render warning idle-MUSD repayment keeper report"
 	@echo "  make risk-keeper-propose          - render keeper calldata/proposal for demo action"
@@ -167,6 +169,14 @@ yield-console-demo:
 .PHONY: term-planner-demo
 term-planner-demo:
 	npm run demo:term-planner
+
+.PHONY: advisor-opportunities
+advisor-opportunities:
+	npm run advisor:opportunities
+
+.PHONY: advisor-opportunities-ai
+advisor-opportunities-ai:
+	npm run advisor:opportunities:ai
 
 .PHONY: btc-sleeve-plan-demo
 btc-sleeve-plan-demo:

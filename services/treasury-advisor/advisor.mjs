@@ -6,12 +6,50 @@ const RISK_WEIGHT = {
   high: 1,
 };
 
-export function buildTreasuryAdvisorReport(snapshot) {
+const TREASURY_PROFILES = {
+  conservative: {
+    label: "Conservative Treasury",
+    stableLpWeight: -8,
+    savingsWeight: 10,
+    maxStableLpShareBps: 1000,
+    btcYieldEnabled: false,
+    memo: "Prioritize collateral safety, operating liquidity, and MUSD Savings. Stable LP and BTC sleeves are review-only.",
+  },
+  balanced: {
+    label: "Balanced Treasury",
+    stableLpWeight: 0,
+    savingsWeight: 6,
+    maxStableLpShareBps: 2500,
+    btcYieldEnabled: false,
+    memo: "Use MUSD Savings as the default sleeve, with limited stable LP only when liquidity and policy are healthy.",
+  },
+  active: {
+    label: "Active Treasury",
+    stableLpWeight: 6,
+    savingsWeight: 3,
+    maxStableLpShareBps: 4000,
+    btcYieldEnabled: false,
+    memo: "Accept more stablecoin sleeve exposure when the position is healthy, while keeping BTC principal movement gated.",
+  },
+  "aggressive-demo": {
+    label: "Aggressive Demo Treasury",
+    stableLpWeight: 12,
+    savingsWeight: 0,
+    maxStableLpShareBps: 6000,
+    btcYieldEnabled: true,
+    demoOnly: true,
+    memo: "Demonstrates higher-risk routing logic for judges. Not a default institutional treasury posture.",
+  },
+};
+
+export function buildTreasuryAdvisorReport(snapshot, options = {}) {
   const composition = snapshot.composition ?? {};
   const health = snapshot.health ?? {};
+  const profile = resolveProfile(options.profileName ?? snapshot.riskKeeper?.strategyProfile ?? snapshot.strategyProfile);
   const sleeves = normalizeSleeves(snapshot.sleeves ?? []);
   const btcSleeves = normalizeBTCSleeves(snapshot.btcSleeves ?? []);
   const btcSleevePlan = snapshot.btcSleevePlan ?? null;
+  const opportunities = normalizeOpportunities(options.opportunities ?? snapshot.opportunities);
   const idleMUSD = asNumber(composition.idleMUSD);
   const requiredBufferMUSD = asNumber(composition.liquidityBufferMUSD);
   const surplusMUSD = Math.max(0, asNumber(composition.deployableSurplusMUSD, idleMUSD - requiredBufferMUSD));
@@ -21,7 +59,7 @@ export function buildTreasuryAdvisorReport(snapshot) {
   const riskState = health.belowCriticalRatio ? "critical" : health.belowWarningRatio ? "warning" : "healthy";
   const allocationCandidates = sleeves
     .filter((sleeve) => sleeve.approved && sleeve.remainingCapacityMUSD > 0)
-    .sort(compareSleevesForAllocation);
+    .sort((left, right) => compareSleevesForAllocation(left, right, profile));
 
   const automationAction = chooseAutomationAction({
     bufferShortfallMUSD,
@@ -29,10 +67,20 @@ export function buildTreasuryAdvisorReport(snapshot) {
     sleeves,
     requestedRepayMUSD: Math.min(totalAllocatedMUSD, asNumber(snapshot.position?.totalDebtMUSD)),
   });
-  const allocationPlan = buildAllocationPlan(surplusMUSD, riskState, allocationCandidates);
+  const allocationPlan = buildAllocationPlan(surplusMUSD, riskState, allocationCandidates, profile);
+  const opportunityReview = buildOpportunityReview({
+    sleeves,
+    btcSleeves,
+    btcSleevePlan,
+    opportunities,
+    profile,
+    riskState,
+    surplusMUSD,
+  });
 
   return {
     treasuryName: snapshot.treasuryName ?? "Mezo TreasuryOS Treasury",
+    profile,
     summary: {
       idleMUSD,
       requiredBufferMUSD,
@@ -45,9 +93,11 @@ export function buildTreasuryAdvisorReport(snapshot) {
     sleeves,
     btcSleeves,
     btcSleevePlan,
+    opportunities,
+    opportunityReview,
     allocationPlan,
     automationAction,
-    memo: buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan, automationAction, sleeves }),
+    memo: buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan, automationAction, sleeves, profile }),
     btcMemo: buildBTCMemo({ btc, btcSleeves, btcSleevePlan, riskState }),
     guardrails: [
       "Advisor output is reporting only and does not control funds.",
@@ -61,6 +111,9 @@ export function buildTreasuryAdvisorReport(snapshot) {
 export function formatAdvisorReport(report) {
   const lines = [];
   lines.push(`Treasury Advisor: ${report.treasuryName}`);
+  lines.push("");
+  lines.push(`Treasury profile: ${report.profile.label}${report.profile.demoOnly ? " (demo-only)" : ""}`);
+  lines.push(`Profile memo: ${report.profile.memo}`);
   lines.push("");
   lines.push(`Risk state: ${report.summary.riskState}`);
   lines.push(`Idle MUSD: ${formatMUSD(report.summary.idleMUSD)}`);
@@ -117,6 +170,16 @@ export function formatAdvisorReport(report) {
   }
 
   lines.push("");
+  lines.push("Opportunity review:");
+  if (report.opportunityReview.length === 0) {
+    lines.push("- No external opportunity metadata was provided; using configured sleeves only.");
+  } else {
+    for (const opportunity of report.opportunityReview) {
+      lines.push(`- ${opportunity.label}: ${opportunity.decision} - ${opportunity.reason}`);
+    }
+  }
+
+  lines.push("");
   lines.push("Recommended allocation plan:");
   if (report.allocationPlan.length === 0) {
     lines.push("- No new allocation recommended.");
@@ -146,15 +209,18 @@ export function formatAdvisorReport(report) {
   return lines.join("\n");
 }
 
-function buildAllocationPlan(surplusMUSD, riskState, sleeves) {
+function buildAllocationPlan(surplusMUSD, riskState, sleeves, profile) {
   if (surplusMUSD <= 0 || riskState !== "healthy") return [];
 
   const plan = [];
   let remaining = surplusMUSD;
+  const stableLpBudget = surplusMUSD * profile.maxStableLpShareBps / 10_000;
+  let stableLpAllocated = 0;
 
   for (const sleeve of sleeves) {
     if (remaining <= 0) break;
-    const amount = Math.min(remaining, sleeve.remainingCapacityMUSD);
+    const sleeveBudget = isStableLp(sleeve) ? Math.max(0, stableLpBudget - stableLpAllocated) : remaining;
+    const amount = Math.min(remaining, sleeve.remainingCapacityMUSD, sleeveBudget);
     if (amount <= 0) continue;
 
     plan.push({
@@ -163,9 +229,10 @@ function buildAllocationPlan(surplusMUSD, riskState, sleeves) {
       amountMUSD: amount,
       annualYieldBps: sleeve.annualYieldBps,
       projectedYieldMUSD: projectYield(amount, sleeve.annualYieldBps),
-      reason: allocationReason(sleeve),
+      reason: allocationReason(sleeve, profile),
     });
     remaining -= amount;
+    if (isStableLp(sleeve)) stableLpAllocated += amount;
   }
 
   return plan;
@@ -220,7 +287,7 @@ function bestAutomationSource(sleeves) {
     .sort((left, right) => left.unwindDays - right.unwindDays || right.allocatedMUSD - left.allocatedMUSD)[0] ?? null;
 }
 
-function buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan, automationAction, sleeves }) {
+function buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan, automationAction, sleeves, profile }) {
   if (riskState !== "healthy") {
     return "Collateral health is weakening. Do not allocate more surplus until the treasury reviews repayment or collateral actions.";
   }
@@ -251,7 +318,7 @@ function buildMemo({ riskState, surplusMUSD, bufferShortfallMUSD, allocationPlan
 
   const suffix = sleeveNotes.length > 0 ? ` ${sleeveNotes.join("; ")}.` : "";
 
-  return `Idle MUSD exceeds buffer by ${formatMUSD(
+  return `${profile.label}: idle MUSD exceeds buffer by ${formatMUSD(
     surplusMUSD,
   )}. Allocate across approved sleeves according to caps and risk ranking.${suffix}`;
 }
@@ -358,22 +425,109 @@ function buildBTCMemo({ btc, btcSleeves, btcSleevePlan, riskState }) {
   return notes.join(" ");
 }
 
-function compareSleevesForAllocation(left, right) {
-  const leftScore = allocationScore(left);
-  const rightScore = allocationScore(right);
+function buildOpportunityReview({ sleeves, btcSleeves, btcSleevePlan, opportunities, profile, riskState, surplusMUSD }) {
+  const reviews = [];
+
+  for (const opportunity of opportunities) {
+    if (opportunity.kind === "musd-savings") {
+      const sleeve = sleeves.find((candidate) => /savings|vault/i.test(candidate.label));
+      reviews.push({
+        label: opportunity.label,
+        decision: sleeve?.approved ? "USE_AS_PRIMARY_MUSD_SLEEVE" : "CONFIGURE_BEFORE_USE",
+        reason: sleeve?.approved
+          ? `${profile.label} can use this as the default idle-MUSD sleeve; capacity ${formatMUSD(sleeve.remainingCapacityMUSD)}.`
+          : "Savings vault exists, but it is not approved in the current TreasuryAccount policy snapshot.",
+      });
+      continue;
+    }
+
+    if (opportunity.kind === "stable-lp") {
+      const sleeve = sleeves.find((candidate) => /musdc|stable|lp/i.test(candidate.label));
+      const healthy = riskState === "healthy" && surplusMUSD > 0;
+      const profileAllows = profile.maxStableLpShareBps > 0;
+      const decision = sleeve?.approved && healthy && profileAllows ? "OPTIONAL_LIMITED_ALLOCATION" : "WATCH_ONLY";
+      reviews.push({
+        label: opportunity.label,
+        decision,
+        reason: decision === "OPTIONAL_LIMITED_ALLOCATION"
+          ? `${profile.label} may allocate a limited share to stable LP after route/liquidity checks; cap share ${formatBps(profile.maxStableLpShareBps)}.`
+          : "Do not allocate unless collateral health is healthy, surplus exists, and the destination is approved with route liquidity validated.",
+      });
+      continue;
+    }
+
+    if (opportunity.kind === "btc-correlated") {
+      const sleeve = btcSleeves.find((candidate) => /mcbbtc|btc/i.test(candidate.label));
+      const planBlocked = btcSleevePlan && !btcSleevePlan.policy?.allowed;
+      const shallow = opportunity.priceImpactBps > 0 && opportunity.priceImpactBps >= 500;
+      const noExecution = !sleeve?.executable;
+      const decision = profile.btcYieldEnabled && !planBlocked && !shallow && !noExecution
+        ? "MULTISIG_PREVIEW_ONLY"
+        : "BLOCK_FOR_NOW";
+      const blockers = [];
+      if (shallow) blockers.push(`current quote impact is ${formatBps(opportunity.priceImpactBps)}`);
+      if (planBlocked) blockers.push(`BTC policy blocks with ${btcSleevePlan.policy?.reason ?? "unknown"}`);
+      if (noExecution) blockers.push("main demo treasury has no validated live BTC sleeve execution path");
+      reviews.push({
+        label: opportunity.label,
+        decision,
+        reason: blockers.length > 0
+          ? `Do not use for current testnet execution: ${blockers.join("; ")}. Keep as guarded Bitcoin-yield research.`
+          : "BTC-correlated sleeve can be prepared as a multisig preview, but should not be keeper-executed.",
+      });
+    }
+  }
+
+  return reviews;
+}
+
+function compareSleevesForAllocation(left, right, profile) {
+  const leftScore = allocationScore(left, profile);
+  const rightScore = allocationScore(right, profile);
   return rightScore - leftScore || right.remainingCapacityMUSD - left.remainingCapacityMUSD;
 }
 
-function allocationScore(sleeve) {
+function allocationScore(sleeve, profile) {
   const riskScore = RISK_WEIGHT[sleeve.riskTier] ?? RISK_WEIGHT.medium;
   const capPenalty = sleeve.capPressure >= 0.9 ? 3 : sleeve.capPressure >= 0.75 ? 1 : 0;
-  return sleeve.annualYieldBps / 100 + riskScore * 4 - capPenalty - sleeve.unwindDays / 10;
+  const savingsBonus = /savings|vault/i.test(sleeve.label) ? profile.savingsWeight : 0;
+  const stableLpBonus = isStableLp(sleeve) ? profile.stableLpWeight : 0;
+  return sleeve.annualYieldBps / 100 + riskScore * 4 + savingsBonus + stableLpBonus - capPenalty - sleeve.unwindDays / 10;
 }
 
-function allocationReason(sleeve) {
+function allocationReason(sleeve, profile) {
   if (sleeve.capPressure >= 0.75) return "approved but capacity-constrained";
-  if (sleeve.riskTier === "low") return "lowest-risk approved sleeve with available cap";
+  if (sleeve.riskTier === "low") return `${profile.label} prefers this low-risk approved sleeve`;
+  if (isStableLp(sleeve)) return `${profile.label} allows limited stable LP exposure when route health is acceptable`;
   return "approved sleeve with available cap and higher yield assumption";
+}
+
+function isStableLp(sleeve) {
+  return /musdc|musdt|stable|lp/i.test(sleeve.label) && !/savings|vault/i.test(sleeve.label);
+}
+
+function resolveProfile(name) {
+  const key = String(name ?? "balanced").toLowerCase();
+  return {
+    key: TREASURY_PROFILES[key] ? key : "balanced",
+    ...(TREASURY_PROFILES[key] ?? TREASURY_PROFILES.balanced),
+  };
+}
+
+function normalizeOpportunities(opportunities) {
+  if (Array.isArray(opportunities)) return opportunities.map(normalizeOpportunity);
+  if (Array.isArray(opportunities?.items)) return opportunities.items.map(normalizeOpportunity);
+  return [];
+}
+
+function normalizeOpportunity(opportunity) {
+  return {
+    label: opportunity.label ?? "Mezo opportunity",
+    kind: String(opportunity.kind ?? "unknown").toLowerCase(),
+    address: opportunity.address ?? null,
+    priceImpactBps: asNumber(opportunity.priceImpactBps),
+    note: opportunity.note ?? "",
+  };
 }
 
 function normalizeBTC(snapshot, btcSleeves) {

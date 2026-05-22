@@ -162,3 +162,33 @@ test("buildTreasuryAdvisorReport flags directional BTC stable LP candidates", ()
   assert.match(report.btcMemo, /changes pure BTC exposure/);
   assert.equal(report.btcSleeves[0].status, "research");
 });
+
+test("buildTreasuryAdvisorReport applies profile-specific stable LP appetite", () => {
+  const conservative = buildTreasuryAdvisorReport(BASE_SNAPSHOT, { profileName: "conservative" });
+  const active = buildTreasuryAdvisorReport(BASE_SNAPSHOT, { profileName: "active" });
+
+  assert.equal(conservative.profile.key, "conservative");
+  assert.equal(conservative.allocationPlan[0].label, "MUSD Savings Vault");
+  assert.equal(active.profile.key, "active");
+  assert.equal(active.profile.maxStableLpShareBps, 4000);
+});
+
+test("buildTreasuryAdvisorReport reviews live Mezo opportunities without treating BTC sleeve as executable", () => {
+  const report = buildTreasuryAdvisorReport(BASE_SNAPSHOT, {
+    profileName: "aggressive-demo",
+    opportunities: {
+      items: [
+        { label: "MUSD Savings Vault", kind: "musd-savings" },
+        { label: "Tigris Basic Stable MUSD/mUSDC", kind: "stable-lp" },
+        { label: "Tigris mcbBTC/BTC", kind: "btc-correlated", priceImpactBps: 4851 },
+      ],
+    },
+  });
+
+  assert.equal(report.profile.key, "aggressive-demo");
+  assert.equal(report.opportunityReview.length, 3);
+  assert.equal(report.opportunityReview[0].decision, "USE_AS_PRIMARY_MUSD_SLEEVE");
+  assert.equal(report.opportunityReview[1].decision, "OPTIONAL_LIMITED_ALLOCATION");
+  assert.equal(report.opportunityReview[2].decision, "BLOCK_FOR_NOW");
+  assert.match(report.opportunityReview[2].reason, /48.51%/);
+});

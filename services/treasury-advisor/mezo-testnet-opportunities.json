@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "label": "MUSD Savings Vault",
+      "kind": "musd-savings",
+      "address": "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
+      "note": "Primary V1 MUSD operating-capital sleeve. Testnet APR is demo data, not a production guarantee."
+    },
+    {
+      "label": "Tigris Basic Stable MUSD/mUSDC",
+      "kind": "stable-lp",
+      "address": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+      "note": "Optional V1 MUSD sleeve after route-health and liquidity checks; keep caps tighter than MUSD Savings."
+    },
+    {
+      "label": "Tigris mcbBTC/BTC",
+      "kind": "btc-correlated",
+      "address": "0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E",
+      "priceImpactBps": 4851,
+      "note": "BTC-correlated candidate. Current testnet liquidity is shallow; 0.0001 BTC quoted to about 0.00005149 mcbBTC during sanity check."
+    }
+  ]
+}

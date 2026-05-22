@@ -38,10 +38,19 @@ Run this sequence for the final proof. Steps 1-5 are read-only and are the prefe
 ```bash
 make demo-status
 make scenario-proof
-node services/treasury-advisor/run.mjs draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json
+make advisor-opportunities
 node services/yield-console/render.mjs draft/internal/live-fixed-stack-after-keeper-repay-snapshot.json
 make risk-keeper-propose-critical
 ```
+
+Optional AI memo:
+
+```bash
+make advisor-opportunities-ai
+```
+
+The AI memo uses the deterministic advisor report as source data. It is a narrative layer only; it does not calculate
+policy, sign, custody, or execute.
 
 Talk track:
 
@@ -54,7 +63,9 @@ Talk track:
    - Anchor the narrative on the execution boundary: TreasuryAccount owns positions and assets; keeper only calls bounded executor methods.
 
 3. Advisor memo
-   - Shows the advisor can explain current state and recommend allocation using policy-aware facts.
+   - Shows the advisor can explain current state and recommend allocation using policy-aware facts and the selected `balanced` profile.
+   - Reviews MUSD Savings, Tigris MUSD/mUSDC, and Tigris mcbBTC/BTC as Mezo opportunities.
+   - Explains why mcbBTC/BTC is not used for current testnet execution: shallow liquidity, high price impact, no validated live BTC sleeve path for the main treasury.
    - State clearly: the advisor is reporting only. It does not sign, custody, or bypass policy.
 
 4. Yield console
