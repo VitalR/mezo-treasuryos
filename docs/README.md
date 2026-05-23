@@ -16,27 +16,24 @@ These documents reflect the current product direction:
 
 ## Canonical Docs
 
-- `PRODUCT_VISION.md` — product thesis, positioning, customer, and product boundaries
-- `PROJECT_SPEC.md` — V1 scope, required workflows, policies, and product requirements
 - `ARCHITECTURE.md` — V1 system shape, control boundaries, and core components
+- `SYSTEM_SCHEMA.md` — compact system diagrams, control boundaries, and demo-proven scenario map
 - `DEPLOYMENT.md` — testnet deployment modes, ownership paths, and Makefile commands
 - `PROTOCOL_FEES.md` — zero-default protocol fee architecture and future monetization model
-- `DASHBOARD_UX_PLAN.md` — read-only TreasuryOS Command Center scope and dashboard data flow
-- `TREASURY_PROFILES.md` — advisory/profile presets and their onboarding policy mapping
+- `DASHBOARD.md` — read-only TreasuryOS Command Center scope and dashboard data flow
 - `AI_CFO_AGENT.md` — production AI-CFO / agentic treasury model and guardrails
-- `ROADMAP.md` — build sequence and scope discipline for a 6-week implementation
-- `JUDGE_PITCH.md` — compressed hackathon-facing narrative
+- `ROADMAP.md` — submission status and post-hackathon product roadmap
 - `BTC_RESERVE_AND_YIELD_SLEEVES.md` — BTC reserve, BTC-denominated sleeve boundaries, and future yield roadmap
+- `FINAL_DEMO_RUNBOOK.md` — final judge flow, proof commands, and transaction evidence
+- `MEZO_TESTNET_DEPLOYMENT.md` — active deployed addresses, verification notes, and environment values
+- `TREASURY_RISK_KEEPER.md` — bounded automation and defense model
 
 ---
 
-## Draft Archive
+## Draft Boundary
 
-Earlier V1 docs, exploratory reviews, and superseded drafts have been moved to:
-
-- `draft/docs/`
-
-That archive preserves the earlier thinking without mixing it into the primary product narrative.
+Earlier exploratory notes and superseded drafts should stay out of the public docs set. The submitted docs should stay
+focused on the current product, deployed demo, and control architecture.
 
 ---
 
@@ -50,6 +47,7 @@ That archive preserves the earlier thinking without mixing it into the primary p
 - **Destination layer:** Allocation Router + Sleeve Handlers
 - **Reporting layer:** Treasury Reporting Layer
 - **BTC reserve model:** BTC reserve and BTC-denominated sleeves, kept separate from MUSD operating-capital sleeves
+- **AI-CFO model:** advisory and proposal preparation only; policy, multisig, and bounded keepers decide what can move
 
 ---
 
@@ -68,3 +66,5 @@ The current V1 is built around one workflow:
 9. produce treasury reporting
 
 If the product does not support that end-to-end flow, it is outside the current V1 scope.
+
+For a fast judge-facing architecture view, start with `SYSTEM_SCHEMA.md`.

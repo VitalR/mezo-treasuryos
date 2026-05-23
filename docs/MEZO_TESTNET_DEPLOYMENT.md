@@ -58,6 +58,13 @@ through the router and live handler. For the MUSD Savings Vault this transfers M
 Savings vault, mints sMUSD to the TreasuryAccount, decreases `idleMUSD`, and increases
 `destinationAllocations(destination)`.
 
+Explorer note: the final demo allocation transaction is sent through the client `TreasuryMultisig` to
+`TreasuryAccount.allocate`, which internally calls `AllocationRouter.depositFor` and then the registered handler. The
+router dispatch does not emit a deposit event, so the router address page may only show deployment and handler
+registration logs. The allocation proof is the successful TreasuryMultisig/TreasuryAccount transaction plus MUSD/sMUSD
+token transfers, `TreasuryAccount.AllocationExecuted`, and `MUSDSavingsRateHandler` deposit events. The handler is
+router-gated, so its deposit event proves the router path was used.
+
 If no handler is registered, `allocate(...)` remains a manual accounting-only path for externally settled destinations.
 Do not use an unregistered live destination as demo proof of deployed capital.
 

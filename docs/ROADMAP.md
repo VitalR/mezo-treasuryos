@@ -32,6 +32,29 @@ By the end of the build, TreasuryOS should demonstrate one full treasury workflo
 
 If that workflow works end to end, the build is successful.
 
+## Current Submission Status
+
+The current Mezo testnet demo satisfies the V1 build objective through one multisig-owned client treasury:
+
+- `TreasuryAccountFactory` deploys clone accounts from the verified implementation.
+- One client `TreasuryAccount` is owned by a one-signer `TreasuryMultisig` for the beginning.
+- BTC collateral was deposited through TreasuryOS and a live MUSD position was opened.
+- Borrowed MUSD landed in the Treasury Account and was allocated to MUSD Savings through `TreasuryAccount.allocate`.
+- Policy proof shows blocked unsafe or over-threshold actions.
+- Keeper proof includes live buffer restoration and live idle-MUSD debt repayment, plus critical sleeve-funded repayment calldata.
+- AI-CFO proof includes live opportunity reads, deterministic ranking, blocked-opportunity explanation, and proposal packet generation.
+- Dashboard proof is read-only and generated from sanitized TreasuryOS snapshots plus public Mezo testnet data.
+
+Submission posture:
+
+- MUSD Savings is the reliable V1 live sleeve.
+- MUSD/mUSDC remains optional and route-health dependent.
+- mcbBTC/BTC remains guarded BTC-yield research until tiny broadcast validation is completed under acceptable liquidity and price-impact conditions.
+- Protocol fees are deployed for future monetization, disabled by default, and not wired into treasury execution.
+
+The next work should prioritize final submission polish, hosted dashboard deployment, and demo rehearsal over new live
+state mutations.
+
 ---
 
 ## Build Strategy
@@ -96,10 +119,10 @@ The AI-CFO posture is deliberately constrained: AI can monitor, explain, rank, a
 
 ### Deliverables
 
-- `PRODUCT_VISION.md`
-- `PROJECT_SPEC.md`
+- public product narrative in `README.md`
+- final demo proof in `FINAL_DEMO_RUNBOOK.md`
 - `ARCHITECTURE.md`
-- `JUDGE_PITCH.md`
+- compact reviewer schema in `SYSTEM_SCHEMA.md`
 - confirmed integration assumptions for Mezo borrow and sleeve destinations
 - Spectrum Nodes selected and documented as the primary Mezo testnet RPC provider, with multi-endpoint health checks and official Mezo RPC fallback if no Spectrum candidate answers as Mezo EVM testnet
 - Goldsky indexing scaffold for treasury activity and reporting
