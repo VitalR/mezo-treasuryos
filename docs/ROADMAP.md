@@ -2,438 +2,533 @@
 
 ## Purpose
 
-This roadmap defines the build sequence for **Mezo TreasuryOS V1** under the current product direction.
+This roadmap describes how **Mezo TreasuryOS** can grow from a one-tenant Mezo testnet workflow into a treasury platform for BTC-backed operating capital.
 
-The roadmap is designed for a serious 6-week build where the output should look like:
+The current submission proves the product spine:
 
-- a real treasury product
-- tightly integrated with Mezo
-- institutional in posture
-- narrow enough to finish
+1. a client-isolated Treasury Account;
+2. BTC-backed MUSD borrowing through TreasuryOS;
+3. MUSD operating-capital management;
+4. policy-governed allocation into approved sleeves;
+5. bounded keeper defense;
+6. AI-CFO advisory reporting;
+7. dashboard and audit-trail proof.
 
-This roadmap intentionally avoids expanding into a broad future-platform program.
+The next roadmap should not be a list of infrastructure tasks. It should answer a bigger product question:
+
+> How does TreasuryOS become the operating system for Bitcoin treasuries on Mezo?
 
 ---
 
-## V1 Build Objective
+## Product Direction
 
-By the end of the build, TreasuryOS should demonstrate one full treasury workflow:
+TreasuryOS should become a **policy-governed treasury platform** for BTC-backed MUSD capital.
 
-1. create a Treasury Account
-2. configure treasury owner, roles, and policy settings
-3. deposit BTC and borrow MUSD through TreasuryOS
-4. receive MUSD into the Treasury Account
-5. preserve a configured operating buffer
-6. disburse operating MUSD through the required treasury control path
-7. allocate approved surplus MUSD into approved Mezo-native sleeves
-8. trigger a stress or liquidity condition
-9. show a bounded automated treasury response
-10. produce reviewer-facing reporting
+The platform direction is:
 
-If that workflow works end to end, the build is successful.
+- **AI-assisted BTC treasury management**
+- **automated treasury operations**
+- **yield optimization across approved MUSD and BTC opportunities**
+- **risk management for BTC-backed borrowing**
+- **accounting, audit, and compliance-ready reporting**
+- **multi-sig and external custody workflows**
+- **paid treasury intelligence through x402-style service access**
 
-## Current Submission Status
+The core line stays unchanged:
 
-The current Mezo testnet demo satisfies the V1 build objective through one multisig-owned client treasury:
+> The AI-CFO can recommend and prepare. Policy, multisig, and bounded executors decide what can move.
 
-- `TreasuryAccountFactory` deploys clone accounts from the verified implementation.
-- One client `TreasuryAccount` is owned by a one-signer `TreasuryMultisig` for the beginning.
-- BTC collateral was deposited through TreasuryOS and a live MUSD position was opened.
-- Borrowed MUSD landed in the Treasury Account and was allocated to MUSD Savings through `TreasuryAccount.allocate`.
-- Policy proof shows blocked unsafe or over-threshold actions.
-- Keeper proof includes live buffer restoration and live idle-MUSD debt repayment, plus critical sleeve-funded repayment calldata.
+TreasuryOS should not become an unchecked AI trader, a generic yield vault, or a custody provider.
+
+---
+
+## Current Submission Baseline
+
+The current Mezo testnet demo proves one live institutional treasury workflow:
+
+- `TreasuryAccountFactory` deploys isolated client Treasury Accounts.
+- One client `TreasuryAccount` is owned by a TreasuryOS-native `TreasuryMultisig`.
+- BTC collateral was deposited through TreasuryOS.
+- A live MUSD position was opened on Mezo testnet.
+- Borrowed MUSD landed in the Treasury Account.
+- MUSD was allocated to MUSD Savings through `TreasuryAccount.allocate`.
+- `TreasuryPolicyEngine` proves allowed, blocked, and approval-bound decisions.
+- `TreasuryAutomationExecutor` supports bounded keeper defense.
+- Keeper proof includes live buffer restoration and live idle-MUSD debt repayment.
 - AI-CFO proof includes live opportunity reads, deterministic ranking, blocked-opportunity explanation, and proposal packet generation.
 - Dashboard proof is read-only and generated from sanitized TreasuryOS snapshots plus public Mezo testnet data.
 
 Submission posture:
 
-- MUSD Savings is the reliable V1 live sleeve.
-- MUSD/mUSDC remains optional and route-health dependent.
-- mcbBTC/BTC remains guarded BTC-yield research until tiny broadcast validation is completed under acceptable liquidity and price-impact conditions.
-- Protocol fees are deployed for future monetization, disabled by default, and not wired into treasury execution.
-
-The next work should prioritize final submission polish, hosted dashboard deployment, and demo rehearsal over new live
-state mutations.
-
----
-
-## Build Strategy
-
-The roadmap should follow one rule:
-
-**build the product spine first**
-
-The product spine is:
-
-- Treasury Account
-- Treasury Account-owned Mezo position lifecycle
-- Treasury Policy Engine
-- optional TreasuryMultisig or external multisig/custody owner
-- one allocation router
-- two sleeve handlers
-- one automation loop
-- one reporting loop
-
-Anything that does not strengthen that spine should be deferred.
-
-## Yield And Investment Angle
-
-The yield angle belongs inside the treasury workflow, not beside it as a separate product.
-
-V1 should add:
-
-- policy-governed yield allocation of surplus MUSD only
-- a Treasury Yield Console that shows idle MUSD, required buffer, allocatable surplus, approved sleeves, caps, exposure, and the policy decision for a proposed allocation
-- an AI-CFO advisory layer that reads state and live Mezo opportunities, ranks policy-aware actions, writes memos, and prepares proposals while never controlling funds
-- a lightweight Term Yield Planner for 7/30/60-day treasury planning, using projected assumptions, review dates, buffer constraints, and unwind conditions
-- BTC reserve and collateral reporting that distinguishes retained BTC-denominated exposure from borrowed MUSD operating capital
-- BTC-denominated sleeve candidates marked as planning-only unless a separate BTC accounting/policy path and verified handler target exist
-- liquidation-defense policy and keeper output so TreasuryOS can block unsafe borrow/allocation structures and defend positions before yield routing
-
-V1 should not build:
-
-- a proprietary high-yield vault
-- a general strategy marketplace
-- a Pendle-style fixed-yield protocol
-- autonomous AI execution
-- executable BTC-principal allocation through the MUSD `AllocationRouter`
-
-The right posture is: TreasuryOS helps a treasury decide, approve, execute, and explain approved Mezo-native allocation of surplus MUSD, while accounting for BTC reserve and BTC collateral separately.
-
-The AI-CFO posture is deliberately constrained: AI can monitor, explain, rank, and draft proposals. `TreasuryPolicyEngine`,
-`TreasuryMultisig`, and `TreasuryAutomationExecutor` define what can actually execute.
+- **MUSD Savings** is the reliable live V1 sleeve.
+- **Tigris MUSD/mUSDC** is contract-ready but route-health dependent on current testnet liquidity.
+- **Tigris mcbBTC/BTC** is a guarded BTC-correlated yield candidate; it remains blocked in the current testnet demo until liquidity, price impact, and controlled tiny broadcast validation are acceptable.
+- **Protocol fees** are deployed for future monetization, disabled by default, and not wired into treasury execution.
+- **Goldsky indexing** is a reporting/indexing scaffold, not the current source of live dashboard truth.
+- **Spectrum Nodes** remain the preferred Mezo testnet RPC path, with honest fallback handling when needed.
 
 ---
 
-## Phase 0 — Product Lock And Reference Validation
+## Roadmap Summary
 
-### Goals
-
-- lock the product thesis
-- lock the V1 workflow
-- lock naming and positioning
-- confirm the Mezo integration surfaces to use
-- lock the primary Mezo testnet RPC provider
-- lock the approved Mezo testnet sleeve set
-- reduce ambiguity before implementation starts
-
-### Deliverables
-
-- public product narrative in `README.md`
-- final demo proof in `FINAL_DEMO_RUNBOOK.md`
-- `ARCHITECTURE.md`
-- compact reviewer schema in `SYSTEM_SCHEMA.md`
-- confirmed integration assumptions for Mezo borrow and sleeve destinations
-- Spectrum Nodes selected and documented as the primary Mezo testnet RPC provider, with multi-endpoint health checks and official Mezo RPC fallback if no Spectrum candidate answers as Mezo EVM testnet
-- Goldsky indexing scaffold for treasury activity and reporting
-- Tigris testnet sleeve targets identified and documented
-
-### Success criteria
-
-- the team can explain the product in one clear sentence
-- the V1 workflow is concrete and stable
-- the sleeve set is locked
-- the RPC decision is locked early enough to shape the monitoring and demo stack
-- `make rpc-health` selects Spectrum when a configured Spectrum endpoint returns chain ID `31611`, otherwise falls back honestly
-- the product is clearly differentiated from Mezo Institutional without retreating from the subtrack
+| Platform area | Next expansion | Product value | Boundary |
+| --- | --- | --- | --- |
+| AI-CFO robo-advisor | Client-specific AI-CFO agents with what-if planning, policy-scored recommendations, proposal packets, and post-action reports | Turns TreasuryOS into an active treasury operator assistant | AI does not sign, custody, or bypass policy |
+| Automated treasury operations | Scheduled buffer reviews, debt repayment, collateral defense, surplus sweep proposals, and policy-triggered escalation | Reduces manual treasury work and improves risk response | Routine actions stay capped; elevated actions require owner approval |
+| Yield optimization | More Mezo-native MUSD/BTC sleeves, Tigris routes, BTC vaults, lock/staking-style positions, and unwind-aware allocation | Helps treasuries earn on approved surplus without blindly chasing APY | Route, liquidity, price-impact, and withdrawal constraints must pass policy |
+| Borrowing and risk management | Credit-line style monitoring, collateral-ratio alerts, stress tests, liquidation-defense planning, and de-risk execution paths | Makes BTC-backed leverage safer for operating treasuries | Risk-reducing actions are prioritized before yield |
+| Accounting and reporting | Report packs, audit trails, policy decision history, approval evidence, and accounting exports | Makes TreasuryOS useful for finance teams, auditors, and institutional diligence | Reports reflect observed onchain state and deterministic snapshots |
+| Compliance-ready controls | Destination allowlists, role policies, approval thresholds, KYB/client metadata, and restricted operating disbursements | Supports institutional treasury workflows beyond raw DeFi usage | Internal control infrastructure, not legal-compliance overclaiming |
+| Mezo ecosystem expansion | Broader MUSD and BTC opportunity coverage as production-grade surfaces become available | Turns TreasuryOS into a routing and control layer for Mezo treasury capital | Integrations added only after safety and unwind validation |
+| x402-paid treasury intelligence | Paid AI-CFO reports, risk snapshots, audit packs, strategy simulations, and agent-readable APIs | Creates a monetization layer for treasury intelligence | Payments gate intelligence and reporting, not custody or emergency execution |
 
 ---
 
-## Phase 1 — Treasury Control Foundation
+## V1 — Current Product Spine
 
-### Goals
+V1 proves that BTC-backed MUSD borrowing can become governed treasury capital.
 
-- implement client-isolated Treasury Account deployment
-- implement the initial Treasury Policy Engine
-- define roles, approvals, and treasury action boundaries
-- add multisig-compatible Treasury Account ownership for critical treasury actions
-- establish event model for state and reporting
-- prepare the event and read model for Spectrum-backed treasury state services
+### What V1 proves
 
-### Deliverables
+- Client-isolated Treasury Account deployment
+- TreasuryOS-native multisig ownership
+- BTC-backed MUSD borrow flow through TreasuryOS
+- Required MUSD operating buffer
+- Policy-governed MUSD Savings allocation
+- Keeper-driven buffer restoration
+- Keeper-driven idle-MUSD debt repayment
+- AI-CFO memo and proposal packet
+- Read-only institutional dashboard
+- Audit trail with live Mezo testnet proof
 
-- `TreasuryAccountFactory`
-- `TreasuryAccount`
-- initial `TreasuryPolicyEngine`
-- `TreasuryMultisig` for optional onboarding/demo treasury control
-- unit tests for account isolation and policy enforcement
-- unit tests proving multisig-controlled setup and business MUSD disbursement
-- treasury event schema
-- RPC and event-read assumptions documented for Spectrum-backed state consumption
+### V1 principle
 
-### Success criteria
+TreasuryOS should protect the treasury position before chasing yield.
 
-- a new treasury can deploy an isolated Treasury Account
-- basic treasury roles and permissions are enforceable
-- critical setup and elevated operating withdrawals can be executed by a multisig/custody owner
-- bounded automation remains separate from multisig-controlled business withdrawals
-- at least the core policies are working:
-  - role policy
-  - approval policy
-  - liquidity buffer policy
-  - allowed sleeve policy
-  - allocation cap policy
+That means:
+
+- preserve operating liquidity first;
+- defend collateral health before new allocation;
+- route only approved surplus;
+- block unvalidated BTC sleeve execution;
+- explain every decision.
 
 ---
 
-## Phase 2 — Borrow Origination Through TreasuryOS
+## V1.1 — Productize The Treasury Workspace
 
-### Goals
+The first post-submission step is not “more integrations.” It is making the one-tenant workflow usable by real operators.
 
-- integrate Mezo-native BTC-backed borrow flow into TreasuryOS
-- make TreasuryOS the product entry point for treasury origination
-- ensure Treasury Account owns the position lifecycle and borrowed MUSD
-- wire Spectrum Nodes into testnet reads and transaction broadcasting for this flow
+### 1. Hosted report packs
 
-### Deliverables
+Turn the read-only dashboard into a shareable treasury review surface:
 
-- Treasury Account position lifecycle methods
-- integration tests covering deposit plus borrow flow
-- state model showing debt-position context and Treasury Account MUSD state
-- Spectrum-backed RPC configuration for borrow-related reads and writes
+- monthly treasury report;
+- investment committee memo;
+- keeper action summary;
+- policy decision history;
+- allocation exposure report;
+- blocked-opportunity report.
 
-### Success criteria
+Value:
 
-- treasury can initiate deposit plus borrow without leaving TreasuryOS
-- minted MUSD arrives in the Treasury Account
-- the product clearly shows the relationship between the borrow position and treasury-managed MUSD
-- treasury-controlled open and adjust actions are checked against configured projected collateral-ratio and stress policy
-- the testnet borrow workflow is running through Spectrum Nodes as the primary RPC path
+- useful for treasury reviews;
+- useful for diligence;
+- useful for post-action accountability.
 
-### Notes
+Boundary:
 
-This phase is strategically critical.
-If borrow origination or position ownership is weak or fake, the whole product becomes a post-draw shell again.
+- read-only;
+- no signing;
+- no hidden execution.
 
----
+### 2. Advisor what-if planning
 
-## Phase 3 — Governed Allocation Layer
+Add pre-action planning before funds move:
 
-### Goals
+- borrow more MUSD;
+- repay debt;
+- allocate surplus;
+- restore buffer;
+- unwind a sleeve;
+- test a BTC price shock;
+- compare conservative, balanced, and active profiles.
 
-- add one real router-based allocation layer
-- enforce buffer and sleeve rules on allocation
-- support deposit, withdrawal, and operating disbursement flows
+Value:
 
-### Deliverables
+- turns AI-CFO from “memo after the fact” into a planning tool.
 
-- `AllocationRouter`
-- `MUSDSavingsRateHandler`
-- `TigrisStablePoolHandler`
-- `BTCReservePolicy`
-- destination state tracking
-- admin-governed destination policy updates for adding or recapping future MUSD-denominated sleeves without redeploying Treasury Accounts
-- allocation decision preview for proposed sleeve actions
-- BTC-denominated reserve bucket accounting and preview-only BTC sleeve policy
-- governed allocation UI flow
-- integration tests for deploy and withdraw behavior
-- Spectrum-backed polling for sleeve and treasury balance state
+Boundary:
 
-### Current V1 sleeves
+- deterministic facts first;
+- LLM memo second;
+- policy remains source of truth.
 
-- **MUSD Savings Vault** at `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16`
-- **Tigris Basic Stable `MUSD/mUSDC` pool** at `0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e`
-- **Tigris Basic Stable `mcbBTC/BTC` pool** at `0xc8BA1027e1D4f9C646B9963Eab89B1e7CF2A476E` as a BTC-correlated reporting/scaffold candidate
+### 3. Proposal packets for controlled execution
 
-### Success criteria
+Prepare proposal artifacts for the TreasuryOS-native multisig and, later, external custody or contract-wallet flows:
 
-- only permitted surplus MUSD can be allocated
-- allocation cap rules are enforced
-- the product can withdraw from sleeves to restore treasury liquidity
-- the Treasury Account can disburse idle MUSD for operations under policy, with elevated withdrawals controlled by the treasury admin path
-- reviewers can see why a proposed allocation is allowed or blocked before execution
+- calldata;
+- expected state change;
+- policy decision;
+- risk note;
+- memo hash or recommendation ID;
+- approval requirement.
 
-### Notes
+Value:
 
-Do not expand the executable MUSD sleeve set beyond MUSD Savings Vault and MUSD/mUSDC unless both are fully convincing. Keep mcbBTC/BTC as BTC-correlated reporting/scaffold or experimental preview until BTC execution is transaction-tested through a guarded handler.
+- bridges advisory output into real institutional execution.
 
-The contract spine can add another MUSD-denominated sleeve later through router handler registration plus destination policy/cap updates. Do not describe this as native BTC-principal allocation support until separate BTC sleeve accounting exists.
+Boundary:
 
-Tigris `mcbBTC/BTC` is the cleanest current BTC-correlated yield candidate because it preserves BTC-like exposure better than BTC/stable LP. Manual Mezo testnet transaction inspection confirms the UI path uses ERC20-style BTC at the BTCCaller/precompile address, so the old "native BTC mechanics unknown" blocker is reduced. V1 now supports proposal-only BTC sleeve planning from idle BTC reserve using pool reserves, a BTC -> mcbBTC quote, min-out/min-LP calculations, and BTCReservePolicy guardrails. V1.5 adds `BTCReserveRouter` and `TigrisBTCStablePoolHandler` for guarded owner/multisig execution with swap min-out, LP min-liquidity, BTC-principal accounting, price-impact/slippage policy, and separate BTC handler authorization. Tigris `MUSD/BTC` and BTC/MUSD concentrated liquidity should be treated as directional BTC/stable strategies, not as the default BTC treasury yield story.
-
-V1 BTC sleeve scope is deliberately a calculator plus policy gate plus advisor memo. It should show MUSD Savings execution, optional MUSD/mUSDC execution, and a BTC sleeve planner that blocks mcbBTC/BTC when price impact, reserve floors, or approval level fails policy. V1.5 guarded execution is implemented as a narrow contract path, but the final demo should not rely on it until controlled testnet broadcast validation passes. The next validation item is `make btc-sleeve-broadcast-dry-run`, followed by `make btc-sleeve-broadcast-validation` only with `BTC_SLEEVE_BROADCAST_CONFIRM=true` in `.env`. LP stake/unstake and reward claim remain separate after deposit/unwind is stable.
-
-For the final demo, keep **MUSD Savings Vault** as the primary guaranteed allocation sleeve. Tigris `MUSD/mUSDC` now has a passing live-fork TreasuryOS deposit/withdraw simulation, but it remains the secondary differentiating sleeve because current testnet liquidity can be thin or imbalanced. Re-run `make demo-status`, `make yield-targets`, and `make mezo-yield-fork-test` before the demo. If Tigris liquidity is poor or the route is unstable, the demo should still show the full treasury workflow through savings: surplus calculation, policy approval, allocation, buffer restoration, automation, reporting, and advisory memo.
-
-Before Tigris is used in the final demo allocation path, keep slippage/min-out controls enabled in `TigrisStablePoolHandler`.
-The required protection is standard AMM execution hygiene:
-
-- minimum paired token output quoted from the router when swapping MUSD into the paired stable
-- minimum token amounts used and minimum LP liquidity minted when adding stable-pool liquidity
-- minimum token amounts returned when removing liquidity and minimum MUSD output when swapping paired tokens back
+- owner approval remains required;
+- AI does not sign.
 
 ---
 
-## Phase 4 — Treasury Operations And Automation
+## V1.5 — Managed Treasury Automation
 
-### Goals
+V1.5 should deepen TreasuryOS as an operations product, not just a dashboard/reporting layer.
 
-- implement the core Treasury Operations Engine
-- monitor treasury conditions
-- produce bounded treasury actions
-- make automation legible and controllable
+### 1. Automated treasury operations
 
-### Deliverables
+Expand the keeper and automation model:
 
-- treasury threshold monitoring
-- surplus detection
-- buffer deficit detection
-- paused-state handling
-- automated or auto-prepared low-risk action flow
-- operations view in the dashboard
-- policy-aware recommendation inputs for the AI memo layer
-- Spectrum-backed live reads for automation checks and transaction execution
-- strategy-aware Treasury Risk Keeper report for collateral health, post-stress CR, defense capacity, and recommended action
-- direct idle-MUSD debt repayment through the automation executor, capped by policy
-- idle BTC collateral top-up path for liquidation defense
+- scheduled buffer checks;
+- policy-triggered debt repayment proposals;
+- collateral-defense recommendations;
+- MUSD Savings unwind for buffer restoration;
+- surplus sweep proposals;
+- escalation when a routine action exceeds limits;
+- one-action-per-run execution for selected defensive paths.
 
-### Required V1 automated behaviors
+Value:
 
-- detect idle MUSD above threshold
-- detect operating buffer shortfall
-- restore buffer from an approved sleeve within configured automation limits
-- repay debt from idle MUSD within configured automation limits
-- withdraw from an approved sleeve and repay debt within configured automation limits
-- add accounted idle BTC to collateral within configured automation limits when that is the least disruptive defense action
-- block non-compliant allocation attempts
-- block non-compliant operating disbursements
-- block unsafe borrow, debt-increase, collateral-withdrawal, and BTC-yield allocation structures when stress or reserve checks fail
-- propose or perform approved low-risk actions
+- reduces manual treasury work;
+- improves response time under stress;
+- makes BTC-backed leverage safer for operating treasuries.
 
-### Success criteria
+Boundary:
 
-- TreasuryOS can show one real automated treasury response
-- final demo can show dry-run, proposal calldata, and guarded one-action execution for idle-MUSD repayment
-- operators can understand why an action was allowed, blocked, or triggered
-- the automation flow is clearly shown as running on top of Spectrum-backed Mezo testnet infrastructure
+- execution remains capped;
+- emergency defense is not fee-charged;
+- elevated actions require owner/multisig approval.
 
-### Notes
+### 2. Goldsky-backed audit timeline
 
-AI should support analysis, explanation, proposal drafting, and post-action reporting. It may act like an AI-CFO for
-small teams that lack a dedicated DeFi treasury operator, but it must not become the controlling authority for treasury
-actions. Deterministic advisor logic and onchain policy remain the source of truth.
+Make event history durable and queryable:
 
-The keeper action model is strategy-aware, not a rigid ladder. Idle BTC collateral top-up may be preferred before unwinding MUSD Savings when the treasury explicitly reserves BTC for collateral defense. If idle BTC is scarce and MUSD Savings is immediately withdrawable, the keeper can prefer MUSD repayment. Offchain MUSD already disbursed for payroll, vendors, settlement, or business operations does not count as defense capacity unless explicitly imported.
+- Treasury Account creation;
+- policy changes;
+- allocation deposits/withdrawals;
+- keeper proposals and executions;
+- multisig approvals;
+- AI-CFO recommendation IDs;
+- blocked policy decisions.
 
----
+Value:
 
-## Phase 5 — Treasury Reporting And Reviewer Views
+- transforms demo proof into institutional reporting infrastructure.
 
-### Goals
+Boundary:
 
-- make TreasuryOS feel like treasury software rather than protocol UI
-- provide useful reporting for operators and reviewers
+- index observed events only;
+- do not manufacture state from offchain assumptions.
 
-### Deliverables
+### 3. External custody and contract-wallet compatibility
 
-- treasury activity timeline
-- idle vs allocated summary
-- sleeve exposure summary
-- BTC reserve, BTC collateral, and BTC sleeve-candidate summary
-- policy decision log
-- Goldsky-powered event history for account, policy, sleeve, automation, and multisig activity
-- Treasury Yield Console
-- AI Treasury Allocation Advisor memo output
-- AI-CFO pre-action opportunity review over live Mezo opportunity reads
-- Term Yield Planner view for simulated 7/30/60-day plans
-- deterministic term-yield planner service for review dates, projected MUSD sleeve yield, and unwind conditions
-- deterministic treasury advisor service that recommends sleeve allocation and bounded automation actions from snapshot inputs
-- structured recommendation output for dashboard, API, and multisig proposal preparation
-- BTC reserve strategy notes documenting V1/V1.5/V2 boundaries
-- reviewer-facing treasury summary
-- documentation showing where Spectrum Nodes is used in the product architecture
+Support production approval workflows:
 
-### Success criteria
+- external owner contracts;
+- Safe-like contract-wallet proposal export;
+- custody approval packet formats;
+- spending-limit policies for routine MUSD actions;
+- stricter BTC-principal approval requirements.
 
-- a finance or reviewer stakeholder can understand what happened without reading raw transactions
-- reporting reflects real state changes and policy outcomes
-- recommendations stay advisory and map back to policy state, buffer state, sleeve caps, exposure, and collateral health
-- reporting does not imply that BTC-principal allocation is live unless a BTC handler has been implemented and deployed
+Value:
 
-### Notes
+- moves TreasuryOS closer to institutional treasury operations.
 
-The AI layer should produce treasury memos such as:
+Boundary:
 
-- idle MUSD exceeds the buffer by a specific amount and only that surplus is allocatable
-- a sleeve cap is close to full and another approved sleeve is preferred
-- collateral health is weakening, so the next action should be buffer restoration or debt repayment rather than more allocation
-
-The Term Yield Planner should remain reporting-oriented in V1. It can model allocation windows, projected yield assumptions, maturity/review dates, and unwind conditions without creating new fixed-yield instruments.
+- TreasuryOS provides workflow and policy;
+- custody provider or client owner remains the authority.
 
 ---
 
-## AI-CFO / Agentic Treasury Roadmap
+## V2 — BTC Treasury Platform
 
-The valuable version of agentic treasury management is not a model that directly controls funds. It is an AI-CFO that
-does the expensive operator work: monitoring, comparing opportunities, explaining tradeoffs, drafting proposals, and
-producing reporting, while TreasuryOS contracts enforce the hard limits.
+V2 is where TreasuryOS becomes a broader platform for BTC-backed operating capital.
 
-### V1 Scope
+### 1. AI-CFO robo-advisor for Bitcoin treasuries
 
-- deterministic advisor ranks opportunities from a treasury snapshot and live Mezo reads
-- profiles map client intent into conservative, balanced, active, or aggressive-demo recommendations
-- AI-CFO packet prepares recommendation id, proposed action details, calldata helper, and blocked-opportunity reasons
-- optional OpenAI memo summarizes deterministic facts for treasury admins and judges
-- keeper recommendations stay bounded to already-whitelisted defensive workflows
-- no AI signer, no AI custody, no arbitrary agent swaps
+The AI-CFO should evolve from report generation into a client-specific treasury operator assistant:
 
-### V1.1 Scope
+- personalized treasury profiles;
+- monitored objectives;
+- policy-scored opportunity ranking;
+- risk-aware MUSD and BTC allocation recommendations;
+- what-if simulations;
+- recommendation history;
+- post-action explanations;
+- client-specific agents with monitor, proposer, reporter, and keeper roles.
 
-- `advisor:plan` pre-action what-if command for onboarding and rebalancing proposals
-- richer structured recommendation JSON with input sources, profile, proposed action, blocked actions, and policy reasons
-- Safe/external custody proposal export that includes memo text, calldata, expected state change, and risk notes
-- recommendation id or memo hash in proposal artifacts for auditability
-- dashboard view that shows "Recommended / Optional / Blocked" opportunities before the user acts
+Value:
 
-### V1.5 Scope
+- maps directly to robo-advisors for Bitcoin portfolios;
+- gives smaller treasury teams institutional-grade operating support.
 
-- Safe transaction builder export or module integration
-- EIP-712 signed recommendation intents from approved operators or agents
-- per-client agent registry with monitor, proposer, reporter, and keeper roles
-- explicit spending limits for routine MUSD allocations, separate from BTC principal movement
-- Goldsky-indexed recommendation and execution timeline
+Boundary:
 
-### V2 Scope
+- no AI signer;
+- no AI custody;
+- no arbitrary agent swaps;
+- no policy bypass.
 
-- MEZO-staked keeper or agent operators
-- governance-approved public strategy templates
-- paid AI/API/reporting credits
-- broader Mezo-native yield integrations after route, liquidity, and unwind validation
+### 2. Automated yield strategies
 
-Production line to preserve:
+TreasuryOS should automate the strategy review process, not blindly chase yield.
 
-> The AI-CFO can recommend and prepare. Policy, multisig, and bounded executors decide what can move.
+Future strategy engine:
+
+- evaluate approved MUSD sleeves;
+- evaluate BTC-denominated sleeves separately;
+- compare expected yield, liquidity, lockup, and unwind conditions;
+- enforce exposure caps;
+- preserve operating buffer;
+- prioritize de-risk actions under stress;
+- prepare proposals when movement requires owner approval.
+
+Value:
+
+- turns yield into a governed treasury process.
+
+Boundary:
+
+- allocation only after route, liquidity, price-impact, and unwind checks pass;
+- BTC principal requires separate BTC accounting and stronger approval.
+
+### 3. Yield optimization across Mezo ecosystem
+
+As the Mezo ecosystem matures, TreasuryOS can become the routing and control layer for treasury capital:
+
+- MUSD Savings;
+- Tigris stable-pool routes;
+- BTC-correlated pools;
+- future Mezo-native lending/yield destinations;
+- external BTC vaults available on mainnet;
+- lock/staking-style positions with explicit maturity and withdrawal modeling;
+- LP staking and reward claim support once position accounting is stable.
+
+Value:
+
+- gives BTC treasuries a governed way to access more productive capital opportunities.
+
+Boundary:
+
+- no unvalidated integrations;
+- no hidden principal risk;
+- no “APY-first” UI.
+
+### 4. Borrowing, leverage, and credit-line management
+
+TreasuryOS can grow into a credit-line management layer for BTC-backed working capital:
+
+- target collateral-ratio policies;
+- warning and critical thresholds;
+- post-stress CR modeling;
+- borrow/repay planning;
+- liquidation-defense runbooks;
+- debt repayment automation;
+- collateral top-up logic;
+- close-position planning.
+
+Value:
+
+- makes BTC-backed borrowing operationally safer.
+
+Boundary:
+
+- risk-reducing actions before yield actions;
+- offchain spent MUSD is not counted as defense capacity unless explicitly imported.
+
+### 5. Institutional accounting and reporting
+
+TreasuryOS should become the system of record for BTC-backed MUSD operating capital:
+
+- treasury balance sheet;
+- idle vs allocated MUSD;
+- BTC collateral vs idle BTC reserve;
+- sleeve exposure;
+- receipt-token accounting;
+- realized/unrealized yield estimates;
+- policy decision history;
+- approval evidence;
+- exportable reports;
+- audit-ready timelines.
+
+Value:
+
+- turns onchain activity into CFO, auditor, and investment-committee language.
+
+Boundary:
+
+- reporting should distinguish observed onchain state from estimates or assumptions.
+
+### 6. Compliance-ready controls
+
+TreasuryOS should support internal-control workflows without overclaiming legal compliance:
+
+- role policies;
+- destination allowlists;
+- recipient allowlists;
+- approval thresholds;
+- operating disbursement categories;
+- KYB/client metadata references;
+- policy change history;
+- restricted destination policies;
+- exception memos.
+
+Value:
+
+- makes TreasuryOS credible for corporate and institutional treasury teams.
+
+Boundary:
+
+- internal compliance infrastructure, not legal/regulatory compliance certification.
 
 ---
 
-## Phase 6 — Demo Hardening
+## V2 Monetization And x402
 
-### Goals
+TreasuryOS should monetize like treasury software, not like an extractive DeFi router.
 
-- connect the workflow into one coherent demo
-- remove weak transitions or mock-looking gaps
-- harden failure paths and narrative clarity
+### Primary monetization paths
 
-### Deliverables
+- subscription for hosted monitoring and reporting;
+- paid AI-CFO memo generation;
+- paid report packs;
+- paid API snapshots;
+- paid strategy simulations;
+- enterprise setup/onboarding;
+- optional premium analytics;
+- MEZO/MUSD subscription credits.
 
-- final end-to-end scenario
-- demo script
-- fallback plan for live demo risk
-- polished judge-facing narrative
-- explicit Spectrum Nodes integration callout in the demo and architecture notes
-- Goldsky indexing story with clear deployed-address/start-block prerequisites
+### x402-paid treasury intelligence
 
-### Required demo sequence
+x402-style payments fit TreasuryOS best as a payment rail for read-only intelligence and reporting:
 
-1. create Treasury Account
-2. configure treasury policy and approvals
-3. deposit BTC and borrow MUSD through TreasuryOS
-4. receive MUSD into Treasury Account
-5. disburse a portion for treasury operations
-6. allocate approved surplus into savings and approved Tigris sleeve
-7. trigger buffer or policy condition
-8. show bounded treasury response
-9. show Treasury Yield Console with policy decision result
-10. show AI treasury memo and reviewer view
-11. explicitly show the active RPC provider and Spectrum-preferred selection path
-12. show the Goldsky-backed reporting/indexing plan without pretending unpublished indexer state is live
+- AI-CFO reports;
+- risk snapshots;
+- audit packs;
+- accounting exports;
+- strategy simulations;
+- agent-readable treasury APIs.
+
+x402 should not gate:
+
+- core custody;
+- debt repayment;
+- collateral defense;
+- emergency keeper execution;
+- BTC principal movement;
+- MUSD buffer restoration.
+
+The important boundary:
+
+> x402 gates intelligence and reporting, not treasury funds.
+
+Client BTC, MUSD, receipt tokens, and LP positions remain controlled by the Treasury Account owner, TreasuryOS-native multisig, external custody path, and bounded keeper executor.
+
+---
+
+## Mezo Track Alignment
+
+TreasuryOS is centered on **BTC Treasury Management & Institutional Services**, but the roadmap intentionally touches every Mezo focus area.
+
+| Hackathon focus area | TreasuryOS roadmap fit |
+| --- | --- |
+| Bitcoin Yield & Investment | Automated yield strategies, BTC vaults, staking/lock modeling, liquidity provision, yield optimization, AI-CFO robo-advisory |
+| Borrowing & Leverage on BTC | BTC-backed MUSD position management, credit-line monitoring, liquidation-defense planning, collateral-ratio stress tests |
+| Paying & Receiving BTC on Mezo | x402-paid treasury intelligence, report/API payments, future operating-payment workflows |
+| BTC Treasury Management & Institutional Services | Corporate treasury workflows, custody/multisig controls, accounting/reporting, compliance-ready policies, automated treasury operations |
+
+---
+
+## What TreasuryOS Should Not Become
+
+To keep the platform credible, TreasuryOS should avoid these traps:
+
+- unchecked autonomous AI trading;
+- proprietary “black box” yield vaults;
+- routing BTC principal through MUSD accounting;
+- APY-first UI that ignores liquidity and unwind risk;
+- emergency-defense fee extraction;
+- pretending testnet liquidity is production-safe;
+- overclaiming regulatory compliance;
+- replacing Mezo’s core borrowing infrastructure;
+- replacing institutional custody providers.
+
+TreasuryOS should stay focused on the operating layer:
+
+> govern capital, defend the position, optimize approved surplus, and report the outcome.
+
+---
+
+## Product Milestones
+
+### Milestone 1 — Finalized demo workspace
+
+- hosted read-only dashboard;
+- final report pack;
+- public deployment manifest;
+- scenario-proof runbook;
+- clean public README and docs.
+
+### Milestone 2 — Advisor planning product
+
+- what-if simulations;
+- structured recommendation packets;
+- profile-based onboarding;
+- proposal artifacts;
+- memo hashes or recommendation IDs.
+
+### Milestone 3 — Managed treasury automation
+
+- scheduled monitoring;
+- routine capped actions;
+- escalation rules;
+- post-action reports;
+- indexed action history.
+
+### Milestone 4 — Expanded Mezo yield coverage
+
+- validated MUSD sleeves;
+- BTC-correlated sleeves;
+- BTC vault integrations;
+- lock/staking models;
+- LP staking/reward claim support where safe.
+
+### Milestone 5 — Institutional platform readiness
+
+- external custody and contract-wallet workflows;
+- report exports;
+- accounting and compliance-control modules;
+- multi-tenant dashboard;
+- paid treasury intelligence APIs.
+
+---
+
+## North Star
+
+TreasuryOS should make BTC-backed MUSD capital usable as governed operating capital for real treasuries.
+
+The final platform should help a treasury answer five questions:
+
+1. How much can we borrow safely against BTC?
+2. How much MUSD must remain liquid for operations and defense?
+3. Which surplus can be allocated, where, and under what policy?
+4. What should we do when risk changes?
+5. How do we explain and prove every action to operators, finance teams, auditors, and stakeholders?
+
+If TreasuryOS answers those questions with onchain proof, policy controls, bounded automation, and AI-assisted reporting, it becomes much more than a hackathon demo. It becomes treasury infrastructure for Bitcoin working capital on Mezo.
