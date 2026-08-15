@@ -12,6 +12,10 @@
   <a href="#ai-cfo-agent"><img alt="AI-CFO Reports" src="https://img.shields.io/badge/AI--CFO-Treasury%20Reports-475569"></a>
 </p>
 
+<p align="center">
+  <a href="https://mezo.org/blog/announcing-mezo-hackathon-2-winners/"><strong>2nd place — Bitcoin Banking track, Mezo Hackathon 2</strong></a>
+</p>
+
 Mezo lets Bitcoin holders borrow MUSD without selling BTC. **Mezo TreasuryOS** turns that capital rail into a treasury operating system for institutions: borrow against BTC, preserve liquidity, allocate approved surplus, defend collateral health, and produce board-ready reporting from one policy-governed workspace.
 
 > The agent is not trusted. The policy is trusted.
@@ -29,6 +33,8 @@ Mezo lets Bitcoin holders borrow MUSD without selling BTC. **Mezo TreasuryOS** t
 ---
 
 ## TL;DR
+
+> **Project status:** Working research/prototype implementation on Mezo testnet. Not audited or intended for production use.
 
 Mezo TreasuryOS demonstrates a full BTC treasury workflow on Mezo testnet:
 
@@ -84,7 +90,7 @@ Without that layer, BTC-backed working capital remains a loose mix of protocol a
 
 ## Built For
 
-**Mezo Hackathon — Bank on Bitcoin / Bitcoin Track**
+**Mezo Hackathon 2 — Bitcoin Banking track**
 
 Primary focus area:
 
@@ -112,6 +118,8 @@ Track alignment:
 ---
 
 ## Submission Snapshot
+
+This snapshot reflects the submitted demo state at judging time.
 
 | Area | Status |
 | --- | --- |
